@@ -12,15 +12,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
 
 export default function AuthScreen() {
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, authError } = useAuth();
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
 
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    console.log('handleSubmit fired, mode:', mode);
     if (!email.includes('@')) {
       setError('Enter a valid email');
       return;
@@ -35,12 +37,18 @@ export default function AuthScreen() {
     }
 
     setError('');
+    setIsSubmitting(true);
     if (mode === 'signIn') {
-      signIn(email, password);
+      await signIn(email, password);
     } else {
-      signUp(email, username.trim(), password);
+      await signUp(email, username.trim(), password);
     }
+    setIsSubmitting(false);
   };
+
+  // authError comes back from Supabase itself (e.g. "Invalid login credentials",
+  // "User already registered") — show it alongside local validation errors.
+  const displayError = error || authError;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -101,11 +109,15 @@ export default function AuthScreen() {
             onChangeText={setPassword}
           />
 
-          {error !== '' && <Text style={styles.error}>{error}</Text>}
+          {displayError ? <Text style={styles.error}>{displayError}</Text> : null}
 
-          <Pressable style={styles.submitButton} onPress={handleSubmit}>
+          <Pressable
+            style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={isSubmitting}
+          >
             <Text style={styles.submitText}>
-              {mode === 'signIn' ? 'Sign in' : 'Create account'}
+              {isSubmitting ? 'Please wait…' : mode === 'signIn' ? 'Sign in' : 'Create account'}
             </Text>
           </Pressable>
         </View>
@@ -155,5 +167,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 6,
   },
+  submitButtonDisabled: { opacity: 0.6 },
   submitText: { color: '#ffffff', fontSize: 14, fontWeight: '600' },
 });
