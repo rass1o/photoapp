@@ -1,86 +1,174 @@
-import { View, Text, FlatList, StyleSheet, Pressable } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { View, Text, FlatList, StyleSheet, Pressable, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { supabase } from '../lib/supabase';
 
-// TEMP: replace with a real submissions table fetch from Supabase
-const MOCK_THEME = 'Golden hour';
-const MOCK_SUBMISSIONS = [
-  { id: '1', username: 'jmiller', streak: 14 },
-  { id: '2', username: 'nadia.exposures', streak: 6 },
-];
+type Theme = {
+  id: string;
+  name: string;
+  end_date: string;
+};
+
+type Submission = {
+  id: string;
+  user_id: string;
+  image_url: string;
+  format: 'digital' | 'film';
+  vote_count: number;
+  created_at: string;
+};
+
+function formatCountdown(endDate: string): string {
+  const msLeft = new Date(endDate).getTime() - Date.now();
+  if (msLeft <= 0) return 'Voting closed';
+  const days = Math.floor(msLeft / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((msLeft / (1000 * 60 * 60)) % 24);
+  return `Voting ends in ${days}d ${hours}h`;
+}
 
 export default function HomeScreen() {
+  const [theme, setTheme] = useState<Theme | null>(null);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [format, setFormat] = useState<'digital' | 'film'>('digital');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const loadData = useCallback(async (selectedFormat: 'digital' | 'film') => {
+    setErrorMessage(null);
+
+    // Find the theme whose date range covers right now
+    const nowIso = new Date().toISOString();
+    const { data: themeData, error: themeError } = await supabase
+      .from('themes')
+      .select('id, name, end_date')
+      .lte('start_date', nowIso)
+      .gte('end_date', nowIso)
+      .order('start_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (themeError) {
+      setErrorMessage(themeError.message);
+      return;
+    }
+
+    setTheme(themeData);
+
+    if (!themeData) {
+      setSubmissions([]);
+      return;
+    }
+
+    const { data: submissionsData, error: submissionsError } = await supabase
+      .from('submissions')
+      .select('id, user_id, image_url, format, vote_count, created_at')
+      .eq('theme_id', themeData.id)
+      .eq('format', selectedFormat)
+      .order('created_at', { ascending: false });
+
+    if (submissionsError) {
+      setErrorMessage(submissionsError.message);
+      return;
+    }
+
+    setSubmissions(submissionsData ?? []);
+  }, []);
+
+  useEffect(() => {
+    setIsLoading(true);
+    loadData(format).finally(() => setIsLoading(false));
+  }, [format, loadData]);
+
+  const onRefresh = async () => {
+    setIsRefreshing(true);
+    await loadData(format);
+    setIsRefreshing(false);
+  };
+
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
-      {/* Top bar */}
       <View style={styles.topBar}>
         <Text style={styles.appName}>Frames</Text>
         <View style={styles.topBarIcons}>
-          <View style={styles.currencyPill}>
-            <Ionicons name="flash-outline" size={13} color="#1A2A32" />
-            <Text style={styles.currencyText}>1,240</Text>
-          </View>
-          <Ionicons name="search-outline" size={20} color="#1A2A32" style={styles.icon} />
-          <Ionicons name="notifications-outline" size={20} color="#1A2A32" style={styles.icon} />
+          <Ionicons name="search-outline" size={20} color="#1A2A32" />
+          <Ionicons name="notifications-outline" size={20} color="#1A2A32" style={{ marginLeft: 10 }} />
         </View>
       </View>
 
-      {/* Centered theme banner */}
       <View style={styles.themeBanner}>
         <Text style={styles.themeLabel}>THIS WEEK'S THEME</Text>
-        <Text style={styles.themeName}>{MOCK_THEME}</Text>
-        <Text style={styles.themeCountdown}>Voting ends in 2d 6h</Text>
+        <Text style={styles.themeName}>{theme?.name ?? 'No active theme'}</Text>
+        {theme && <Text style={styles.themeCountdown}>{formatCountdown(theme.end_date)}</Text>}
       </View>
 
-      {/* Digital / Film toggle */}
       <View style={styles.toggleRow}>
-        <Pressable style={[styles.toggle, styles.toggleActive]}>
-          <Text style={styles.toggleTextActive}>Digital</Text>
+        <Pressable
+          style={[styles.toggle, format === 'digital' && styles.toggleActive]}
+          onPress={() => setFormat('digital')}
+        >
+          <Text style={format === 'digital' ? styles.toggleTextActive : styles.toggleText}>
+            Digital
+          </Text>
         </Pressable>
-        <Pressable style={styles.toggle}>
-          <Text style={styles.toggleText}>Film</Text>
+        <Pressable
+          style={[styles.toggle, format === 'film' && styles.toggleActive]}
+          onPress={() => setFormat('film')}
+        >
+          <Text style={format === 'film' ? styles.toggleTextActive : styles.toggleText}>
+            Film
+          </Text>
         </Pressable>
       </View>
 
-      {/* Feed */}
-      <FlatList
-        style={styles.feedSheet}
-        data={MOCK_SUBMISSIONS}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <View style={styles.avatar} />
-              <Text style={styles.username}>{item.username}</Text>
-              <Text style={styles.streak}>· {item.streak} day streak</Text>
-              <Ionicons name="ellipsis-horizontal" size={16} color="#9ca3af" style={{ marginLeft: 'auto' }} />
+      {isLoading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator color="#0B1418" />
+        </View>
+      ) : errorMessage ? (
+        <View style={styles.centered}>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        </View>
+      ) : (
+        <FlatList
+          style={styles.feedSheet}
+          data={submissions}
+          keyExtractor={(item) => item.id}
+          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
+          ListEmptyComponent={
+            <View style={styles.centered}>
+              <Text style={styles.emptyText}>
+                No {format} submissions yet for this theme. Be the first!
+              </Text>
             </View>
-
-            {/* Filler image placeholder */}
-            <View style={styles.imagePlaceholder}>
-              <Ionicons name="image-outline" size={32} color="#9ca3af" />
-            </View>
-
-            <View style={styles.actionsRow}>
-              <View style={styles.actionItem}>
-                <Ionicons name="heart-outline" size={18} color="#4b5563" />
-                <Text style={styles.actionText}>128</Text>
+          }
+          renderItem={({ item }) => (
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <View style={styles.avatar} />
+                {/* TODO: replace with real username once a public profiles table exists */}
+                <Text style={styles.username}>user_{item.user_id.slice(0, 6)}</Text>
+                <Ionicons name="ellipsis-horizontal" size={16} color="#9ca3af" style={{ marginLeft: 'auto' }} />
               </View>
-              <View style={styles.actionItem}>
-                <Ionicons name="chatbubble-outline" size={17} color="#4b5563" />
-                <Text style={styles.actionText}>9</Text>
-              </View>
-              <Pressable style={styles.actionItem}>
-                <Ionicons name="rocket-outline" size={17} color="#4b5563" />
-                <Text style={styles.actionText}>Boost</Text>
-              </Pressable>
-              <Ionicons name="share-outline" size={18} color="#4b5563" style={{ marginLeft: 'auto' }} />
-            </View>
-          </View>
-        )}
-      />
 
-      {/* Bottom tab bar is provided by the navigator; this is just the icon set reference */}
+              <Image source={{ uri: item.image_url }} style={styles.image} />
+
+              <View style={styles.actionsRow}>
+                <View style={styles.actionItem}>
+                  <Ionicons name="heart-outline" size={18} color="#4b5563" />
+                  <Text style={styles.actionText}>{item.vote_count}</Text>
+                </View>
+                <View style={styles.actionItem}>
+                  <Ionicons name="chatbubble-outline" size={17} color="#4b5563" />
+                  <Text style={styles.actionText}>0</Text>
+                </View>
+                <Ionicons name="share-outline" size={18} color="#4b5563" style={{ marginLeft: 'auto' }} />
+              </View>
+            </View>
+          )}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -96,18 +184,7 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   appName: { fontSize: 17, fontWeight: '600', color: '#1A2A32' },
-  topBarIcons: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  icon: { marginLeft: 2 },
-  currencyPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.6)',
-    borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  currencyText: { fontSize: 11, fontWeight: '600', color: '#1A2A32' },
+  topBarIcons: { flexDirection: 'row', alignItems: 'center' },
 
   themeBanner: { alignItems: 'center', paddingVertical: 16 },
   themeLabel: { fontSize: 11, color: '#46606B', letterSpacing: 0.5, marginBottom: 4 },
@@ -134,19 +211,15 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     paddingTop: 4,
   },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, paddingHorizontal: 30 },
+  errorText: { color: '#b91c1c', fontSize: 13, textAlign: 'center' },
+  emptyText: { color: '#9ca3af', fontSize: 13, textAlign: 'center' },
+
   card: { paddingHorizontal: 16, paddingTop: 14 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#dbeafe' },
   username: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  streak: { fontSize: 12, color: '#9ca3af' },
-  imagePlaceholder: {
-    width: '100%',
-    height: 220,
-    borderRadius: 10,
-    backgroundColor: '#f3f4f6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  image: { width: '100%', height: 320, borderRadius: 10, backgroundColor: '#f3f4f6' },
   actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 10 },
   actionItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   actionText: { fontSize: 13, color: '#4b5563' },

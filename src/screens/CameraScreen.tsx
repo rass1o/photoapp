@@ -1,25 +1,63 @@
-import { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Image, Alert, ActivityIndicator } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, Image, Alert, ActivityIndicator, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
-// TEMP: hardcoded until a real themes table exists
-const CURRENT_THEME = 'Golden hour';
-const CURRENT_THEME_ID = 'golden-hour';
+type Theme = {
+  id: string;
+  name: string;
+};
 
 export default function CameraScreen() {
   const { user } = useAuth();
+  const [theme, setTheme] = useState<Theme | null>(null);
+  const [isLoadingTheme, setIsLoadingTheme] = useState(true);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [format, setFormat] = useState<'digital' | 'film'>('digital');
   const [isUploading, setIsUploading] = useState(false);
 
+  useEffect(() => {
+    const loadTheme = async () => {
+      const nowIso = new Date().toISOString();
+      const { data } = await supabase
+        .from('themes')
+        .select('id, name')
+        .lte('start_date', nowIso)
+        .gte('end_date', nowIso)
+        .order('start_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      setTheme(data);
+      setIsLoadingTheme(false);
+    };
+
+    loadTheme();
+  }, []);
+
   const pickImage = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert('Permission needed', 'Allow photo library access to submit a photo.');
-      return;
+    const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
+
+    if (permission.status !== 'granted') {
+      if (!permission.canAskAgain) {
+        Alert.alert(
+          'Photo access needed',
+          'Enable photo access for Expo Go in Settings to submit a photo.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          ]
+        );
+        return;
+      }
+
+      const requested = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!requested.granted) {
+        Alert.alert('Permission needed', 'Allow photo library access to submit a photo.');
+        return;
+      }
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -35,11 +73,10 @@ export default function CameraScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!imageUri || !user) return;
+    if (!imageUri || !user || !theme) return;
     setIsUploading(true);
 
     try {
-      // Read the picked image as bytes so it can be uploaded to Supabase Storage
       const response = await fetch(imageUri);
       const arrayBuffer = await response.arrayBuffer();
       const fileExt = imageUri.split('.').pop() ?? 'jpg';
@@ -59,7 +96,7 @@ export default function CameraScreen() {
 
       const { error: insertError } = await supabase.from('submissions').insert({
         user_id: user.id,
-        theme_id: CURRENT_THEME_ID,
+        theme_id: theme.id,
         image_url: publicUrlData.publicUrl,
         format,
       });
@@ -76,9 +113,26 @@ export default function CameraScreen() {
     }
   };
 
+  if (isLoadingTheme) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ActivityIndicator style={{ marginTop: 40 }} color="#0B1418" />
+      </SafeAreaView>
+    );
+  }
+
+  if (!theme) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.title}>No active theme right now</Text>
+        <Text style={styles.subtitle}>Check back once this week's theme is live.</Text>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Submit for "{CURRENT_THEME}"</Text>
+      <Text style={styles.title}>Submit for "{theme.name}"</Text>
       <Text style={styles.subtitle}>0 of 1 submissions used this week</Text>
 
       <Pressable style={styles.captureButton} onPress={pickImage}>
