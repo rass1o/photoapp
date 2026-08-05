@@ -3,6 +3,7 @@ import { View, Text, FlatList, StyleSheet, Pressable, Image, ActivityIndicator, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 type Theme = {
   id: string;
@@ -28,8 +29,11 @@ function formatCountdown(endDate: string): string {
 }
 
 export default function HomeScreen() {
+  const { user } = useAuth();
   const [theme, setTheme] = useState<Theme | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [votedIds, setVotedIds] = useState<Set<string>>(new Set());
+  const [pendingVoteIds, setPendingVoteIds] = useState<Set<string>>(new Set());
   const [format, setFormat] = useState<'digital' | 'film'>('digital');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -38,7 +42,6 @@ export default function HomeScreen() {
   const loadData = useCallback(async (selectedFormat: 'digital' | 'film') => {
     setErrorMessage(null);
 
-    // Find the theme whose date range covers right now
     const nowIso = new Date().toISOString();
     const { data: themeData, error: themeError } = await supabase
       .from('themes')
@@ -74,7 +77,20 @@ export default function HomeScreen() {
     }
 
     setSubmissions(submissionsData ?? []);
-  }, []);
+
+    // Find which of these submissions the current user has already voted on
+    if (user && submissionsData && submissionsData.length > 0) {
+      const { data: voteRows } = await supabase
+        .from('votes')
+        .select('submission_id')
+        .eq('user_id', user.id)
+        .in('submission_id', submissionsData.map((s) => s.id));
+
+      setVotedIds(new Set((voteRows ?? []).map((v) => v.submission_id)));
+    } else {
+      setVotedIds(new Set());
+    }
+  }, [user]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -85,6 +101,54 @@ export default function HomeScreen() {
     setIsRefreshing(true);
     await loadData(format);
     setIsRefreshing(false);
+  };
+
+  const toggleVote = async (submissionId: string) => {
+    if (!user || pendingVoteIds.has(submissionId)) return;
+
+    const alreadyVoted = votedIds.has(submissionId);
+    setPendingVoteIds((prev) => new Set(prev).add(submissionId));
+
+    // Optimistic update so the UI feels instant
+    setVotedIds((prev) => {
+      const next = new Set(prev);
+      alreadyVoted ? next.delete(submissionId) : next.add(submissionId);
+      return next;
+    });
+    setSubmissions((prev) =>
+      prev.map((s) =>
+        s.id === submissionId
+          ? { ...s, vote_count: s.vote_count + (alreadyVoted ? -1 : 1) }
+          : s
+      )
+    );
+
+    const { error } = alreadyVoted
+      ? await supabase.from('votes').delete().eq('user_id', user.id).eq('submission_id', submissionId)
+      : await supabase.from('votes').insert({ user_id: user.id, submission_id: submissionId });
+
+    if (error) {
+      // Roll back on failure
+      setVotedIds((prev) => {
+        const next = new Set(prev);
+        alreadyVoted ? next.add(submissionId) : next.delete(submissionId);
+        return next;
+      });
+      setSubmissions((prev) =>
+        prev.map((s) =>
+          s.id === submissionId
+            ? { ...s, vote_count: s.vote_count + (alreadyVoted ? 1 : -1) }
+            : s
+        )
+      );
+      console.log('Vote failed:', error.message);
+    }
+
+    setPendingVoteIds((prev) => {
+      const next = new Set(prev);
+      next.delete(submissionId);
+      return next;
+    });
   };
 
   return (
@@ -143,30 +207,39 @@ export default function HomeScreen() {
               </Text>
             </View>
           }
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <View style={styles.avatar} />
-                {/* TODO: replace with real username once a public profiles table exists */}
-                <Text style={styles.username}>user_{item.user_id.slice(0, 6)}</Text>
-                <Ionicons name="ellipsis-horizontal" size={16} color="#9ca3af" style={{ marginLeft: 'auto' }} />
-              </View>
-
-              <Image source={{ uri: item.image_url }} style={styles.image} />
-
-              <View style={styles.actionsRow}>
-                <View style={styles.actionItem}>
-                  <Ionicons name="heart-outline" size={18} color="#4b5563" />
-                  <Text style={styles.actionText}>{item.vote_count}</Text>
+          renderItem={({ item }) => {
+            const hasVoted = votedIds.has(item.id);
+            return (
+              <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.avatar} />
+                  {/* TODO: replace with real username once a public profiles table exists */}
+                  <Text style={styles.username}>user_{item.user_id.slice(0, 6)}</Text>
+                  <Ionicons name="ellipsis-horizontal" size={16} color="#9ca3af" style={{ marginLeft: 'auto' }} />
                 </View>
-                <View style={styles.actionItem}>
-                  <Ionicons name="chatbubble-outline" size={17} color="#4b5563" />
-                  <Text style={styles.actionText}>0</Text>
+
+                <Image source={{ uri: item.image_url }} style={styles.image} />
+
+                <View style={styles.actionsRow}>
+                  <Pressable style={styles.actionItem} onPress={() => toggleVote(item.id)}>
+                    <Ionicons
+                      name={hasVoted ? 'heart' : 'heart-outline'}
+                      size={20}
+                      color={hasVoted ? '#dc2626' : '#4b5563'}
+                    />
+                    <Text style={[styles.actionText, hasVoted && styles.actionTextActive]}>
+                      {item.vote_count}
+                    </Text>
+                  </Pressable>
+                  <View style={styles.actionItem}>
+                    <Ionicons name="chatbubble-outline" size={17} color="#4b5563" />
+                    <Text style={styles.actionText}>0</Text>
+                  </View>
+                  <Ionicons name="share-outline" size={18} color="#4b5563" style={{ marginLeft: 'auto' }} />
                 </View>
-                <Ionicons name="share-outline" size={18} color="#4b5563" style={{ marginLeft: 'auto' }} />
               </View>
-            </View>
-          )}
+            );
+          }}
         />
       )}
     </SafeAreaView>
@@ -223,4 +296,5 @@ const styles = StyleSheet.create({
   actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 10 },
   actionItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   actionText: { fontSize: 13, color: '#4b5563' },
+  actionTextActive: { color: '#dc2626', fontWeight: '600' },
 });
