@@ -18,6 +18,7 @@ type Submission = {
   format: 'digital' | 'film';
   vote_count: number;
   created_at: string;
+  username: string;
 };
 
 function formatCountdown(endDate: string): string {
@@ -76,7 +77,21 @@ export default function HomeScreen() {
       return;
     }
 
-    setSubmissions(submissionsData ?? []);
+    const rows = submissionsData ?? [];
+
+    // Look up usernames for everyone who submitted, in one batched query
+    let usernameById = new Map<string, string>();
+    if (rows.length > 0) {
+      const { data: profileRows } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .in('id', rows.map((r) => r.user_id));
+      usernameById = new Map((profileRows ?? []).map((p) => [p.id, p.username]));
+    }
+
+    setSubmissions(
+      rows.map((r) => ({ ...r, username: usernameById.get(r.user_id) ?? 'unknown' }))
+    );
 
     // Find which of these submissions the current user has already voted on
     if (user && submissionsData && submissionsData.length > 0) {
@@ -213,8 +228,8 @@ export default function HomeScreen() {
               <View style={styles.card}>
                 <View style={styles.cardHeader}>
                   <View style={styles.avatar} />
-                  {/* TODO: replace with real username once a public profiles table exists */}
-                  <Text style={styles.username}>user_{item.user_id.slice(0, 6)}</Text>
+                  {/* TODO: replace with real avatar photo once profiles support one */}
+                  <Text style={styles.username}>{item.username}</Text>
                   <Ionicons name="ellipsis-horizontal" size={16} color="#9ca3af" style={{ marginLeft: 'auto' }} />
                 </View>
 

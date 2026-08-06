@@ -1,8 +1,20 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
+
+type Profile = {
+  id: string;
+  username: string;
+  bio: string;
+  avatar_frame_color: string;
+  banner_color: string;
+  badge: string;
+  streak_count: number;
+  currency_balance: number;
+};
 
 type CustomizeButtonProps = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -25,7 +37,6 @@ function CustomizeButton({ icon, label, onPress, accent }: CustomizeButtonProps)
   );
 }
 
-// TEMP: swap for real unlocked-item data pulled from the currency/shop system
 const FRAME_COLORS = ['#7c3aed', '#0ea5e9', '#f59e0b', '#ef4444', '#10b981'];
 const BANNER_COLORS = ['#D9E2E6', '#FDE8D9', '#E4DFF7', '#DCEEE4'];
 const BADGES: Array<{ icon: keyof typeof Ionicons.glyphMap; label: string }> = [
@@ -37,43 +48,83 @@ const BADGES: Array<{ icon: keyof typeof Ionicons.glyphMap; label: string }> = [
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const [frameIndex, setFrameIndex] = useState(0);
-  const [bannerIndex, setBannerIndex] = useState(0);
-  const [badgeIndex, setBadgeIndex] = useState(0);
-
-  const [bio, setBio] = useState('Shoots on film, mostly by accident');
   const [isEditingBio, setIsEditingBio] = useState(false);
-  const [draftBio, setDraftBio] = useState(bio);
+  const [draftBio, setDraftBio] = useState('');
 
-  const cycleFrame = () => setFrameIndex((i) => (i + 1) % FRAME_COLORS.length);
-  const cycleBanner = () => setBannerIndex((i) => (i + 1) % BANNER_COLORS.length);
-  const cycleBadge = () => setBadgeIndex((i) => (i + 1) % BADGES.length);
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+      .then(({ data, error }) => {
+        if (!error && data) setProfile(data);
+        setIsLoading(false);
+      });
+  }, [user]);
+
+  const updateProfile = async (changes: Partial<Profile>) => {
+    if (!user || !profile) return;
+    // Optimistic update — reflect the change immediately, persist in the background
+    setProfile({ ...profile, ...changes });
+    const { error } = await supabase.from('profiles').update(changes).eq('id', user.id);
+    if (error) console.log('Profile update failed:', error.message);
+  };
+
+  const cycleFrame = () => {
+    if (!profile) return;
+    const next = FRAME_COLORS[(FRAME_COLORS.indexOf(profile.avatar_frame_color) + 1) % FRAME_COLORS.length];
+    updateProfile({ avatar_frame_color: next });
+  };
+
+  const cycleBanner = () => {
+    if (!profile) return;
+    const next = BANNER_COLORS[(BANNER_COLORS.indexOf(profile.banner_color) + 1) % BANNER_COLORS.length];
+    updateProfile({ banner_color: next });
+  };
+
+  const cycleBadge = () => {
+    if (!profile) return;
+    const currentIndex = BADGES.findIndex((b) => b.icon === profile.badge);
+    const next = BADGES[(currentIndex + 1) % BADGES.length];
+    updateProfile({ badge: next.icon });
+  };
 
   const startEditBio = () => {
-    setDraftBio(bio);
+    setDraftBio(profile?.bio ?? '');
     setIsEditingBio(true);
   };
+
   const saveBio = () => {
-    setBio(draftBio.trim() || bio);
+    updateProfile({ bio: draftBio.trim() });
     setIsEditingBio(false);
   };
 
-  const activeBadge = BADGES[badgeIndex];
+  if (isLoading || !profile) {
+    return (
+      <SafeAreaView style={[styles.screen, { alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator color="#0B1418" />
+      </SafeAreaView>
+    );
+  }
+
+  const activeBadge = BADGES.find((b) => b.icon === profile.badge) ?? BADGES[0];
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: BANNER_COLORS[bannerIndex] }]} edges={['top']}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: profile.banner_color }]} edges={['top']}>
       <View style={styles.header}>
         <Pressable
           onPress={cycleFrame}
-          style={[styles.avatar, { borderColor: FRAME_COLORS[frameIndex] }]}
+          style={[styles.avatar, { borderColor: profile.avatar_frame_color }]}
         >
-          <Text style={styles.avatarInitials}>
-            {(user?.username ?? 'M K').slice(0, 2).toUpperCase()}
-          </Text>
+          <Text style={styles.avatarInitials}>{profile.username.slice(0, 2).toUpperCase()}</Text>
         </Pressable>
 
-        <Text style={styles.username}>{user?.username ?? 'maya.k'}</Text>
+        <Text style={styles.username}>{profile.username}</Text>
 
         {isEditingBio ? (
           <View style={styles.bioEditRow}>
@@ -83,34 +134,33 @@ export default function ProfileScreen() {
               onChangeText={setDraftBio}
               autoFocus
               maxLength={80}
+              placeholder="Add a bio"
             />
             <Pressable onPress={saveBio} style={styles.bioSaveButton}>
               <Ionicons name="checkmark" size={16} color="#ffffff" />
             </Pressable>
           </View>
         ) : (
-          <Text style={styles.bio}>{bio}</Text>
+          <Text style={styles.bio}>{profile.bio || 'Add a bio'}</Text>
         )}
 
         <Pressable style={styles.streakPill} onPress={cycleBadge}>
           <Ionicons name={activeBadge.icon} size={13} color="#92400e" />
-          <Text style={styles.streakText}>14 week streak · {activeBadge.label}</Text>
+          <Text style={styles.streakText}>
+            {profile.streak_count} week streak · {activeBadge.label}
+          </Text>
         </Pressable>
       </View>
 
       <View style={styles.sheet}>
         <View style={styles.statsRow}>
           <View style={styles.stat}>
-            <Text style={styles.statValue}>6</Text>
-            <Text style={styles.statLabel}>wins</Text>
+            <Text style={styles.statValue}>{profile.streak_count}</Text>
+            <Text style={styles.statLabel}>streak</Text>
           </View>
           <View style={styles.stat}>
-            <Text style={styles.statValue}>1,240</Text>
+            <Text style={styles.statValue}>{profile.currency_balance}</Text>
             <Text style={styles.statLabel}>shutters</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>#12</Text>
-            <Text style={styles.statLabel}>global rank</Text>
           </View>
         </View>
 
@@ -120,19 +170,6 @@ export default function ProfileScreen() {
           <CustomizeButton icon="image-outline" label="Banner" onPress={cycleBanner} />
           <CustomizeButton icon="ribbon-outline" label="Badge" onPress={cycleBadge} />
           <CustomizeButton icon="create-outline" label="Edit bio" onPress={startEditBio} accent />
-        </View>
-
-        <Text style={styles.sectionLabel}>Trophy case</Text>
-        <View style={styles.trophyGrid}>
-          {[1, 2, 3, 4, 5].map((n) => (
-            <View key={n} style={styles.trophyTile}>
-              <Ionicons name="image-outline" size={20} color="#9ca3af" />
-              {n === 1 && <Ionicons name="trophy" size={12} color="#b45309" style={styles.crownBadge} />}
-            </View>
-          ))}
-          <View style={styles.trophyMore}>
-            <Text style={styles.trophyMoreText}>+18</Text>
-          </View>
         </View>
 
         <Pressable style={styles.signOutButton} onPress={signOut}>
@@ -234,28 +271,6 @@ const styles = StyleSheet.create({
   customizeButtonAccent: { borderColor: '#c7d2fe', backgroundColor: '#eef2ff' },
   customizeButtonText: { fontSize: 12, color: '#374151', fontWeight: '500' },
   customizeButtonTextAccent: { color: '#4f46e5' },
-
-  trophyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  trophyTile: {
-    width: '31%',
-    aspectRatio: 1,
-    borderRadius: 8,
-    backgroundColor: '#f3f4f6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  crownBadge: { position: 'absolute', top: 4, right: 4 },
-  trophyMore: {
-    width: '31%',
-    aspectRatio: 1,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#d1d5db',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  trophyMoreText: { fontSize: 12, color: '#9ca3af' },
 
   signOutButton: {
     flexDirection: 'row',

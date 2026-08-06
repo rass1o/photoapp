@@ -14,6 +14,7 @@ type RankedSubmission = {
   user_id: string;
   image_url: string;
   vote_count: number;
+  username: string;
 };
 
 export default function RankingsScreen() {
@@ -62,7 +63,17 @@ export default function RankingsScreen() {
       return;
     }
 
-    setRankings(data ?? []);
+    const rows = data ?? [];
+    let usernameById = new Map<string, string>();
+    if (rows.length > 0) {
+      const { data: profileRows } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .in('id', rows.map((r) => r.user_id));
+      usernameById = new Map((profileRows ?? []).map((p) => [p.id, p.username]));
+    }
+
+    setRankings(rows.map((r) => ({ ...r, username: usernameById.get(r.user_id) ?? 'unknown' })));
   }, []);
 
   useEffect(() => {
@@ -127,9 +138,7 @@ export default function RankingsScreen() {
               <View style={[styles.row, isMe && styles.rowMe]}>
                 <Text style={[styles.rank, index < 3 && styles.rankTop]}>{index + 1}</Text>
                 <Image source={{ uri: item.image_url }} style={styles.thumb} />
-                <Text style={styles.username}>
-                  {isMe ? 'You' : `user_${item.user_id.slice(0, 6)}`}
-                </Text>
+                <Text style={styles.username}>{isMe ? 'You' : item.username}</Text>
                 <Text style={styles.votes}>{item.vote_count} votes</Text>
               </View>
             );
