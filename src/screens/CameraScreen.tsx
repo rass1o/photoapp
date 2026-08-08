@@ -14,9 +14,21 @@ export default function CameraScreen() {
   const { user } = useAuth();
   const [theme, setTheme] = useState<Theme | null>(null);
   const [isLoadingTheme, setIsLoadingTheme] = useState(true);
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [format, setFormat] = useState<'digital' | 'film'>('digital');
   const [isUploading, setIsUploading] = useState(false);
+
+  const checkExistingSubmission = async (themeId: string) => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('submissions')
+      .select('id')
+      .eq('theme_id', themeId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    setAlreadySubmitted(!!data);
+  };
 
   useEffect(() => {
     const loadTheme = async () => {
@@ -31,11 +43,12 @@ export default function CameraScreen() {
         .maybeSingle();
 
       setTheme(data);
+      if (data) await checkExistingSubmission(data.id);
       setIsLoadingTheme(false);
     };
 
     loadTheme();
-  }, []);
+  }, [user]);
 
   const pickImage = async () => {
     const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
@@ -73,10 +86,24 @@ export default function CameraScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!imageUri || !user || !theme) return;
+    if (!imageUri || !user || !theme || alreadySubmitted) return;
     setIsUploading(true);
 
     try {
+      // Guard against a race where two submissions get created in quick succession
+      const { data: existing } = await supabase
+        .from('submissions')
+        .select('id')
+        .eq('theme_id', theme.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (existing) {
+        setAlreadySubmitted(true);
+        Alert.alert('Already submitted', 'You\u2019ve already submitted a photo for this theme.');
+        return;
+      }
+
       const response = await fetch(imageUri);
       const arrayBuffer = await response.arrayBuffer();
       const fileExt = imageUri.split('.').pop() ?? 'jpg';
@@ -103,8 +130,9 @@ export default function CameraScreen() {
 
       if (insertError) throw insertError;
 
-      Alert.alert('Submitted!', 'Your photo is live for this week\u2019s theme.');
+      setAlreadySubmitted(true);
       setImageUri(null);
+      Alert.alert('Submitted!', 'Your photo is live for this week\u2019s theme.');
     } catch (err) {
       console.log('Submission failed:', err);
       Alert.alert('Something went wrong', err instanceof Error ? err.message : 'Please try again.');
@@ -130,10 +158,24 @@ export default function CameraScreen() {
     );
   }
 
+  if (alreadySubmitted) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.doneWrap}>
+          <Text style={styles.doneTitle}>You're all set</Text>
+          <Text style={styles.doneSubtitle}>
+            Your submission is in for "{theme.name}". Check the Home tab to see it in the feed,
+            or come back next week for a new theme.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Submit for "{theme.name}"</Text>
-      <Text style={styles.subtitle}>0 of 1 submissions used this week</Text>
+      <Text style={styles.subtitle}>1 submission allowed per theme</Text>
 
       <Pressable style={styles.captureButton} onPress={pickImage}>
         {imageUri ? (
@@ -207,4 +249,7 @@ const styles = StyleSheet.create({
   },
   submitButtonDisabled: { opacity: 0.4 },
   submitText: { color: '#ffffff', fontSize: 14, fontWeight: '600' },
+  doneWrap: { flex: 1, justifyContent: 'center', paddingBottom: 100 },
+  doneTitle: { fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
+  doneSubtitle: { fontSize: 13, color: '#6b7280', textAlign: 'center', lineHeight: 19 },
 });
