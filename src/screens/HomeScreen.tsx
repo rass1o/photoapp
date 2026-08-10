@@ -20,7 +20,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import type { RootStackParamList } from '../navigation/AppNavigator';
+import { RootStackParamList } from '../navigation/AppNavigator';
 
 type Theme = {
   id: string;
@@ -92,6 +92,9 @@ export default function HomeScreen() {
 
   const [burstId, setBurstId] = useState<string | null>(null);
   const lastTapRef = useRef<Record<string, number>>({});
+  // Tracks each photo's real width/height ratio so its container matches
+  // its actual shape instead of forcing every post into a fixed box
+  const [aspectRatios, setAspectRatios] = useState<Record<string, number>>({});
 
   const loadData = useCallback(async (selectedFormat: 'digital' | 'film') => {
     setErrorMessage(null);
@@ -484,7 +487,19 @@ export default function HomeScreen() {
                 </View>
 
                 <Pressable onPress={() => handleImageTap(item.id)}>
-                  <Image source={{ uri: item.image_url }} style={styles.image} />
+                  <Image
+                    source={{ uri: item.image_url }}
+                    style={[styles.image, { aspectRatio: aspectRatios[item.id] ?? 1 }]}
+                    onLoad={(e) => {
+                      const { width, height } = e.nativeEvent.source;
+                      if (width && height) {
+                        // Clamp to sane bounds so an unusually extreme photo
+                        // (e.g. a stitched panorama) can't break the layout
+                        const ratio = Math.min(Math.max(width / height, 0.5), 2);
+                        setAspectRatios((prev) => ({ ...prev, [item.id]: ratio }));
+                      }
+                    }}
+                  />
                   {burstId === item.id && (
                     <View style={styles.burstOverlay} pointerEvents="none">
                       <Ionicons name="heart" size={80} color="#ffffff" />
@@ -672,7 +687,7 @@ const styles = StyleSheet.create({
   cardHeaderTouchable: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#dbeafe' },
   username: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  image: { width: '100%', height: 320, borderRadius: 10, backgroundColor: '#f3f4f6' },
+  image: { width: '100%', borderRadius: 10, backgroundColor: '#f3f4f6' },
   burstOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',

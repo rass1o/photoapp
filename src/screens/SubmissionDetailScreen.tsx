@@ -46,6 +46,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentInput, setCommentInput] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [aspectRatio, setAspectRatio] = useState(1);
 
   const load = async () => {
     const { data: subData, error } = await supabase
@@ -177,7 +178,16 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
               <Text style={styles.username}>{submission.username}</Text>
             </Pressable>
 
-            <Image source={{ uri: submission.image_url }} style={styles.image} />
+            <Image
+              source={{ uri: submission.image_url }}
+              style={[styles.image, { aspectRatio }]}
+              onLoad={(e) => {
+                const { width, height } = e.nativeEvent.source;
+                if (width && height) {
+                  setAspectRatio(Math.min(Math.max(width / height, 0.5), 2));
+                }
+              }}
+            />
 
             <View style={styles.actionsRow}>
               <Pressable style={styles.actionItem} onPress={toggleVote}>
@@ -230,7 +240,7 @@ const styles = StyleSheet.create({
   avatarImage: { width: '100%', height: '100%' },
   username: { fontSize: 15, fontWeight: '600', color: '#111827' },
 
-  image: { width: '100%', height: 400, backgroundColor: '#f3f4f6' },
+  image: { width: '100%', backgroundColor: '#f3f4f6' },
 
   actionsRow: { flexDirection: 'row', padding: 16 },
   actionItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },

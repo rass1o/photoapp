@@ -76,8 +76,8 @@ export default function CameraScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.8,
-      allowsEditing: true,
-      aspect: [4, 5],
+      // No allowsEditing/aspect here on purpose — forcing a fixed crop
+      // was cutting off portrait and landscape photos. Submit as shot.
     });
 
     if (!result.canceled && result.assets[0]) {
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   captureText: { color: '#6b7280', fontSize: 14 },
-  preview: { width: '100%', height: '100%' },
+  preview: { width: '100%', height: '100%', resizeMode: 'contain' },
   toggleRow: { flexDirection: 'row', borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', overflow: 'hidden', marginBottom: 16 },
   toggle: { flex: 1, padding: 10, alignItems: 'center' },
   toggleActive: { backgroundColor: '#f3f4f6' },
