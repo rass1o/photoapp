@@ -16,8 +16,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type Theme = {
   id: string;
@@ -63,6 +66,7 @@ const DOUBLE_TAP_WINDOW_MS = 300;
 
 export default function HomeScreen() {
   const { user } = useAuth();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [theme, setTheme] = useState<Theme | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [votedIds, setVotedIds] = useState<Set<string>>(new Set());
@@ -469,8 +473,13 @@ export default function HomeScreen() {
             return (
               <View style={styles.card}>
                 <View style={styles.cardHeader}>
-                  <View style={styles.avatar} />
-                  <Text style={styles.username}>{item.username}</Text>
+                  <Pressable
+                    style={styles.cardHeaderTouchable}
+                    onPress={() => navigation.push('UserProfile', { userId: item.user_id })}
+                  >
+                    <View style={styles.avatar} />
+                    <Text style={styles.username}>{item.username}</Text>
+                  </Pressable>
                   <Ionicons name="ellipsis-horizontal" size={16} color="#9ca3af" style={{ marginLeft: 'auto' }} />
                 </View>
 
@@ -660,6 +669,7 @@ const styles = StyleSheet.create({
 
   card: { paddingHorizontal: 16, paddingTop: 14 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  cardHeaderTouchable: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#dbeafe' },
   username: { fontSize: 14, fontWeight: '600', color: '#111827' },
   image: { width: '100%', height: 320, borderRadius: 10, backgroundColor: '#f3f4f6' },

@@ -1,19 +1,29 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, Image, FlatList, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type Profile = {
   id: string;
   username: string;
   bio: string;
+  avatar_url: string | null;
   avatar_frame_color: string;
   banner_color: string;
   badge: string;
   streak_count: number;
   currency_balance: number;
+};
+
+type GalleryItem = {
+  id: string;
+  image_url: string;
 };
 
 type CustomizeButtonProps = {
@@ -48,31 +58,80 @@ const BADGES: Array<{ icon: keyof typeof Ionicons.glyphMap; label: string }> = [
 
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [draftBio, setDraftBio] = useState('');
 
-  useEffect(() => {
+  const loadProfile = async () => {
     if (!user) return;
-    supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-      .then(({ data, error }) => {
-        if (!error && data) setProfile(data);
-        setIsLoading(false);
-      });
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    if (!error && data) setProfile(data);
+
+    const { data: galleryData } = await supabase
+      .from('submissions')
+      .select('id, image_url')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    setGallery(galleryData ?? []);
+  };
+
+  useEffect(() => {
+    setIsLoading(true);
+    loadProfile().finally(() => setIsLoading(false));
   }, [user]);
 
   const updateProfile = async (changes: Partial<Profile>) => {
     if (!user || !profile) return;
-    // Optimistic update — reflect the change immediately, persist in the background
     setProfile({ ...profile, ...changes });
     const { error } = await supabase.from('profiles').update(changes).eq('id', user.id);
     if (error) console.log('Profile update failed:', error.message);
+  };
+
+  const pickAvatar = async () => {
+    if (!user) return;
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Allow photo library access to set a profile picture.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+
+    if (result.canceled || !result.assets[0]) return;
+
+    setIsUploadingAvatar(true);
+    try {
+      const uri = result.assets[0].uri;
+      const response = await fetch(uri);
+      const arrayBuffer = await response.arrayBuffer();
+      const fileExt = uri.split('.').pop() ?? 'jpg';
+      const filePath = `${user.id}/avatar-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, arrayBuffer, { contentType: `image/${fileExt}` });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      await updateProfile({ avatar_url: publicUrlData.publicUrl });
+    } catch (err) {
+      console.log('Avatar upload failed:', err);
+      Alert.alert('Something went wrong', err instanceof Error ? err.message : 'Please try again.');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
   };
 
   const cycleFrame = () => {
@@ -117,11 +176,17 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: profile.banner_color }]} edges={['top']}>
       <View style={styles.header}>
-        <Pressable
-          onPress={cycleFrame}
-          style={[styles.avatar, { borderColor: profile.avatar_frame_color }]}
-        >
-          <Text style={styles.avatarInitials}>{profile.username.slice(0, 2).toUpperCase()}</Text>
+        <Pressable onPress={pickAvatar} style={[styles.avatar, { borderColor: profile.avatar_frame_color }]}>
+          {isUploadingAvatar ? (
+            <ActivityIndicator color="#6d28d9" />
+          ) : profile.avatar_url ? (
+            <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
+          ) : (
+            <Text style={styles.avatarInitials}>{profile.username.slice(0, 2).toUpperCase()}</Text>
+          )}
+          <View style={styles.avatarEditBadge}>
+            <Ionicons name="camera" size={12} color="#ffffff" />
+          </View>
         </Pressable>
 
         <Text style={styles.username}>{profile.username}</Text>
@@ -153,29 +218,52 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.sheet}>
-        <View style={styles.statsRow}>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>{profile.streak_count}</Text>
-            <Text style={styles.statLabel}>streak</Text>
-          </View>
-          <View style={styles.stat}>
-            <Text style={styles.statValue}>{profile.currency_balance}</Text>
-            <Text style={styles.statLabel}>shutters</Text>
-          </View>
-        </View>
+        <FlatList
+          data={gallery}
+          keyExtractor={(g) => g.id}
+          numColumns={3}
+          columnWrapperStyle={{ gap: 6 }}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          ListHeaderComponent={
+            <View>
+              <View style={styles.statsRow}>
+                <View style={styles.stat}>
+                  <Text style={styles.statValue}>{profile.streak_count}</Text>
+                  <Text style={styles.statLabel}>streak</Text>
+                </View>
+                <View style={styles.stat}>
+                  <Text style={styles.statValue}>{profile.currency_balance}</Text>
+                  <Text style={styles.statLabel}>shutters</Text>
+                </View>
+              </View>
 
-        <Text style={styles.sectionLabel}>Customize</Text>
-        <View style={styles.customizeGrid}>
-          <CustomizeButton icon="ellipse-outline" label="Avatar frame" onPress={cycleFrame} />
-          <CustomizeButton icon="image-outline" label="Banner" onPress={cycleBanner} />
-          <CustomizeButton icon="ribbon-outline" label="Badge" onPress={cycleBadge} />
-          <CustomizeButton icon="create-outline" label="Edit bio" onPress={startEditBio} accent />
-        </View>
+              <Text style={styles.sectionLabel}>Customize</Text>
+              <View style={styles.customizeGrid}>
+                <CustomizeButton icon="ellipse-outline" label="Avatar frame" onPress={cycleFrame} />
+                <CustomizeButton icon="image-outline" label="Banner" onPress={cycleBanner} />
+                <CustomizeButton icon="ribbon-outline" label="Badge" onPress={cycleBadge} />
+                <CustomizeButton icon="create-outline" label="Edit bio" onPress={startEditBio} accent />
+              </View>
 
-        <Pressable style={styles.signOutButton} onPress={signOut}>
-          <Ionicons name="log-out-outline" size={16} color="#b91c1c" />
-          <Text style={styles.signOutText}>Sign out</Text>
-        </Pressable>
+              <Text style={styles.sectionLabel}>Gallery</Text>
+            </View>
+          }
+          ListEmptyComponent={<Text style={styles.emptyText}>No submissions yet.</Text>}
+          renderItem={({ item }) => (
+            <Pressable
+              style={styles.galleryTile}
+              onPress={() => navigation.push('SubmissionDetail', { submissionId: item.id })}
+            >
+              <Image source={{ uri: item.image_url }} style={styles.galleryImage} />
+            </Pressable>
+          )}
+          ListFooterComponent={
+            <Pressable style={styles.signOutButton} onPress={signOut}>
+              <Ionicons name="log-out-outline" size={16} color="#b91c1c" />
+              <Text style={styles.signOutText}>Sign out</Text>
+            </Pressable>
+          }
+        />
       </View>
     </SafeAreaView>
   );
@@ -193,8 +281,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 8,
+    overflow: 'hidden',
   },
+  avatarImage: { width: '100%', height: '100%' },
   avatarInitials: { fontSize: 18, fontWeight: '600', color: '#6d28d9' },
+  avatarEditBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#0B1418',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
   username: { fontSize: 18, fontWeight: '700', color: '#0B1418' },
   bio: { fontSize: 13, color: '#46606B', marginTop: 2, marginBottom: 8 },
   bioEditRow: {
@@ -213,11 +316,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     fontSize: 13,
   },
-  bioSaveButton: {
-    backgroundColor: '#0B1418',
-    borderRadius: 6,
-    padding: 8,
-  },
+  bioSaveButton: { backgroundColor: '#0B1418', borderRadius: 6, padding: 8 },
   streakPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -251,12 +350,7 @@ const styles = StyleSheet.create({
 
   sectionLabel: { fontSize: 12, fontWeight: '600', color: '#6b7280', marginBottom: 8 },
 
-  customizeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 18,
-  },
+  customizeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
   customizeButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -271,6 +365,10 @@ const styles = StyleSheet.create({
   customizeButtonAccent: { borderColor: '#c7d2fe', backgroundColor: '#eef2ff' },
   customizeButtonText: { fontSize: 12, color: '#374151', fontWeight: '500' },
   customizeButtonTextAccent: { color: '#4f46e5' },
+
+  emptyText: { color: '#9ca3af', fontSize: 13, textAlign: 'center', paddingVertical: 10 },
+  galleryTile: { flex: 1 / 3, aspectRatio: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: '#f3f4f6' },
+  galleryImage: { width: '100%', height: '100%' },
 
   signOutButton: {
     flexDirection: 'row',

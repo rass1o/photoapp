@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, Pressable, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type Theme = {
   id: string;
@@ -17,8 +20,11 @@ type RankedSubmission = {
   username: string;
 };
 
+type NavProp = NativeStackNavigationProp<RootStackParamList>;
+
 export default function RankingsScreen() {
   const { user } = useAuth();
+  const navigation = useNavigation<NavProp>();
   const [theme, setTheme] = useState<Theme | null>(null);
   const [format, setFormat] = useState<'digital' | 'film'>('digital');
   const [rankings, setRankings] = useState<RankedSubmission[]>([]);
@@ -137,8 +143,15 @@ export default function RankingsScreen() {
             return (
               <View style={[styles.row, isMe && styles.rowMe]}>
                 <Text style={[styles.rank, index < 3 && styles.rankTop]}>{index + 1}</Text>
-                <Image source={{ uri: item.image_url }} style={styles.thumb} />
-                <Text style={styles.username}>{isMe ? 'You' : item.username}</Text>
+                <Pressable onPress={() => navigation.push('SubmissionDetail', { submissionId: item.id })}>
+                  <Image source={{ uri: item.image_url }} style={styles.thumb} />
+                </Pressable>
+                <Pressable
+                  style={{ flex: 1 }}
+                  onPress={() => navigation.push('UserProfile', { userId: item.user_id })}
+                >
+                  <Text style={styles.username}>{isMe ? 'You' : item.username}</Text>
+                </Pressable>
                 <Text style={styles.votes}>{item.vote_count} votes</Text>
               </View>
             );
@@ -192,7 +205,7 @@ const styles = StyleSheet.create({
   rank: { width: 22, fontWeight: '600', color: '#6b7280', fontSize: 14 },
   rankTop: { color: '#b45309' },
   thumb: { width: 40, height: 40, borderRadius: 6, backgroundColor: '#f3f4f6' },
-  username: { flex: 1, fontSize: 14 },
+  username: { fontSize: 14 },
   votes: { fontSize: 13, color: '#6b7280' },
 
   pinnedRow: {
