@@ -8,6 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import SectionHeader from '../components/SectionHeader';
 
 type Profile = {
   id: string;
@@ -19,11 +20,25 @@ type Profile = {
   badge: string;
   streak_count: number;
   currency_balance: number;
+  showcase_url_1: string | null;
+  showcase_url_2: string | null;
+  showcase_url_3: string | null;
 };
 
 type GalleryItem = {
   id: string;
   image_url: string;
+};
+
+type CameraItem = {
+  id: string;
+  camera_name: string;
+};
+
+type GoalItem = {
+  id: string;
+  text: string;
+  is_completed: boolean;
 };
 
 type CustomizeButtonProps = {
@@ -56,13 +71,20 @@ const BADGES: Array<{ icon: keyof typeof Ionicons.glyphMap; label: string }> = [
   { icon: 'ribbon-outline', label: 'weekly winner' },
 ];
 
+const SHOWCASE_KEYS = ['showcase_url_1', 'showcase_url_2', 'showcase_url_3'] as const;
+
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
+  const [cameras, setCameras] = useState<CameraItem[]>([]);
+  const [newCameraName, setNewCameraName] = useState('');
+  const [goals, setGoals] = useState<GoalItem[]>([]);
+  const [newGoalText, setNewGoalText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [uploadingShowcaseSlot, setUploadingShowcaseSlot] = useState<number | null>(null);
 
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [draftBio, setDraftBio] = useState('');
@@ -78,6 +100,20 @@ export default function ProfileScreen() {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
     setGallery(galleryData ?? []);
+
+    const { data: cameraData } = await supabase
+      .from('camera_collection')
+      .select('id, camera_name')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true });
+    setCameras(cameraData ?? []);
+
+    const { data: goalsData } = await supabase
+      .from('goals')
+      .select('id, text, is_completed')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true });
+    setGoals(goalsData ?? []);
   };
 
   useEffect(() => {
@@ -134,6 +170,104 @@ export default function ProfileScreen() {
     }
   };
 
+  const pickShowcasePhoto = async (slotIndex: 0 | 1 | 2) => {
+    if (!user) return;
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permission needed', 'Allow photo library access to set a showcase photo.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+
+    if (result.canceled || !result.assets[0]) return;
+
+    setUploadingShowcaseSlot(slotIndex);
+    try {
+      const uri = result.assets[0].uri;
+      const response = await fetch(uri);
+      const arrayBuffer = await response.arrayBuffer();
+      const fileExt = uri.split('.').pop() ?? 'jpg';
+      const filePath = `${user.id}/showcase-${slotIndex}-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('submissions')
+        .upload(filePath, arrayBuffer, { contentType: `image/${fileExt}` });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage.from('submissions').getPublicUrl(filePath);
+      await updateProfile({ [SHOWCASE_KEYS[slotIndex]]: publicUrlData.publicUrl });
+    } catch (err) {
+      console.log('Showcase upload failed:', err);
+      Alert.alert('Something went wrong', err instanceof Error ? err.message : 'Please try again.');
+    } finally {
+      setUploadingShowcaseSlot(null);
+    }
+  };
+
+  const clearShowcaseSlot = (slotIndex: 0 | 1 | 2) => {
+    updateProfile({ [SHOWCASE_KEYS[slotIndex]]: null });
+  };
+
+  const addCamera = async () => {
+    if (!user || !newCameraName.trim()) return;
+    const name = newCameraName.trim();
+    setNewCameraName('');
+
+    const { data, error } = await supabase
+      .from('camera_collection')
+      .insert({ user_id: user.id, camera_name: name })
+      .select('id, camera_name')
+      .single();
+
+    if (!error && data) {
+      setCameras((prev) => [...prev, data]);
+    } else if (error) {
+      console.log('Add camera failed:', error.message);
+    }
+  };
+
+  const removeCamera = async (id: string) => {
+    setCameras((prev) => prev.filter((c) => c.id !== id));
+    const { error } = await supabase.from('camera_collection').delete().eq('id', id);
+    if (error) console.log('Remove camera failed:', error.message);
+  };
+
+  const addGoal = async () => {
+    if (!user || !newGoalText.trim()) return;
+    const text = newGoalText.trim();
+    setNewGoalText('');
+
+    const { data, error } = await supabase
+      .from('goals')
+      .insert({ user_id: user.id, text })
+      .select('id, text, is_completed')
+      .single();
+
+    if (!error && data) {
+      setGoals((prev) => [...prev, data]);
+    } else if (error) {
+      console.log('Add goal failed:', error.message);
+    }
+  };
+
+  const toggleGoal = async (id: string, current: boolean) => {
+    setGoals((prev) => prev.map((g) => (g.id === id ? { ...g, is_completed: !current } : g)));
+    const { error } = await supabase.from('goals').update({ is_completed: !current }).eq('id', id);
+    if (error) console.log('Toggle goal failed:', error.message);
+  };
+
+  const removeGoal = async (id: string) => {
+    setGoals((prev) => prev.filter((g) => g.id !== id));
+    const { error } = await supabase.from('goals').delete().eq('id', id);
+    if (error) console.log('Remove goal failed:', error.message);
+  };
+
   const cycleFrame = () => {
     if (!profile) return;
     const next = FRAME_COLORS[(FRAME_COLORS.indexOf(profile.avatar_frame_color) + 1) % FRAME_COLORS.length];
@@ -172,6 +306,7 @@ export default function ProfileScreen() {
   }
 
   const activeBadge = BADGES.find((b) => b.icon === profile.badge) ?? BADGES[0];
+  const showcaseUrls = [profile.showcase_url_1, profile.showcase_url_2, profile.showcase_url_3];
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: profile.banner_color }]} edges={['top']}>
@@ -232,12 +367,16 @@ export default function ProfileScreen() {
                   <Text style={styles.statLabel}>streak</Text>
                 </View>
                 <View style={styles.stat}>
+                  <Text style={styles.statValue}>{gallery.length}</Text>
+                  <Text style={styles.statLabel}>submissions</Text>
+                </View>
+                <View style={styles.stat}>
                   <Text style={styles.statValue}>{profile.currency_balance}</Text>
                   <Text style={styles.statLabel}>shutters</Text>
                 </View>
               </View>
 
-              <Text style={styles.sectionLabel}>Customize</Text>
+              <SectionHeader icon="options-outline" label="Customize" />
               <View style={styles.customizeGrid}>
                 <CustomizeButton icon="ellipse-outline" label="Avatar frame" onPress={cycleFrame} />
                 <CustomizeButton icon="image-outline" label="Banner" onPress={cycleBanner} />
@@ -245,7 +384,102 @@ export default function ProfileScreen() {
                 <CustomizeButton icon="create-outline" label="Edit bio" onPress={startEditBio} accent />
               </View>
 
-              <Text style={styles.sectionLabel}>Gallery</Text>
+              <SectionHeader icon="flag-outline" label="Goals" />
+              <View style={styles.goalsList}>
+                {goals.length === 0 ? (
+                  <Text style={styles.emptyText}>No goals yet. Set something to work toward.</Text>
+                ) : (
+                  goals.map((g) => (
+                    <View key={g.id} style={styles.goalRow}>
+                      <Pressable onPress={() => toggleGoal(g.id, g.is_completed)} style={styles.goalCheckbox}>
+                        <Ionicons
+                          name={g.is_completed ? 'checkbox' : 'square-outline'}
+                          size={19}
+                          color={g.is_completed ? '#10b981' : '#9ca3af'}
+                        />
+                      </Pressable>
+                      <Text style={[styles.goalText, g.is_completed && styles.goalTextCompleted]}>
+                        {g.text}
+                      </Text>
+                      <Pressable onPress={() => removeGoal(g.id)}>
+                        <Ionicons name="close-circle" size={16} color="#d1d5db" />
+                      </Pressable>
+                    </View>
+                  ))
+                )}
+              </View>
+              <View style={styles.addGoalRow}>
+                <TextInput
+                  style={styles.addGoalInput}
+                  placeholder="e.g. Shoot 5 golden hour photos"
+                  value={newGoalText}
+                  onChangeText={setNewGoalText}
+                  onSubmitEditing={addGoal}
+                  returnKeyType="done"
+                />
+                <Pressable style={styles.addCameraButton} onPress={addGoal}>
+                  <Ionicons name="add" size={18} color="#ffffff" />
+                </Pressable>
+              </View>
+
+              <SectionHeader icon="images-outline" label="Showcase" />
+              <View style={styles.showcaseRow}>
+                {showcaseUrls.map((url, i) => (
+                  <Pressable
+                    key={i}
+                    style={styles.showcaseTile}
+                    onPress={() => pickShowcasePhoto(i as 0 | 1 | 2)}
+                  >
+                    {uploadingShowcaseSlot === i ? (
+                      <ActivityIndicator color="#6d28d9" />
+                    ) : url ? (
+                      <>
+                        <Image source={{ uri: url }} style={styles.showcaseImage} />
+                        <Pressable
+                          style={styles.showcaseRemove}
+                          onPress={() => clearShowcaseSlot(i as 0 | 1 | 2)}
+                        >
+                          <Ionicons name="close" size={12} color="#ffffff" />
+                        </Pressable>
+                      </>
+                    ) : (
+                      <Ionicons name="add" size={22} color="#9ca3af" />
+                    )}
+                  </Pressable>
+                ))}
+              </View>
+
+              <SectionHeader icon="camera-outline" label="Camera collection" />
+              <View style={styles.cameraList}>
+                {cameras.length === 0 ? (
+                  <Text style={styles.emptyText}>No cameras added yet.</Text>
+                ) : (
+                  cameras.map((c) => (
+                    <View key={c.id} style={styles.cameraChip}>
+                      <Ionicons name="camera-outline" size={13} color="#374151" />
+                      <Text style={styles.cameraChipText}>{c.camera_name}</Text>
+                      <Pressable onPress={() => removeCamera(c.id)}>
+                        <Ionicons name="close-circle" size={15} color="#9ca3af" />
+                      </Pressable>
+                    </View>
+                  ))
+                )}
+              </View>
+              <View style={styles.addCameraRow}>
+                <TextInput
+                  style={styles.addCameraInput}
+                  placeholder="e.g. Canon AE-1"
+                  value={newCameraName}
+                  onChangeText={setNewCameraName}
+                  onSubmitEditing={addCamera}
+                  returnKeyType="done"
+                />
+                <Pressable style={styles.addCameraButton} onPress={addCamera}>
+                  <Ionicons name="add" size={18} color="#ffffff" />
+                </Pressable>
+              </View>
+
+              <SectionHeader icon="grid-outline" label="Gallery" />
             </View>
           }
           ListEmptyComponent={<Text style={styles.emptyText}>No submissions yet.</Text>}
@@ -348,7 +582,7 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 16, fontWeight: '600', color: '#111827' },
   statLabel: { fontSize: 11, color: '#9ca3af' },
 
-  sectionLabel: { fontSize: 12, fontWeight: '600', color: '#6b7280', marginBottom: 8 },
+  sectionLabel: { fontSize: 12, fontWeight: '600', color: '#6b7280', marginBottom: 8, marginTop: 4 },
 
   customizeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
   customizeButton: {
@@ -365,6 +599,85 @@ const styles = StyleSheet.create({
   customizeButtonAccent: { borderColor: '#c7d2fe', backgroundColor: '#eef2ff' },
   customizeButtonText: { fontSize: 12, color: '#374151', fontWeight: '500' },
   customizeButtonTextAccent: { color: '#4f46e5' },
+
+  goalsList: { marginBottom: 10, gap: 6 },
+  goalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  goalCheckbox: { padding: 2 },
+  goalText: { flex: 1, fontSize: 13, color: '#374151' },
+  goalTextCompleted: { color: '#9ca3af', textDecorationLine: 'line-through' },
+  addGoalRow: { flexDirection: 'row', gap: 8, marginBottom: 18 },
+  addGoalInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 13,
+  },
+
+  showcaseRow: { flexDirection: 'row', gap: 8, marginBottom: 18 },
+  showcaseTile: {
+    flex: 1,
+    aspectRatio: 1,
+    borderRadius: 10,
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#d1d5db',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  showcaseImage: { width: '100%', height: '100%' },
+  showcaseRemove: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 10,
+    width: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  cameraList: { marginBottom: 10, gap: 6 },
+  cameraChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  cameraChipText: { flex: 1, fontSize: 13, color: '#374151' },
+  addCameraRow: { flexDirection: 'row', gap: 8, marginBottom: 18 },
+  addCameraInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    fontSize: 13,
+  },
+  addCameraButton: {
+    backgroundColor: '#0B1418',
+    borderRadius: 8,
+    width: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   emptyText: { color: '#9ca3af', fontSize: 13, textAlign: 'center', paddingVertical: 10 },
   galleryTile: { flex: 1 / 3, aspectRatio: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: '#f3f4f6' },

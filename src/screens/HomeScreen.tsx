@@ -20,7 +20,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { RootStackParamList } from '../navigation/AppNavigator';
+import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type Theme = {
   id: string;
@@ -33,9 +33,11 @@ type Submission = {
   user_id: string;
   image_url: string;
   format: 'digital' | 'film';
+  caption: string;
   vote_count: number;
   created_at: string;
   username: string;
+  avatar_url: string | null;
 };
 
 type Comment = {
@@ -63,10 +65,12 @@ function formatCountdown(endDate: string): string {
 }
 
 const DOUBLE_TAP_WINDOW_MS = 300;
+const PAGE_SIZE = 8;
 
 export default function HomeScreen() {
   const { user } = useAuth();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
   const [theme, setTheme] = useState<Theme | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [votedIds, setVotedIds] = useState<Set<string>>(new Set());
@@ -75,11 +79,16 @@ export default function HomeScreen() {
   const [format, setFormat] = useState<'digital' | 'film'>('digital');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasSubmittedThisTheme, setHasSubmittedThisTheme] = useState(false);
+  const [aspectRatios, setAspectRatios] = useState<Record<string, number>>({});
 
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{ id: string; username: string; avatar_url: string | null }>>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   const [notifVisible, setNotifVisible] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -92,107 +101,194 @@ export default function HomeScreen() {
 
   const [burstId, setBurstId] = useState<string | null>(null);
   const lastTapRef = useRef<Record<string, number>>({});
-  // Tracks each photo's real width/height ratio so its container matches
-  // its actual shape instead of forcing every post into a fixed box
-  const [aspectRatios, setAspectRatios] = useState<Record<string, number>>({});
+  const singleTapTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  const loadData = useCallback(async (selectedFormat: 'digital' | 'film') => {
-    setErrorMessage(null);
+  const currentThemeIdRef = useRef<string | null>(null);
 
-    const nowIso = new Date().toISOString();
-    const { data: themeData, error: themeError } = await supabase
-      .from('themes')
-      .select('id, name, end_date')
-      .lte('start_date', nowIso)
-      .gte('end_date', nowIso)
-      .order('start_date', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+  const attachUsernamesAndComments = async (rows: Submission[]) => {
+    if (rows.length === 0) return rows;
 
-    if (themeError) {
-      setErrorMessage(themeError.message);
-      return;
-    }
+    const { data: profileRows } = await supabase
+      .from('profiles')
+      .select('id, username, avatar_url')
+      .in('id', rows.map((r) => r.user_id));
+    const profileById = new Map((profileRows ?? []).map((p) => [p.id, p]));
 
-    setTheme(themeData);
+    return rows.map((r) => ({
+      ...r,
+      username: profileById.get(r.user_id)?.username ?? 'unknown',
+      avatar_url: profileById.get(r.user_id)?.avatar_url ?? null,
+    }));
+  };
 
-    if (!themeData) {
-      setSubmissions([]);
-      setHasSubmittedThisTheme(false);
-      return;
-    }
+  const loadFirstPage = useCallback(
+    async (selectedFormat: 'digital' | 'film') => {
+      setErrorMessage(null);
 
-    if (user) {
-      const { data: mine } = await supabase
-        .from('submissions')
-        .select('id')
-        .eq('theme_id', themeData.id)
-        .eq('user_id', user.id)
+      const nowIso = new Date().toISOString();
+      const { data: themeData, error: themeError } = await supabase
+        .from('themes')
+        .select('id, name, end_date')
+        .lte('start_date', nowIso)
+        .gte('end_date', nowIso)
+        .order('start_date', { ascending: false })
+        .limit(1)
         .maybeSingle();
-      setHasSubmittedThisTheme(!!mine);
-    }
 
-    const { data: submissionsData, error: submissionsError } = await supabase
+      if (themeError) {
+        setErrorMessage(themeError.message);
+        return;
+      }
+
+      setTheme(themeData);
+      currentThemeIdRef.current = themeData?.id ?? null;
+
+      if (!themeData) {
+        setSubmissions([]);
+        setHasSubmittedThisTheme(false);
+        setHasMore(false);
+        return;
+      }
+
+      if (user) {
+        const { data: mine } = await supabase
+          .from('submissions')
+          .select('id')
+          .eq('theme_id', themeData.id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        setHasSubmittedThisTheme(!!mine);
+      }
+
+      const { data: submissionsData, error: submissionsError } = await supabase
+        .from('submissions')
+        .select('id, user_id, image_url, format, caption, vote_count, created_at')
+        .eq('theme_id', themeData.id)
+        .eq('format', selectedFormat)
+        .order('created_at', { ascending: false })
+        .range(0, PAGE_SIZE - 1);
+
+      if (submissionsError) {
+        setErrorMessage(submissionsError.message);
+        return;
+      }
+
+      const rows = (submissionsData ?? []) as Submission[];
+      const withProfiles = await attachUsernamesAndComments(rows);
+      setSubmissions(withProfiles);
+      setHasMore(rows.length === PAGE_SIZE);
+
+      if (rows.length > 0) {
+        const { data: commentRows } = await supabase
+          .from('comments')
+          .select('submission_id')
+          .in('submission_id', rows.map((r) => r.id));
+        const counts: Record<string, number> = {};
+        (commentRows ?? []).forEach((c) => {
+          counts[c.submission_id] = (counts[c.submission_id] ?? 0) + 1;
+        });
+        setCommentCounts(counts);
+      } else {
+        setCommentCounts({});
+      }
+
+      if (user && rows.length > 0) {
+        const { data: voteRows } = await supabase
+          .from('votes')
+          .select('submission_id')
+          .eq('user_id', user.id)
+          .in('submission_id', rows.map((s) => s.id));
+        setVotedIds(new Set((voteRows ?? []).map((v) => v.submission_id)));
+      } else {
+        setVotedIds(new Set());
+      }
+    },
+    [user]
+  );
+
+  const loadMore = async () => {
+    if (isLoadingMore || !hasMore || !currentThemeIdRef.current) return;
+    setIsLoadingMore(true);
+
+    const { data, error } = await supabase
       .from('submissions')
-      .select('id, user_id, image_url, format, vote_count, created_at')
-      .eq('theme_id', themeData.id)
-      .eq('format', selectedFormat)
-      .order('created_at', { ascending: false });
+      .select('id, user_id, image_url, format, caption, vote_count, created_at')
+      .eq('theme_id', currentThemeIdRef.current)
+      .eq('format', format)
+      .order('created_at', { ascending: false })
+      .range(submissions.length, submissions.length + PAGE_SIZE - 1);
 
-    if (submissionsError) {
-      setErrorMessage(submissionsError.message);
-      return;
+    if (!error && data) {
+      const rows = data as Submission[];
+      const withProfiles = await attachUsernamesAndComments(rows);
+      setSubmissions((prev) => [...prev, ...withProfiles]);
+      setHasMore(rows.length === PAGE_SIZE);
+
+      if (rows.length > 0) {
+        const { data: commentRows } = await supabase
+          .from('comments')
+          .select('submission_id')
+          .in('submission_id', rows.map((r) => r.id));
+        setCommentCounts((prev) => {
+          const next = { ...prev };
+          (commentRows ?? []).forEach((c) => {
+            next[c.submission_id] = (next[c.submission_id] ?? 0) + 1;
+          });
+          return next;
+        });
+      }
+
+      if (user && rows.length > 0) {
+        const { data: voteRows } = await supabase
+          .from('votes')
+          .select('submission_id')
+          .eq('user_id', user.id)
+          .in('submission_id', rows.map((s) => s.id));
+        setVotedIds((prev) => new Set([...prev, ...(voteRows ?? []).map((v) => v.submission_id)]));
+      }
     }
 
-    const rows = submissionsData ?? [];
-
-    let usernameById = new Map<string, string>();
-    if (rows.length > 0) {
-      const { data: profileRows } = await supabase
-        .from('profiles')
-        .select('id, username')
-        .in('id', rows.map((r) => r.user_id));
-      usernameById = new Map((profileRows ?? []).map((p) => [p.id, p.username]));
-    }
-
-    setSubmissions(
-      rows.map((r) => ({ ...r, username: usernameById.get(r.user_id) ?? 'unknown' }))
-    );
-
-    if (rows.length > 0) {
-      const { data: commentRows } = await supabase
-        .from('comments')
-        .select('submission_id')
-        .in('submission_id', rows.map((r) => r.id));
-      const counts: Record<string, number> = {};
-      (commentRows ?? []).forEach((c) => {
-        counts[c.submission_id] = (counts[c.submission_id] ?? 0) + 1;
-      });
-      setCommentCounts(counts);
-    } else {
-      setCommentCounts({});
-    }
-
-    if (user && rows.length > 0) {
-      const { data: voteRows } = await supabase
-        .from('votes')
-        .select('submission_id')
-        .eq('user_id', user.id)
-        .in('submission_id', rows.map((s) => s.id));
-      setVotedIds(new Set((voteRows ?? []).map((v) => v.submission_id)));
-    } else {
-      setVotedIds(new Set());
-    }
-  }, [user]);
+    setIsLoadingMore(false);
+  };
 
   useEffect(() => {
     setIsLoading(true);
-    loadData(format).finally(() => setIsLoading(false));
-  }, [format, loadData]);
+    loadFirstPage(format).finally(() => setIsLoading(false));
+  }, [format, loadFirstPage]);
+
+  // Real username search across every user, not just what's currently loaded in the feed
+  useEffect(() => {
+    const query = searchQuery.trim();
+    if (!query) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    const timeout = setTimeout(async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .ilike('username', `%${query}%`)
+        .order('username', { ascending: true })
+        .limit(20);
+
+      if (!error) setSearchResults(data ?? []);
+      setIsSearching(false);
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
+
+  const goToUserProfile = (userId: string) => {
+    setSearchVisible(false);
+    setSearchQuery('');
+    navigation.push('UserProfile', { userId });
+  };
 
   const onRefresh = async () => {
     setIsRefreshing(true);
-    await loadData(format);
+    await loadFirstPage(format);
     setIsRefreshing(false);
   };
 
@@ -272,15 +368,29 @@ export default function HomeScreen() {
     votedIds.has(submissionId) ? removeVote(submissionId) : castVote(submissionId);
   };
 
+  // Single tap opens the full detail screen; a second tap within the window
+  // cancels that and likes the photo instead (Instagram-style double-tap).
   const handleImageTap = (submissionId: string) => {
     const now = Date.now();
     const lastTap = lastTapRef.current[submissionId] ?? 0;
+
     if (now - lastTap < DOUBLE_TAP_WINDOW_MS) {
+      const pendingTimeout = singleTapTimeoutRef.current[submissionId];
+      if (pendingTimeout) {
+        clearTimeout(pendingTimeout);
+        delete singleTapTimeoutRef.current[submissionId];
+      }
       castVote(submissionId);
       setBurstId(submissionId);
       setTimeout(() => setBurstId((current) => (current === submissionId ? null : current)), 700);
+      lastTapRef.current[submissionId] = 0;
+    } else {
+      lastTapRef.current[submissionId] = now;
+      singleTapTimeoutRef.current[submissionId] = setTimeout(() => {
+        navigation.push('SubmissionDetail', { submissionId });
+        delete singleTapTimeoutRef.current[submissionId];
+      }, DOUBLE_TAP_WINDOW_MS);
     }
-    lastTapRef.current[submissionId] = now;
   };
 
   const openComments = async (submissionId: string) => {
@@ -381,10 +491,6 @@ export default function HomeScreen() {
     }
   };
 
-  const visibleSubmissions = searchQuery.trim()
-    ? submissions.filter((s) => s.username.toLowerCase().includes(searchQuery.trim().toLowerCase()))
-    : submissions;
-
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.topBar}>
@@ -400,19 +506,47 @@ export default function HomeScreen() {
       </View>
 
       {searchVisible && (
-        <View style={styles.searchBar}>
-          <Ionicons name="search-outline" size={16} color="#6b7280" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by username"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            autoFocus
-          />
-          {searchQuery.length > 0 && (
-            <Pressable onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={16} color="#9ca3af" />
-            </Pressable>
+        <View style={styles.searchWrap}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search-outline" size={16} color="#6b7280" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search users by username"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+            />
+            {searchQuery.length > 0 && (
+              <Pressable onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={16} color="#9ca3af" />
+              </Pressable>
+            )}
+          </View>
+
+          {searchQuery.trim() !== '' && (
+            <View style={styles.searchResultsPanel}>
+              {isSearching ? (
+                <ActivityIndicator style={{ marginVertical: 12 }} color="#0B1418" />
+              ) : searchResults.length === 0 ? (
+                <Text style={styles.searchEmptyText}>No users found for "{searchQuery}"</Text>
+              ) : (
+                searchResults.map((result) => (
+                  <Pressable
+                    key={result.id}
+                    style={styles.searchResultRow}
+                    onPress={() => goToUserProfile(result.id)}
+                  >
+                    {result.avatar_url ? (
+                      <Image source={{ uri: result.avatar_url }} style={styles.searchResultAvatar} />
+                    ) : (
+                      <View style={styles.searchResultAvatar} />
+                    )}
+                    <Text style={styles.searchResultUsername}>{result.username}</Text>
+                    <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                  </Pressable>
+                ))
+              )}
+            </View>
           )}
         </View>
       )}
@@ -459,15 +593,18 @@ export default function HomeScreen() {
       ) : (
         <FlatList
           style={styles.feedSheet}
-          data={visibleSubmissions}
+          data={submissions}
           keyExtractor={(item) => item.id}
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
+          onEndReachedThreshold={0.6}
+          onEndReached={loadMore}
+          ListFooterComponent={
+            isLoadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color="#0B1418" /> : null
+          }
           ListEmptyComponent={
             <View style={styles.centered}>
               <Text style={styles.emptyText}>
-                {searchQuery
-                  ? `No results for "${searchQuery}"`
-                  : `No ${format} submissions yet for this theme. Be the first!`}
+                No {format} submissions yet for this theme. Be the first!
               </Text>
             </View>
           }
@@ -475,16 +612,17 @@ export default function HomeScreen() {
             const hasVoted = votedIds.has(item.id);
             return (
               <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <Pressable
-                    style={styles.cardHeaderTouchable}
-                    onPress={() => navigation.push('UserProfile', { userId: item.user_id })}
-                  >
+                <Pressable
+                  style={styles.cardHeaderTouchable}
+                  onPress={() => navigation.push('UserProfile', { userId: item.user_id })}
+                >
+                  {item.avatar_url ? (
+                    <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+                  ) : (
                     <View style={styles.avatar} />
-                    <Text style={styles.username}>{item.username}</Text>
-                  </Pressable>
-                  <Ionicons name="ellipsis-horizontal" size={16} color="#9ca3af" style={{ marginLeft: 'auto' }} />
-                </View>
+                  )}
+                  <Text style={styles.username}>{item.username}</Text>
+                </Pressable>
 
                 <Pressable onPress={() => handleImageTap(item.id)}>
                   <Image
@@ -493,8 +631,6 @@ export default function HomeScreen() {
                     onLoad={(e) => {
                       const { width, height } = e.nativeEvent.source;
                       if (width && height) {
-                        // Clamp to sane bounds so an unusually extreme photo
-                        // (e.g. a stitched panorama) can't break the layout
                         const ratio = Math.min(Math.max(width / height, 0.5), 2);
                         setAspectRatios((prev) => ({ ...prev, [item.id]: ratio }));
                       }
@@ -506,6 +642,12 @@ export default function HomeScreen() {
                     </View>
                   )}
                 </Pressable>
+
+                {item.caption ? (
+                  <Text style={styles.caption}>
+                    <Text style={styles.captionUsername}>{item.username}</Text> {item.caption}
+                  </Text>
+                ) : null}
 
                 <View style={styles.actionsRow}>
                   <Pressable style={styles.actionItem} onPress={() => handleHeartTap(item.id)}>
@@ -641,6 +783,27 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   searchInput: { flex: 1, fontSize: 13 },
+  searchWrap: { marginBottom: 4 },
+  searchResultsPanel: {
+    marginHorizontal: 16,
+    marginTop: 6,
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    paddingVertical: 4,
+    maxHeight: 260,
+  },
+  searchEmptyText: { fontSize: 13, color: '#9ca3af', textAlign: 'center', paddingVertical: 14 },
+  searchResultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderColor: '#f3f4f6',
+  },
+  searchResultAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#dbeafe' },
+  searchResultUsername: { flex: 1, fontSize: 14, fontWeight: '500', color: '#111827' },
 
   themeBanner: { alignItems: 'center', paddingVertical: 16 },
   themeLabel: { fontSize: 11, color: '#46606B', letterSpacing: 0.5, marginBottom: 4 },
@@ -683,11 +846,12 @@ const styles = StyleSheet.create({
   emptyText: { color: '#9ca3af', fontSize: 13, textAlign: 'center' },
 
   card: { paddingHorizontal: 16, paddingTop: 14 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  cardHeaderTouchable: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cardHeaderTouchable: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#dbeafe' },
   username: { fontSize: 14, fontWeight: '600', color: '#111827' },
   image: { width: '100%', borderRadius: 10, backgroundColor: '#f3f4f6' },
+  caption: { fontSize: 13, color: '#374151', marginTop: 8, lineHeight: 18 },
+  captionUsername: { fontWeight: '600', color: '#111827' },
   burstOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
@@ -725,11 +889,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 13,
   },
-  commentSendButton: {
-    backgroundColor: '#0B1418',
-    borderRadius: 20,
-    padding: 10,
-  },
+  commentSendButton: { backgroundColor: '#0B1418', borderRadius: 20, padding: 10 },
 
   notifRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
   notifThumb: { width: 36, height: 36, borderRadius: 6, backgroundColor: '#f3f4f6' },

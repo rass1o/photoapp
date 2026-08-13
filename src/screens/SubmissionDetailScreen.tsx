@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/AppNavigator';
+import type { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 
@@ -25,6 +25,7 @@ type Submission = {
   user_id: string;
   image_url: string;
   vote_count: number;
+  caption: string;
   username: string;
   avatar_url: string | null;
   avatar_frame_color: string;
@@ -51,7 +52,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
   const load = async () => {
     const { data: subData, error } = await supabase
       .from('submissions')
-      .select('id, user_id, image_url, vote_count')
+      .select('id, user_id, image_url, vote_count, caption')
       .eq('id', submissionId)
       .single();
 
@@ -202,6 +203,12 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
               </Pressable>
             </View>
 
+            {submission.caption ? (
+              <Text style={styles.caption}>
+                <Text style={styles.captionUsername}>{submission.username}</Text> {submission.caption}
+              </Text>
+            ) : null}
+
             <Text style={styles.commentsHeader}>Comments</Text>
           </View>
         }
@@ -246,6 +253,8 @@ const styles = StyleSheet.create({
   actionItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   actionText: { fontSize: 15, color: '#4b5563' },
   actionTextActive: { color: '#dc2626', fontWeight: '600' },
+  caption: { fontSize: 14, color: '#374151', paddingHorizontal: 16, paddingBottom: 12, lineHeight: 19 },
+  captionUsername: { fontWeight: '600', color: '#111827' },
 
   commentsHeader: { fontSize: 13, fontWeight: '600', color: '#6b7280', paddingHorizontal: 16, marginBottom: 4 },
   commentRow: { paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderColor: '#f3f4f6' },
