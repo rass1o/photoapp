@@ -13,14 +13,17 @@ import {
   Share,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import WeeklyWinnersModal, { Winner } from '../components/WeeklyWinnersModal';
 
 type Theme = {
   id: string;
@@ -104,6 +107,17 @@ export default function HomeScreen() {
   const singleTapTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const currentThemeIdRef = useRef<string | null>(null);
+
+  // Daily freelance photos strip (BeReal-style, no theme, just today's posts)
+  const [dailyPhotos, setDailyPhotos] = useState<
+    Array<{ id: string; image_url: string; username: string }>
+  >([]);
+  const [dailyViewerUrl, setDailyViewerUrl] = useState<string | null>(null);
+
+  // Weekly winners reveal
+  const [winnersVisible, setWinnersVisible] = useState(false);
+  const [winnersThemeName, setWinnersThemeName] = useState('');
+  const [winners, setWinners] = useState<Winner[]>([]);
 
   const attachUsernamesAndComments = async (rows: Submission[]) => {
     if (rows.length === 0) return rows;
@@ -255,6 +269,124 @@ export default function HomeScreen() {
     setIsLoading(true);
     loadFirstPage(format).finally(() => setIsLoading(false));
   }, [format, loadFirstPage]);
+
+  // Load today's freelance daily photos from everyone, BeReal-style
+  useEffect(() => {
+    const loadDailyPhotos = async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const { data } = await supabase
+        .from('daily_submissions')
+        .select('id, user_id, image_url')
+        .eq('submission_date', today)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      const rows = data ?? [];
+      if (rows.length === 0) {
+        setDailyPhotos([]);
+        return;
+      }
+
+      const { data: profileRows } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .in('id', rows.map((r) => r.user_id));
+      const usernameById = new Map((profileRows ?? []).map((p) => [p.id, p.username]));
+
+      setDailyPhotos(
+        rows.map((r) => ({
+          id: r.id,
+          image_url: r.image_url,
+          username: usernameById.get(r.user_id) ?? 'unknown',
+        }))
+      );
+    };
+
+    loadDailyPhotos();
+  }, []);
+
+  // Check whether last week's theme just ended and results haven't been shown yet.
+  // First client to see it "claims" the payout via an atomic update, so currency
+  // only gets awarded once even without a real backend job running the payouts.
+  useEffect(() => {
+    const checkWeeklyWinners = async () => {
+      const nowIso = new Date().toISOString();
+      const { data: endedTheme } = await supabase
+        .from('themes')
+        .select('id, name, end_date, results_processed')
+        .lt('end_date', nowIso)
+        .order('end_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!endedTheme) return;
+
+      const seenKey = `seenResults:${endedTheme.id}`;
+      const alreadySeen = await AsyncStorage.getItem(seenKey);
+      if (alreadySeen) return;
+
+      const { data: topSubmissions } = await supabase
+        .from('submissions')
+        .select('id, user_id, image_url, vote_count')
+        .eq('theme_id', endedTheme.id)
+        .order('vote_count', { ascending: false })
+        .limit(3);
+
+      if (!topSubmissions || topSubmissions.length === 0) {
+        await AsyncStorage.setItem(seenKey, 'true');
+        return;
+      }
+
+      const { data: profileRows } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .in('id', topSubmissions.map((s) => s.user_id));
+      const usernameById = new Map((profileRows ?? []).map((p) => [p.id, p.username]));
+
+      const rewardByPlace: Record<number, number> = { 1: 20, 2: 10, 3: 5 };
+      const orderedWinners: Winner[] = topSubmissions.map((s, i) => ({
+        place: (i + 1) as 1 | 2 | 3,
+        username: usernameById.get(s.user_id) ?? 'unknown',
+        imageUrl: s.image_url,
+        voteCount: s.vote_count,
+        reward: rewardByPlace[i + 1],
+      }));
+
+      // Try to claim the payout — only succeeds for whichever client gets here first
+      if (!endedTheme.results_processed) {
+        const { data: claimed } = await supabase
+          .from('themes')
+          .update({ results_processed: true })
+          .eq('id', endedTheme.id)
+          .eq('results_processed', false)
+          .select('id');
+
+        if (claimed && claimed.length > 0) {
+          for (const s of topSubmissions) {
+            const place = topSubmissions.indexOf(s) + 1;
+            const reward = rewardByPlace[place];
+            const { data: winnerProfile } = await supabase
+              .from('profiles')
+              .select('currency_balance')
+              .eq('id', s.user_id)
+              .single();
+            await supabase
+              .from('profiles')
+              .update({ currency_balance: (winnerProfile?.currency_balance ?? 0) + reward })
+              .eq('id', s.user_id);
+          }
+        }
+      }
+
+      // Show the reveal in build-up order: 3rd, then 2nd, then 1st
+      setWinnersThemeName(endedTheme.name);
+      setWinners([...orderedWinners].reverse());
+      setWinnersVisible(true);
+      await AsyncStorage.setItem(seenKey, 'true');
+    };
+
+    checkWeeklyWinners();
+  }, []);
 
   // Real username search across every user, not just what's currently loaded in the feed
   useEffect(() => {
@@ -551,6 +683,20 @@ export default function HomeScreen() {
         </View>
       )}
 
+      {dailyPhotos.length > 0 && (
+        <View style={styles.dailyStripWrap}>
+          <Text style={styles.dailyStripLabel}>Today, around the app</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
+            {dailyPhotos.map((d) => (
+              <Pressable key={d.id} onPress={() => setDailyViewerUrl(d.image_url)}>
+                <Image source={{ uri: d.image_url }} style={styles.dailyThumb} />
+                <Text style={styles.dailyThumbUsername} numberOfLines={1}>{d.username}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       <View style={styles.themeBanner}>
         <Text style={styles.themeLabel}>THIS WEEK'S THEME</Text>
         <Text style={styles.themeName}>{theme?.name ?? 'No active theme'}</Text>
@@ -754,6 +900,24 @@ export default function HomeScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={!!dailyViewerUrl} transparent animationType="fade" onRequestClose={() => setDailyViewerUrl(null)}>
+        <Pressable style={styles.dailyViewerBackdrop} onPress={() => setDailyViewerUrl(null)}>
+          {dailyViewerUrl && (
+            <Image source={{ uri: dailyViewerUrl }} style={styles.dailyViewerImage} resizeMode="contain" />
+          )}
+          <Pressable style={styles.dailyViewerCloseButton} onPress={() => setDailyViewerUrl(null)}>
+            <Ionicons name="close" size={22} color="#ffffff" />
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <WeeklyWinnersModal
+        visible={winnersVisible}
+        themeName={winnersThemeName}
+        winners={winners}
+        onClose={() => setWinnersVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -804,6 +968,32 @@ const styles = StyleSheet.create({
   },
   searchResultAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#dbeafe' },
   searchResultUsername: { flex: 1, fontSize: 14, fontWeight: '500', color: '#111827' },
+
+  dailyStripWrap: { marginTop: 4, marginBottom: 4 },
+  dailyStripLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#46606B',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+    marginLeft: 16,
+  },
+  dailyThumb: { width: 64, height: 64, borderRadius: 12, backgroundColor: '#f3f4f6' },
+  dailyThumbUsername: { fontSize: 10, color: '#46606B', marginTop: 4, width: 64, textAlign: 'center' },
+  dailyViewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', alignItems: 'center', justifyContent: 'center' },
+  dailyViewerImage: { width: '100%', height: '80%' },
+  dailyViewerCloseButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 18,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   themeBanner: { alignItems: 'center', paddingVertical: 16 },
   themeLabel: { fontSize: 11, color: '#46606B', letterSpacing: 0.5, marginBottom: 4 },

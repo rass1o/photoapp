@@ -14,6 +14,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -27,13 +28,16 @@ type Theme = {
   name: string;
 };
 
-type DailyTheme = {
-  id: string;
-  name: string;
-  prompt_date: string;
-};
+const DAILY_SUBMISSION_REWARD = 1;
 
-const DAILY_SUBMISSION_REWARD = 5;
+const CHEAT_SHEET_ROWS = [
+  { setting: 'Wide aperture (f/1.8–f/2.8)', effect: 'Blurry background, more light in — good for portraits, low light' },
+  { setting: 'Narrow aperture (f/8–f/16)', effect: 'Everything in focus, less light in — good for landscapes' },
+  { setting: 'Fast shutter (1/500s+)', effect: 'Freezes motion — good for sports, kids, pets' },
+  { setting: 'Slow shutter (1/30s or slower)', effect: 'Motion blur, needs a steady hand or tripod — good for light trails, water' },
+  { setting: 'Low ISO (100–400)', effect: 'Cleaner image, needs more light — good outdoors in daylight' },
+  { setting: 'High ISO (1600+)', effect: 'Brighter in the dark, but grainier — good indoors or at night' },
+];
 
 export default function CameraScreen() {
   const { user } = useAuth();
@@ -47,12 +51,13 @@ export default function CameraScreen() {
   const [caption, setCaption] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
-  // Daily prompt state
-  const [dailyTheme, setDailyTheme] = useState<DailyTheme | null>(null);
-  const [isLoadingDaily, setIsLoadingDaily] = useState(true);
+  // Daily freelance photo state (no theme — just whatever you're up to, like BeReal)
+  const [isCheckingDaily, setIsCheckingDaily] = useState(true);
   const [dailyAlreadySubmitted, setDailyAlreadySubmitted] = useState(false);
   const [dailyImageUri, setDailyImageUri] = useState<string | null>(null);
   const [isUploadingDaily, setIsUploadingDaily] = useState(false);
+
+  const [cheatSheetVisible, setCheatSheetVisible] = useState(false);
 
   const checkExistingSubmission = async (themeId: string) => {
     if (!user) return;
@@ -65,15 +70,17 @@ export default function CameraScreen() {
     setAlreadySubmitted(!!data);
   };
 
-  const checkExistingDailySubmission = async (dailyThemeId: string) => {
+  const checkExistingDailySubmission = async () => {
     if (!user) return;
+    const today = new Date().toISOString().slice(0, 10);
     const { data } = await supabase
       .from('daily_submissions')
       .select('id')
-      .eq('daily_theme_id', dailyThemeId)
       .eq('user_id', user.id)
+      .eq('submission_date', today)
       .maybeSingle();
     setDailyAlreadySubmitted(!!data);
+    setIsCheckingDaily(false);
   };
 
   useEffect(() => {
@@ -93,21 +100,8 @@ export default function CameraScreen() {
       setIsLoadingTheme(false);
     };
 
-    const loadDailyTheme = async () => {
-      const today = new Date().toISOString().slice(0, 10);
-      const { data } = await supabase
-        .from('daily_themes')
-        .select('id, name, prompt_date')
-        .eq('prompt_date', today)
-        .maybeSingle();
-
-      setDailyTheme(data);
-      if (data) await checkExistingDailySubmission(data.id);
-      setIsLoadingDaily(false);
-    };
-
     loadTheme();
-    loadDailyTheme();
+    checkExistingDailySubmission();
   }, [user]);
 
   const pickImage = async (target: 'weekly' | 'daily') => {
@@ -198,15 +192,17 @@ export default function CameraScreen() {
   };
 
   const handleDailySubmit = async () => {
-    if (!dailyImageUri || !user || !dailyTheme || dailyAlreadySubmitted) return;
+    if (!dailyImageUri || !user || dailyAlreadySubmitted) return;
     setIsUploadingDaily(true);
 
     try {
+      const today = new Date().toISOString().slice(0, 10);
+
       const { data: existing } = await supabase
         .from('daily_submissions')
         .select('id')
-        .eq('daily_theme_id', dailyTheme.id)
         .eq('user_id', user.id)
+        .eq('submission_date', today)
         .maybeSingle();
 
       if (existing) {
@@ -229,23 +225,21 @@ export default function CameraScreen() {
 
       const { error: insertError } = await supabase.from('daily_submissions').insert({
         user_id: user.id,
-        daily_theme_id: dailyTheme.id,
         image_url: publicUrlData.publicUrl,
+        submission_date: today,
       });
 
       if (insertError) throw insertError;
 
-      // Update the daily streak: continue if submitted yesterday, otherwise restart at 1
+      // Update the daily streak: continue if yesterday's post exists, otherwise restart at 1
       const { data: profileData } = await supabase
         .from('profiles')
         .select('daily_streak_count, last_daily_submission_date, currency_balance')
         .eq('id', user.id)
         .single();
 
-      const today = new Date().toISOString().slice(0, 10);
       const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
       const lastDate = profileData?.last_daily_submission_date;
-
       const nextStreak = lastDate === yesterday ? (profileData?.daily_streak_count ?? 0) + 1 : 1;
 
       await supabase
@@ -259,10 +253,7 @@ export default function CameraScreen() {
 
       setDailyAlreadySubmitted(true);
       setDailyImageUri(null);
-      Alert.alert(
-        'Nice!',
-        `Daily photo posted. +${DAILY_SUBMISSION_REWARD} shutters, ${nextStreak} day streak.`
-      );
+      Alert.alert('Posted!', `+${DAILY_SUBMISSION_REWARD} shutter, ${nextStreak} day streak.`);
     } catch (err) {
       console.log('Daily submission failed:', err);
       Alert.alert('Something went wrong', err instanceof Error ? err.message : 'Please try again.');
@@ -284,6 +275,14 @@ export default function CameraScreen() {
       <SafeAreaView style={styles.container}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
           <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+            <View style={styles.topRow}>
+              <View />
+              <Pressable style={styles.cheatSheetButton} onPress={() => setCheatSheetVisible(true)}>
+                <Ionicons name="book-outline" size={14} color="#4f46e5" />
+                <Text style={styles.cheatSheetButtonText}>Cheat sheet</Text>
+              </Pressable>
+            </View>
+
             {/* ---------- Weekly submission (main) ---------- */}
             {!theme ? (
               <View style={styles.section}>
@@ -363,25 +362,22 @@ export default function CameraScreen() {
               </View>
             )}
 
-            {/* ---------- Daily prompt (secondary) ---------- */}
+            {/* ---------- Daily freelance photo (secondary) ---------- */}
             <View style={styles.dailySection}>
-              <SectionHeader icon="sunny-outline" label="Today's quick prompt" />
+              <SectionHeader icon="sunny-outline" label="Daily photo" />
 
-              {isLoadingDaily ? (
+              {isCheckingDaily ? (
                 <ActivityIndicator color="#0B1418" style={{ marginTop: 10 }} />
-              ) : !dailyTheme ? (
-                <Text style={styles.dailySubtitle}>No prompt set for today. Check back tomorrow.</Text>
               ) : dailyAlreadySubmitted ? (
                 <View style={styles.dailyDoneRow}>
                   <Ionicons name="checkmark-circle" size={16} color="#166534" />
-                  <Text style={styles.dailyDoneText}>Done for today — see you tomorrow</Text>
+                  <Text style={styles.dailyDoneText}>Posted for today — see you tomorrow</Text>
                 </View>
               ) : (
                 <>
-                  <Text style={styles.dailyPromptName}>{dailyTheme.name}</Text>
                   <Text style={styles.dailySubtitle}>
-                    No pressure — just a quick daily post. +{DAILY_SUBMISSION_REWARD} shutters and keeps
-                    your daily streak going.
+                    No theme, no pressure — just a photo of whatever you're up to, visible to
+                    everyone. +{DAILY_SUBMISSION_REWARD} shutter and keeps your daily streak going.
                   </Text>
 
                   <Pressable style={styles.dailyCaptureButton} onPress={() => pickImage('daily')}>
@@ -411,6 +407,36 @@ export default function CameraScreen() {
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
+
+        <Modal
+          visible={cheatSheetVisible}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setCheatSheetVisible(false)}
+        >
+          <View style={styles.cheatSheetBackdrop}>
+            <View style={styles.cheatSheetCard}>
+              <View style={styles.cheatSheetHeader}>
+                <Text style={styles.cheatSheetTitle}>Exposure cheat sheet</Text>
+                <Pressable onPress={() => setCheatSheetVisible(false)}>
+                  <Ionicons name="close" size={22} color="#374151" />
+                </Pressable>
+              </View>
+              <ScrollView>
+                <Text style={styles.cheatSheetIntro}>
+                  Three settings control exposure together — aperture, shutter speed, and ISO.
+                  Quick reference for what each one does:
+                </Text>
+                {CHEAT_SHEET_ROWS.map((row, i) => (
+                  <View key={i} style={styles.cheatSheetRow}>
+                    <Text style={styles.cheatSheetSetting}>{row.setting}</Text>
+                    <Text style={styles.cheatSheetEffect}>{row.effect}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </TouchableWithoutFeedback>
   );
@@ -419,7 +445,18 @@ export default function CameraScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 30 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 30 },
+  topRow: { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 4 },
+  cheatSheetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#eef2ff',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  cheatSheetButtonText: { fontSize: 12, fontWeight: '600', color: '#4f46e5' },
   section: {},
   title: { fontSize: 18, fontWeight: '600' },
   subtitle: { fontSize: 13, color: '#6b7280', marginBottom: 20 },
@@ -472,9 +509,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderColor: '#f3f4f6',
   },
-  dailyHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  dailyHeader: { fontSize: 13, fontWeight: '600', color: '#92400e' },
-  dailyPromptName: { fontSize: 16, fontWeight: '700', color: '#0B1418', marginBottom: 4 },
   dailySubtitle: { fontSize: 12, color: '#6b7280', marginBottom: 12, lineHeight: 17 },
   dailyDoneRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
   dailyDoneText: { fontSize: 13, color: '#166534' },
@@ -495,4 +529,19 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     alignItems: 'center',
   },
+
+  cheatSheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  cheatSheetCard: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 16,
+    maxHeight: '75%',
+  },
+  cheatSheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  cheatSheetTitle: { fontSize: 16, fontWeight: '600' },
+  cheatSheetIntro: { fontSize: 12, color: '#6b7280', marginBottom: 12, lineHeight: 17 },
+  cheatSheetRow: { paddingVertical: 10, borderBottomWidth: 1, borderColor: '#f3f4f6' },
+  cheatSheetSetting: { fontSize: 13, fontWeight: '600', color: '#111827', marginBottom: 3 },
+  cheatSheetEffect: { fontSize: 12, color: '#6b7280', lineHeight: 17 },
 });
