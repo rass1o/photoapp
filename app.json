@@ -1,4 +1,5 @@
 {
+  "name": "ShuttInk",
   "plugins": [
     "expo-status-bar"
   ]

@@ -6,6 +6,9 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../lib/supabase';
 import SectionHeader from '../components/SectionHeader';
+import BackBar from '../components/BackBar';
+import { OctopusCard } from '../components/Octopus';
+import { OctopusData, loadOctopus } from '../lib/octopus';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 
@@ -34,18 +37,13 @@ type CameraItem = {
   camera_name: string;
 };
 
-const BADGE_LABELS: Record<string, string> = {
-  'flame-outline': 'streak',
-  'star-outline': 'top voter',
-  'flash-outline': 'early bird',
-  'ribbon-outline': 'weekly winner',
-};
-
 export default function UserProfileScreen({ route, navigation }: Props) {
   const { userId } = route.params;
   const [profile, setProfile] = useState<Profile | null>(null);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [cameras, setCameras] = useState<CameraItem[]>([]);
+  const [badgeLabel, setBadgeLabel] = useState('streak');
+  const [octopus, setOctopus] = useState<{ data: OctopusData; line: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
 
@@ -61,6 +59,16 @@ export default function UserProfileScreen({ route, navigation }: Props) {
 
       setProfile(profileData);
 
+      if (profileData?.badge) {
+        const { data: badgeItem } = await supabase
+          .from('shop_items')
+          .select('label')
+          .eq('category', 'badge')
+          .eq('value', profileData.badge)
+          .maybeSingle();
+        if (badgeItem) setBadgeLabel(badgeItem.label);
+      }
+
       const { data: galleryData } = await supabase
         .from('submissions')
         .select('id, image_url')
@@ -75,6 +83,9 @@ export default function UserProfileScreen({ route, navigation }: Props) {
         .order('created_at', { ascending: true });
       setCameras(cameraData ?? []);
 
+      const octo = await loadOctopus(userId);
+      if (octo.octopus) setOctopus({ data: octo.octopus, line: octo.line });
+
       setIsLoading(false);
     };
 
@@ -83,28 +94,34 @@ export default function UserProfileScreen({ route, navigation }: Props) {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.centered} edges={['bottom']}>
-        <ActivityIndicator color="#0B1418" />
+      <SafeAreaView style={styles.page} edges={['top', 'bottom']}>
+        <BackBar />
+        <View style={styles.centered}>
+          <ActivityIndicator color="#0B1418" />
+        </View>
       </SafeAreaView>
     );
   }
 
   if (!profile) {
     return (
-      <SafeAreaView style={styles.centered} edges={['bottom']}>
-        <Text style={styles.emptyText}>This user couldn't be found.</Text>
+      <SafeAreaView style={styles.page} edges={['top', 'bottom']}>
+        <BackBar />
+        <View style={styles.centered}>
+          <Text style={styles.emptyText}>This user couldn't be found.</Text>
+        </View>
       </SafeAreaView>
     );
   }
 
-  const badgeLabel = BADGE_LABELS[profile.badge] ?? 'streak';
   const showcaseUrls = [profile.showcase_url_1, profile.showcase_url_2, profile.showcase_url_3].filter(
     (url): url is string => !!url
   );
 
   return (
     <View style={[styles.screen, { backgroundColor: profile.banner_color }]}>
-      <SafeAreaView edges={['bottom']} style={styles.flex}>
+      <SafeAreaView edges={['top', 'bottom']} style={styles.flex}>
+        <BackBar />
         <View style={styles.header}>
           <View style={[styles.avatar, { borderColor: profile.avatar_frame_color }]}>
             {profile.avatar_url ? (
@@ -183,6 +200,20 @@ export default function UserProfileScreen({ route, navigation }: Props) {
               </View>
             }
             ListEmptyComponent={<Text style={styles.emptyText}>No submissions yet.</Text>}
+            ListFooterComponent={
+              octopus ? (
+                <View style={styles.octopusSection}>
+                  <SectionHeader icon="happy-outline" label={`${profile.username}\u2019s octopus`} />
+                  <OctopusCard
+                    name={octopus.data.name}
+                    line={octopus.line}
+                    color={octopus.data.color}
+                    accessory={octopus.data.accessory}
+                    heldItem={octopus.data.held_item}
+                  />
+                </View>
+              ) : undefined
+            }
             renderItem={({ item }) => (
               <Pressable
                 style={styles.galleryTile}
@@ -208,8 +239,10 @@ export default function UserProfileScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  octopusSection: { marginTop: 18 },
   screen: { flex: 1 },
   flex: { flex: 1 },
+  page: { flex: 1, backgroundColor: '#ffffff' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
   emptyText: { color: '#9ca3af', fontSize: 13, textAlign: 'center', padding: 20 },
 

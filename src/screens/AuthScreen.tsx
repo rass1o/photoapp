@@ -57,7 +57,7 @@ export default function AuthScreen() {
         style={styles.flex}
       >
         <View style={styles.content}>
-          <Text style={styles.logo}>Frames</Text>
+          <Text style={styles.logo}>ShuttInk</Text>
           <Text style={styles.tagline}>A new theme every week. Shoot it your way.</Text>
 
           <View style={styles.modeRow}>

@@ -93,8 +93,13 @@ export default function RankingsScreen() {
     setIsRefreshing(false);
   };
 
+  // Ties share a rank and skip the next one (10, 10, 7 votes -> 1, 1, 3),
+  // matching how payouts place them.
+  const ranks = rankings.map((r) => 1 + rankings.filter((o) => o.vote_count > r.vote_count).length);
+
   const myRankIndex = rankings.findIndex((r) => r.user_id === user?.id);
   const myRanking = myRankIndex >= 0 ? rankings[myRankIndex] : null;
+  const myRank = myRankIndex >= 0 ? ranks[myRankIndex] : null;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -135,14 +140,20 @@ export default function RankingsScreen() {
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={
             <View style={styles.centered}>
-              <Text style={styles.emptyText}>No {format} submissions yet for this theme.</Text>
+              <Text style={styles.emptyText}>No {format} submissions yet. It's quiet under the sea.</Text>
             </View>
           }
           renderItem={({ item, index }) => {
             const isMe = item.user_id === user?.id;
+            const rank = ranks[index];
+            const isPodium = rank <= 3 && item.vote_count > 0;
+            const isTie = ranks.filter((r) => r === rank).length > 1;
             return (
               <View style={[styles.row, isMe && styles.rowMe]}>
-                <Text style={[styles.rank, index < 3 && styles.rankTop]}>{index + 1}</Text>
+                <Text style={[styles.rank, isPodium && styles.rankTop]}>
+                  {isTie ? 'T' : ''}
+                  {rank}
+                </Text>
                 <Pressable onPress={() => navigation.push('SubmissionDetail', { submissionId: item.id })}>
                   <Image source={{ uri: item.image_url }} style={styles.thumb} />
                 </Pressable>
@@ -159,9 +170,9 @@ export default function RankingsScreen() {
         />
       )}
 
-      {myRanking && myRankIndex >= 3 && (
+      {myRanking && myRank !== null && myRank > 3 && (
         <View style={styles.pinnedRow}>
-          <Text style={styles.pinnedRank}>#{myRankIndex + 1}</Text>
+          <Text style={styles.pinnedRank}>#{myRank}</Text>
           <Image source={{ uri: myRanking.image_url }} style={styles.thumb} />
           <Text style={styles.pinnedUsername}>You</Text>
           <Text style={styles.pinnedVotes}>{myRanking.vote_count} votes</Text>
@@ -202,7 +213,7 @@ const styles = StyleSheet.create({
     borderColor: '#f3f4f6',
   },
   rowMe: { backgroundColor: '#eef2ff', borderRadius: 8, paddingHorizontal: 8 },
-  rank: { width: 22, fontWeight: '600', color: '#6b7280', fontSize: 14 },
+  rank: { width: 28, fontWeight: '600', color: '#6b7280', fontSize: 14 },
   rankTop: { color: '#b45309' },
   thumb: { width: 40, height: 40, borderRadius: 6, backgroundColor: '#f3f4f6' },
   username: { fontSize: 14 },

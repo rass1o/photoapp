@@ -18,17 +18,21 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import WeeklyWinnersModal, { Winner } from '../components/WeeklyWinnersModal';
+import ThemeWelcomeModal from '../components/ThemeWelcomeModal';
+import FilmStamp from '../components/FilmStamp';
 
 type Theme = {
   id: string;
   name: string;
   end_date: string;
+  recommended_films?: string | null;
+  example_image_url?: string | null;
 };
 
 type Submission = {
@@ -37,6 +41,7 @@ type Submission = {
   image_url: string;
   format: 'digital' | 'film';
   caption: string;
+  film_stamp: string | null;
   vote_count: number;
   created_at: string;
   username: string;
@@ -119,6 +124,12 @@ export default function HomeScreen() {
   const [winnersThemeName, setWinnersThemeName] = useState('');
   const [winners, setWinners] = useState<Winner[]>([]);
 
+  const [themeWelcomeVisible, setThemeWelcomeVisible] = useState(false);
+  // iOS can only present one modal at a time; trying to open two at once can
+  // leave an invisible layer that blocks every tap. So the theme welcome waits
+  // until the weekly results have been checked (and closed, if they showed).
+  const [welcomeReady, setWelcomeReady] = useState(false);
+
   const attachUsernamesAndComments = async (rows: Submission[]) => {
     if (rows.length === 0) return rows;
 
@@ -142,7 +153,7 @@ export default function HomeScreen() {
       const nowIso = new Date().toISOString();
       const { data: themeData, error: themeError } = await supabase
         .from('themes')
-        .select('id, name, end_date')
+        .select('id, name, end_date, recommended_films, example_image_url')
         .lte('start_date', nowIso)
         .gte('end_date', nowIso)
         .order('start_date', { ascending: false })
@@ -156,6 +167,16 @@ export default function HomeScreen() {
 
       setTheme(themeData);
       currentThemeIdRef.current = themeData?.id ?? null;
+
+      // Show the "new theme" welcome screen once per theme, per device.
+      if (themeData) {
+        const welcomeKey = `seenThemeWelcome:${themeData.id}`;
+        const alreadySeenWelcome = await AsyncStorage.getItem(welcomeKey);
+        if (!alreadySeenWelcome) {
+          setThemeWelcomeVisible(true);
+          await AsyncStorage.setItem(welcomeKey, 'true');
+        }
+      }
 
       if (!themeData) {
         setSubmissions([]);
@@ -176,7 +197,7 @@ export default function HomeScreen() {
 
       const { data: submissionsData, error: submissionsError } = await supabase
         .from('submissions')
-        .select('id, user_id, image_url, format, caption, vote_count, created_at')
+        .select('id, user_id, image_url, format, caption, film_stamp, vote_count, created_at')
         .eq('theme_id', themeData.id)
         .eq('format', selectedFormat)
         .order('created_at', { ascending: false })
@@ -226,7 +247,7 @@ export default function HomeScreen() {
 
     const { data, error } = await supabase
       .from('submissions')
-      .select('id, user_id, image_url, format, caption, vote_count, created_at')
+      .select('id, user_id, image_url, format, caption, film_stamp, vote_count, created_at')
       .eq('theme_id', currentThemeIdRef.current)
       .eq('format', format)
       .order('created_at', { ascending: false })
@@ -271,121 +292,113 @@ export default function HomeScreen() {
   }, [format, loadFirstPage]);
 
   // Load today's freelance daily photos from everyone, BeReal-style
-  useEffect(() => {
-    const loadDailyPhotos = async () => {
-      const today = new Date().toISOString().slice(0, 10);
-      const { data } = await supabase
-        .from('daily_submissions')
-        .select('id, user_id, image_url')
-        .eq('submission_date', today)
-        .order('created_at', { ascending: false })
-        .limit(20);
+  const loadDailyPhotos = useCallback(async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const { data } = await supabase
+      .from('daily_submissions')
+      .select('id, user_id, image_url')
+      .eq('submission_date', today)
+      .order('created_at', { ascending: false })
+      .limit(20);
 
-      const rows = data ?? [];
-      if (rows.length === 0) {
-        setDailyPhotos([]);
-        return;
-      }
+    const rows = data ?? [];
+    if (rows.length === 0) {
+      setDailyPhotos([]);
+      return;
+    }
 
-      const { data: profileRows } = await supabase
-        .from('profiles')
-        .select('id, username')
-        .in('id', rows.map((r) => r.user_id));
-      const usernameById = new Map((profileRows ?? []).map((p) => [p.id, p.username]));
+    const { data: profileRows } = await supabase
+      .from('profiles')
+      .select('id, username')
+      .in('id', rows.map((r) => r.user_id));
+    const usernameById = new Map((profileRows ?? []).map((p) => [p.id, p.username]));
 
-      setDailyPhotos(
-        rows.map((r) => ({
-          id: r.id,
-          image_url: r.image_url,
-          username: usernameById.get(r.user_id) ?? 'unknown',
-        }))
-      );
-    };
-
-    loadDailyPhotos();
+    setDailyPhotos(
+      rows.map((r) => ({
+        id: r.id,
+        image_url: r.image_url,
+        username: usernameById.get(r.user_id) ?? 'unknown',
+      }))
+    );
   }, []);
 
-  // Check whether last week's theme just ended and results haven't been shown yet.
-  // First client to see it "claims" the payout via an atomic update, so currency
-  // only gets awarded once even without a real backend job running the payouts.
+  // Re-run every time the Home tab comes into focus (not just on first mount),
+  // so a daily photo posted from the Camera tab shows up right away without
+  // needing a full app reload.
+  useFocusEffect(
+    useCallback(() => {
+      loadDailyPhotos();
+    }, [loadDailyPhotos])
+  );
+
+  // Pay out any themes that have ended (server-side, safe to call from every
+  // client — each theme is only ever paid once), then show the most recent
+  // results if this device hasn't seen them yet.
   useEffect(() => {
-    const checkWeeklyWinners = async () => {
-      const nowIso = new Date().toISOString();
+    // Returns whether the results modal was shown
+    const checkWeeklyWinners = async (): Promise<boolean> => {
+      const { error: payoutError } = await supabase.rpc('process_due_payouts');
+      if (payoutError) console.log('Payout check failed:', payoutError.message);
+
       const { data: endedTheme } = await supabase
         .from('themes')
-        .select('id, name, end_date, results_processed')
-        .lt('end_date', nowIso)
+        .select('id, name')
+        .lt('end_date', new Date().toISOString())
+        .eq('results_processed', true)
         .order('end_date', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (!endedTheme) return;
+      if (!endedTheme) return false;
 
       const seenKey = `seenResults:${endedTheme.id}`;
       const alreadySeen = await AsyncStorage.getItem(seenKey);
-      if (alreadySeen) return;
+      if (alreadySeen) return false;
 
-      const { data: topSubmissions } = await supabase
-        .from('submissions')
-        .select('id, user_id, image_url, vote_count')
-        .eq('theme_id', endedTheme.id)
-        .order('vote_count', { ascending: false })
-        .limit(3);
+      const { data: results } = await supabase
+        .from('theme_results')
+        .select('submission_id, user_id, format, place, vote_count, reward')
+        .eq('theme_id', endedTheme.id);
 
-      if (!topSubmissions || topSubmissions.length === 0) {
+      const rows = results ?? [];
+      if (rows.length === 0) {
         await AsyncStorage.setItem(seenKey, 'true');
-        return;
+        return false;
       }
 
-      const { data: profileRows } = await supabase
-        .from('profiles')
-        .select('id, username')
-        .in('id', topSubmissions.map((s) => s.user_id));
+      const [{ data: profileRows }, { data: submissionRows }] = await Promise.all([
+        supabase.from('profiles').select('id, username').in('id', rows.map((r) => r.user_id)),
+        supabase.from('submissions').select('id, image_url').in('id', rows.map((r) => r.submission_id)),
+      ]);
       const usernameById = new Map((profileRows ?? []).map((p) => [p.id, p.username]));
+      const imageById = new Map((submissionRows ?? []).map((s) => [s.id, s.image_url]));
 
-      const rewardByPlace: Record<number, number> = { 1: 20, 2: 10, 3: 5 };
-      const orderedWinners: Winner[] = topSubmissions.map((s, i) => ({
-        place: (i + 1) as 1 | 2 | 3,
-        username: usernameById.get(s.user_id) ?? 'unknown',
-        imageUrl: s.image_url,
-        voteCount: s.vote_count,
-        reward: rewardByPlace[i + 1],
+      const winnersList: Winner[] = rows.map((r) => ({
+        submissionId: r.submission_id,
+        place: r.place as 1 | 2 | 3,
+        format: r.format as 'digital' | 'film',
+        isTie: rows.some((o) => o !== r && o.format === r.format && o.place === r.place),
+        username: usernameById.get(r.user_id) ?? 'unknown',
+        imageUrl: imageById.get(r.submission_id) ?? '',
+        voteCount: r.vote_count,
+        reward: r.reward,
       }));
 
-      // Try to claim the payout — only succeeds for whichever client gets here first
-      if (!endedTheme.results_processed) {
-        const { data: claimed } = await supabase
-          .from('themes')
-          .update({ results_processed: true })
-          .eq('id', endedTheme.id)
-          .eq('results_processed', false)
-          .select('id');
+      // Build up to the win: 3rd place first, digital before film within a place
+      winnersList.sort((a, b) => b.place - a.place || a.format.localeCompare(b.format));
 
-        if (claimed && claimed.length > 0) {
-          for (const s of topSubmissions) {
-            const place = topSubmissions.indexOf(s) + 1;
-            const reward = rewardByPlace[place];
-            const { data: winnerProfile } = await supabase
-              .from('profiles')
-              .select('currency_balance')
-              .eq('id', s.user_id)
-              .single();
-            await supabase
-              .from('profiles')
-              .update({ currency_balance: (winnerProfile?.currency_balance ?? 0) + reward })
-              .eq('id', s.user_id);
-          }
-        }
-      }
-
-      // Show the reveal in build-up order: 3rd, then 2nd, then 1st
       setWinnersThemeName(endedTheme.name);
-      setWinners([...orderedWinners].reverse());
+      setWinners(winnersList);
       setWinnersVisible(true);
       await AsyncStorage.setItem(seenKey, 'true');
+      return true;
     };
 
-    checkWeeklyWinners();
+    checkWeeklyWinners()
+      .then((shown) => {
+        if (!shown) setWelcomeReady(true);
+      })
+      .catch(() => setWelcomeReady(true));
   }, []);
 
   // Real username search across every user, not just what's currently loaded in the feed
@@ -616,7 +629,7 @@ export default function HomeScreen() {
   const shareSubmission = async (item: Submission) => {
     try {
       await Share.share({
-        message: `Check out ${item.username}'s photo on Frames for "${theme?.name}": ${item.image_url}`,
+        message: `Check out ${item.username}'s photo on ShuttInk for "${theme?.name}": ${item.image_url}`,
       });
     } catch (err) {
       console.log('Share failed:', err);
@@ -626,7 +639,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.topBar}>
-        <Text style={styles.appName}>Frames</Text>
+        <Text style={styles.appName}>ShuttInk</Text>
         <View style={styles.topBarIcons}>
           <Pressable onPress={() => setSearchVisible((v) => !v)}>
             <Ionicons name="search-outline" size={20} color="#1A2A32" />
@@ -745,12 +758,12 @@ export default function HomeScreen() {
           onEndReachedThreshold={0.6}
           onEndReached={loadMore}
           ListFooterComponent={
-            isLoadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color="#0B1418" /> : null
+            isLoadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color="#0B1418" /> : undefined
           }
           ListEmptyComponent={
             <View style={styles.centered}>
               <Text style={styles.emptyText}>
-                No {format} submissions yet for this theme. Be the first!
+                No {format} submissions yet for this theme. Water you waiting for? Be the first!
               </Text>
             </View>
           }
@@ -782,6 +795,11 @@ export default function HomeScreen() {
                       }
                     }}
                   />
+                  {item.film_stamp && (
+                    <View style={styles.stampOverlay} pointerEvents="none">
+                      <FilmStamp stock={item.film_stamp} />
+                    </View>
+                  )}
                   {burstId === item.id && (
                     <View style={styles.burstOverlay} pointerEvents="none">
                       <Ionicons name="heart" size={80} color="#ffffff" />
@@ -916,7 +934,19 @@ export default function HomeScreen() {
         visible={winnersVisible}
         themeName={winnersThemeName}
         winners={winners}
-        onClose={() => setWinnersVisible(false)}
+        onClose={() => {
+          setWinnersVisible(false);
+          // Let the results modal finish its dismiss animation first
+          setTimeout(() => setWelcomeReady(true), 500);
+        }}
+      />
+
+      <ThemeWelcomeModal
+        visible={themeWelcomeVisible && welcomeReady}
+        themeName={theme?.name ?? ''}
+        recommendedFilms={theme?.recommended_films}
+        exampleImageUrl={theme?.example_image_url}
+        onClose={() => setThemeWelcomeVisible(false)}
       />
     </SafeAreaView>
   );
@@ -1042,8 +1072,9 @@ const styles = StyleSheet.create({
   image: { width: '100%', borderRadius: 10, backgroundColor: '#f3f4f6' },
   caption: { fontSize: 13, color: '#374151', marginTop: 8, lineHeight: 18 },
   captionUsername: { fontWeight: '600', color: '#111827' },
+  stampOverlay: { position: 'absolute', left: 10, bottom: 10 },
   burstOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },

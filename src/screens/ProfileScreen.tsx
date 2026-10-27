@@ -1,14 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, Image, FlatList, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { ProfileCategory, ShopItem, PROFILE_COLUMN, isOwned, loadShop } from '../lib/shop';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import SectionHeader from '../components/SectionHeader';
+import { OctopusCard } from '../components/Octopus';
+import LockerModal from '../components/LockerModal';
+import { OctopusData, loadOctopus } from '../lib/octopus';
 
 type Profile = {
   id: string;
@@ -62,15 +66,6 @@ function CustomizeButton({ icon, label, onPress, accent }: CustomizeButtonProps)
   );
 }
 
-const FRAME_COLORS = ['#7c3aed', '#0ea5e9', '#f59e0b', '#ef4444', '#10b981'];
-const BANNER_COLORS = ['#D9E2E6', '#FDE8D9', '#E4DFF7', '#DCEEE4'];
-const BADGES: Array<{ icon: keyof typeof Ionicons.glyphMap; label: string }> = [
-  { icon: 'flame-outline', label: 'streak' },
-  { icon: 'star-outline', label: 'top voter' },
-  { icon: 'flash-outline', label: 'early bird' },
-  { icon: 'ribbon-outline', label: 'weekly winner' },
-];
-
 const SHOWCASE_KEYS = ['showcase_url_1', 'showcase_url_2', 'showcase_url_3'] as const;
 
 export default function ProfileScreen() {
@@ -81,6 +76,10 @@ export default function ProfileScreen() {
   const [cameras, setCameras] = useState<CameraItem[]>([]);
   const [newCameraName, setNewCameraName] = useState('');
   const [goals, setGoals] = useState<GoalItem[]>([]);
+  const [shopItems, setShopItems] = useState<ShopItem[]>([]);
+  const [ownedIds, setOwnedIds] = useState<Set<string>>(new Set());
+  const [lockerCategory, setLockerCategory] = useState<ProfileCategory | null>(null);
+  const [octopus, setOctopus] = useState<{ data: OctopusData; line: string } | null>(null);
   const [newGoalText, setNewGoalText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -114,18 +113,37 @@ export default function ProfileScreen() {
       .eq('user_id', user.id)
       .order('created_at', { ascending: true });
     setGoals(goalsData ?? []);
+
+    const shop = await loadShop(user.id);
+    setShopItems(shop.items);
+    setOwnedIds(shop.ownedIds);
+
+    const octo = await loadOctopus(user.id);
+    setOctopus(octo.octopus ? { data: octo.octopus, line: octo.line } : null);
   };
 
-  useEffect(() => {
-    setIsLoading(true);
-    loadProfile().finally(() => setIsLoading(false));
-  }, [user]);
+  // Reload on focus so purchases from the Shop tab and new balances show up.
+  // Only the first load shows the full-screen spinner.
+  const hasLoadedRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasLoadedRef.current) setIsLoading(true);
+      loadProfile().finally(() => {
+        hasLoadedRef.current = true;
+        setIsLoading(false);
+      });
+    }, [user])
+  );
 
   const updateProfile = async (changes: Partial<Profile>) => {
     if (!user || !profile) return;
+    const previous = profile;
     setProfile({ ...profile, ...changes });
     const { error } = await supabase.from('profiles').update(changes).eq('id', user.id);
-    if (error) console.log('Profile update failed:', error.message);
+    if (error) {
+      setProfile(previous);
+      Alert.alert('Couldn\u2019t save that', error.message);
+    }
   };
 
   const pickAvatar = async () => {
@@ -268,23 +286,14 @@ export default function ProfileScreen() {
     if (error) console.log('Remove goal failed:', error.message);
   };
 
-  const cycleFrame = () => {
-    if (!profile) return;
-    const next = FRAME_COLORS[(FRAME_COLORS.indexOf(profile.avatar_frame_color) + 1) % FRAME_COLORS.length];
-    updateProfile({ avatar_frame_color: next });
+  const equipFromLocker = (item: ShopItem) => {
+    if (!lockerCategory) return;
+    updateProfile({ [PROFILE_COLUMN[lockerCategory]]: item.value });
   };
 
-  const cycleBanner = () => {
-    if (!profile) return;
-    const next = BANNER_COLORS[(BANNER_COLORS.indexOf(profile.banner_color) + 1) % BANNER_COLORS.length];
-    updateProfile({ banner_color: next });
-  };
-
-  const cycleBadge = () => {
-    if (!profile) return;
-    const currentIndex = BADGES.findIndex((b) => b.icon === profile.badge);
-    const next = BADGES[(currentIndex + 1) % BADGES.length];
-    updateProfile({ badge: next.icon });
+  const openShopFromLocker = () => {
+    setLockerCategory(null);
+    navigation.navigate('MainTabs', { screen: 'Shop' });
   };
 
   const startEditBio = () => {
@@ -305,7 +314,7 @@ export default function ProfileScreen() {
     );
   }
 
-  const activeBadge = BADGES.find((b) => b.icon === profile.badge) ?? BADGES[0];
+  const badgeLabel = shopItems.find((i) => i.category === 'badge' && i.value === profile.badge)?.label ?? 'streak';
   const showcaseUrls = [profile.showcase_url_1, profile.showcase_url_2, profile.showcase_url_3];
 
   return (
@@ -344,10 +353,10 @@ export default function ProfileScreen() {
           <Text style={styles.bio}>{profile.bio || 'Add a bio'}</Text>
         )}
 
-        <Pressable style={styles.streakPill} onPress={cycleBadge}>
-          <Ionicons name={activeBadge.icon} size={13} color="#92400e" />
+        <Pressable style={styles.streakPill} onPress={() => setLockerCategory('badge')}>
+          <Ionicons name={profile.badge as keyof typeof Ionicons.glyphMap} size={13} color="#92400e" />
           <Text style={styles.streakText}>
-            {profile.streak_count} week streak · {activeBadge.label}
+            {profile.streak_count} week streak · {badgeLabel}
           </Text>
         </Pressable>
       </View>
@@ -378,16 +387,16 @@ export default function ProfileScreen() {
 
               <SectionHeader icon="options-outline" label="Customize" />
               <View style={styles.customizeGrid}>
-                <CustomizeButton icon="ellipse-outline" label="Avatar frame" onPress={cycleFrame} />
-                <CustomizeButton icon="image-outline" label="Banner" onPress={cycleBanner} />
-                <CustomizeButton icon="ribbon-outline" label="Badge" onPress={cycleBadge} />
+                <CustomizeButton icon="ellipse-outline" label="Avatar frame" onPress={() => setLockerCategory('frame')} />
+                <CustomizeButton icon="image-outline" label="Banner" onPress={() => setLockerCategory('banner')} />
+                <CustomizeButton icon="ribbon-outline" label="Badge" onPress={() => setLockerCategory('badge')} />
                 <CustomizeButton icon="create-outline" label="Edit bio" onPress={startEditBio} accent />
               </View>
 
               <SectionHeader icon="flag-outline" label="Goals" />
               <View style={styles.goalsList}>
                 {goals.length === 0 ? (
-                  <Text style={styles.emptyText}>No goals yet. Set something to work toward.</Text>
+                  <Text style={styles.emptyText}>No goals yet. Seas the day and set one.</Text>
                 ) : (
                   goals.map((g) => (
                     <View key={g.id} style={styles.goalRow}>
@@ -492,13 +501,40 @@ export default function ProfileScreen() {
             </Pressable>
           )}
           ListFooterComponent={
-            <Pressable style={styles.signOutButton} onPress={signOut}>
-              <Ionicons name="log-out-outline" size={16} color="#b91c1c" />
-              <Text style={styles.signOutText}>Sign out</Text>
-            </Pressable>
+            <View>
+              {octopus && (
+                <View style={styles.octopusSection}>
+                  <SectionHeader icon="happy-outline" label="Your octopus" />
+                  <OctopusCard
+                    name={octopus.data.name}
+                    line={octopus.line}
+                    color={octopus.data.color}
+                    accessory={octopus.data.accessory}
+                    heldItem={octopus.data.held_item}
+                  />
+                  <Pressable style={styles.octopusButton} onPress={() => navigation.push('Octopus')}>
+                    <Ionicons name="color-wand-outline" size={16} color="#4f46e5" />
+                    <Text style={styles.octopusButtonText}>Customize {octopus.data.name}</Text>
+                  </Pressable>
+                </View>
+              )}
+              <Pressable style={styles.signOutButton} onPress={signOut}>
+                <Ionicons name="log-out-outline" size={16} color="#b91c1c" />
+                <Text style={styles.signOutText}>Sign out</Text>
+              </Pressable>
+            </View>
           }
         />
       </View>
+
+      <LockerModal
+        category={lockerCategory}
+        ownedItems={shopItems.filter((i) => i.category === lockerCategory && isOwned(i, ownedIds))}
+        equippedValue={lockerCategory ? profile[PROFILE_COLUMN[lockerCategory]] : null}
+        onEquip={equipFromLocker}
+        onClose={() => setLockerCategory(null)}
+        onOpenShop={openShopFromLocker}
+      />
     </SafeAreaView>
   );
 }
@@ -683,6 +719,20 @@ const styles = StyleSheet.create({
   galleryTile: { flex: 1 / 3, aspectRatio: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: '#f3f4f6' },
   galleryImage: { width: '100%', height: '100%' },
 
+  octopusSection: { marginTop: 18 },
+  octopusButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+    backgroundColor: '#eef2ff',
+  },
+  octopusButtonText: { fontSize: 13, color: '#4f46e5', fontWeight: '600' },
   signOutButton: {
     flexDirection: 'row',
     alignItems: 'center',

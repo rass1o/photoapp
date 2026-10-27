@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { useFocusEffect } from '@react-navigation/native';
+import { ShopItem, isOwned, loadShop } from '../lib/shop';
+import FilmStamp from '../components/FilmStamp';
 import SectionHeader from '../components/SectionHeader';
 
 type Theme = {
@@ -50,6 +53,8 @@ export default function CameraScreen() {
   const [format, setFormat] = useState<'digital' | 'film'>('digital');
   const [caption, setCaption] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [ownedStamps, setOwnedStamps] = useState<ShopItem[]>([]);
+  const [filmStamp, setFilmStamp] = useState<string | null>(null);
 
   // Daily freelance photo state (no theme — just whatever you're up to, like BeReal)
   const [isCheckingDaily, setIsCheckingDaily] = useState(true);
@@ -103,6 +108,16 @@ export default function CameraScreen() {
     loadTheme();
     checkExistingDailySubmission();
   }, [user]);
+
+  // Refresh on focus so stamps bought in the Shop show up right away
+  useFocusEffect(
+    useCallback(() => {
+      if (!user) return;
+      loadShop(user.id).then(({ items, ownedIds }) =>
+        setOwnedStamps(items.filter((i) => i.category === 'stamp' && isOwned(i, ownedIds)))
+      );
+    }, [user])
+  );
 
   const pickImage = async (target: 'weekly' | 'daily') => {
     const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
@@ -175,6 +190,7 @@ export default function CameraScreen() {
         image_url: publicUrlData.publicUrl,
         format,
         caption: caption.trim(),
+        film_stamp: format === 'film' ? filmStamp : null,
       });
 
       if (insertError) throw insertError;
@@ -182,7 +198,8 @@ export default function CameraScreen() {
       setAlreadySubmitted(true);
       setImageUri(null);
       setCaption('');
-      Alert.alert('Submitted!', 'Your photo is live for this week\u2019s theme.');
+      setFilmStamp(null);
+      Alert.alert('Shell yeah!', 'Your photo is live for this week\u2019s theme.');
     } catch (err) {
       console.log('Submission failed:', err);
       Alert.alert('Something went wrong', err instanceof Error ? err.message : 'Please try again.');
@@ -231,29 +248,13 @@ export default function CameraScreen() {
 
       if (insertError) throw insertError;
 
-      // Update the daily streak: continue if yesterday's post exists, otherwise restart at 1
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('daily_streak_count, last_daily_submission_date, currency_balance')
-        .eq('id', user.id)
-        .single();
-
-      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-      const lastDate = profileData?.last_daily_submission_date;
-      const nextStreak = lastDate === yesterday ? (profileData?.daily_streak_count ?? 0) + 1 : 1;
-
-      await supabase
-        .from('profiles')
-        .update({
-          daily_streak_count: nextStreak,
-          last_daily_submission_date: today,
-          currency_balance: (profileData?.currency_balance ?? 0) + DAILY_SUBMISSION_REWARD,
-        })
-        .eq('id', user.id);
+      // Streak + reward are handled server-side so the client can't edit balances
+      const { data: reward, error: rewardError } = await supabase.rpc('record_daily_post', { p_date: today });
+      if (rewardError) throw rewardError;
 
       setDailyAlreadySubmitted(true);
       setDailyImageUri(null);
-      Alert.alert('Posted!', `+${DAILY_SUBMISSION_REWARD} shutter, ${nextStreak} day streak.`);
+      Alert.alert('Fin-tastic!', `+${reward.reward} shutter, ${reward.streak} day streak.`);
     } catch (err) {
       console.log('Daily submission failed:', err);
       Alert.alert('Something went wrong', err instanceof Error ? err.message : 'Please try again.');
@@ -287,7 +288,7 @@ export default function CameraScreen() {
             {!theme ? (
               <View style={styles.section}>
                 <Text style={styles.title}>No active theme right now</Text>
-                <Text style={styles.subtitle}>Check back once this week's theme is live.</Text>
+                <Text style={styles.subtitle}>The tide's out. Check back once this week's theme is live.</Text>
               </View>
             ) : alreadySubmitted ? (
               <View style={styles.section}>
@@ -329,6 +330,35 @@ export default function CameraScreen() {
                     </Text>
                   </Pressable>
                 </View>
+
+                {format === 'film' && (
+                  <View style={styles.stampPicker}>
+                    <Text style={styles.stampPickerLabel}>Film stamp</Text>
+                    {ownedStamps.length === 0 ? (
+                      <Text style={styles.stampPickerEmpty}>
+                        Pick up film stamps in the Shop to tag the stock you shot on.
+                      </Text>
+                    ) : (
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stampRow}>
+                        <Pressable
+                          style={[styles.stampOption, filmStamp === null && styles.stampOptionActive]}
+                          onPress={() => setFilmStamp(null)}
+                        >
+                          <Text style={styles.stampNoneText}>None</Text>
+                        </Pressable>
+                        {ownedStamps.map((stamp) => (
+                          <Pressable
+                            key={stamp.id}
+                            style={[styles.stampOption, filmStamp === stamp.value && styles.stampOptionActive]}
+                            onPress={() => setFilmStamp(stamp.value)}
+                          >
+                            <FilmStamp stock={stamp.value} accent={stamp.accent} size="small" />
+                          </Pressable>
+                        ))}
+                      </ScrollView>
+                    )}
+                  </View>
+                )}
 
                 <View>
                   <TextInput
@@ -443,6 +473,20 @@ export default function CameraScreen() {
 }
 
 const styles = StyleSheet.create({
+  stampPicker: { marginBottom: 12 },
+  stampPickerLabel: { fontSize: 12, fontWeight: '600', color: '#6b7280', marginBottom: 6 },
+  stampPickerEmpty: { fontSize: 12, color: '#9ca3af' },
+  stampRow: { gap: 6, paddingVertical: 2 },
+  stampOption: {
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    padding: 4,
+    minHeight: 32,
+    justifyContent: 'center',
+  },
+  stampOptionActive: { borderColor: '#0B1418', borderWidth: 2, padding: 3 },
+  stampNoneText: { fontSize: 11, color: '#6b7280', paddingHorizontal: 6 },
   container: { flex: 1 },
   flex: { flex: 1 },
   scrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 30 },

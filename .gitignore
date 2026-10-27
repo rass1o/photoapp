@@ -11,3 +11,4 @@ npm-debug.*
 .env.local
 *.orig.*
 web-build/
+.DS_Store

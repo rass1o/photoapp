@@ -17,6 +17,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import FilmStamp from '../components/FilmStamp';
+import BackBar from '../components/BackBar';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SubmissionDetail'>;
 
@@ -26,6 +28,7 @@ type Submission = {
   image_url: string;
   vote_count: number;
   caption: string;
+  film_stamp: string | null;
   username: string;
   avatar_url: string | null;
   avatar_frame_color: string;
@@ -52,7 +55,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
   const load = async () => {
     const { data: subData, error } = await supabase
       .from('submissions')
-      .select('id, user_id, image_url, vote_count, caption')
+      .select('id, user_id, image_url, vote_count, caption, film_stamp')
       .eq('id', submissionId)
       .single();
 
@@ -142,25 +145,33 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.centered} edges={['bottom']}>
-        <ActivityIndicator color="#0B1418" />
+      <SafeAreaView style={styles.page} edges={['top', 'bottom']}>
+        <BackBar />
+        <View style={styles.centered}>
+          <ActivityIndicator color="#0B1418" />
+        </View>
       </SafeAreaView>
     );
   }
 
   if (!submission) {
     return (
-      <SafeAreaView style={styles.centered} edges={['bottom']}>
-        <Text style={styles.emptyText}>This photo couldn't be found.</Text>
+      <SafeAreaView style={styles.page} edges={['top', 'bottom']}>
+        <BackBar />
+        <View style={styles.centered}>
+          <Text style={styles.emptyText}>This photo couldn't be found.</Text>
+        </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <SafeAreaView style={styles.page} edges={['top']}>
+      <BackBar />
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <FlatList
         style={styles.flex}
         data={comments}
@@ -179,16 +190,23 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
               <Text style={styles.username}>{submission.username}</Text>
             </Pressable>
 
-            <Image
-              source={{ uri: submission.image_url }}
-              style={[styles.image, { aspectRatio }]}
-              onLoad={(e) => {
-                const { width, height } = e.nativeEvent.source;
-                if (width && height) {
-                  setAspectRatio(Math.min(Math.max(width / height, 0.5), 2));
-                }
-              }}
-            />
+            <View>
+              <Image
+                source={{ uri: submission.image_url }}
+                style={[styles.image, { aspectRatio }]}
+                onLoad={(e) => {
+                  const { width, height } = e.nativeEvent.source;
+                  if (width && height) {
+                    setAspectRatio(Math.min(Math.max(width / height, 0.5), 2));
+                  }
+                }}
+              />
+              {submission.film_stamp && (
+                <View style={styles.stampOverlay} pointerEvents="none">
+                  <FilmStamp stock={submission.film_stamp} />
+                </View>
+              )}
+            </View>
 
             <View style={styles.actionsRow}>
               <Pressable style={styles.actionItem} onPress={toggleVote}>
@@ -212,7 +230,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
             <Text style={styles.commentsHeader}>Comments</Text>
           </View>
         }
-        ListEmptyComponent={<Text style={styles.emptyText}>No comments yet. Say something nice.</Text>}
+        ListEmptyComponent={<Text style={styles.emptyText}>No comments yet. Don't be shellfish, say something nice.</Text>}
         renderItem={({ item }) => (
           <View style={styles.commentRow}>
             <Text style={styles.commentUsername}>{item.username}</Text>
@@ -233,12 +251,15 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
           <Ionicons name="send" size={16} color="#ffffff" />
         </Pressable>
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#ffffff' },
+  page: { flex: 1, backgroundColor: '#ffffff' },
+  stampOverlay: { position: 'absolute', left: 10, bottom: 10 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
   emptyText: { color: '#9ca3af', fontSize: 13, textAlign: 'center', padding: 20 },
 

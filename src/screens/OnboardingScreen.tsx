@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Octopus from '../components/Octopus';
 
 type Props = {
   onDone: () => void;
@@ -12,12 +13,13 @@ type Slide = {
   title: string;
   body: string;
   bullets?: string[];
+  mascot?: boolean; // show Ocho instead of the icon
 };
 
 const SLIDES: Slide[] = [
   {
     icon: 'camera-outline',
-    title: 'Welcome to Frames',
+    title: 'Welcome to ShuttInk',
     body:
       'A new photo theme drops every week. Shoot it your way, share it with everyone, and see how your take compares.',
   },
@@ -27,19 +29,41 @@ const SLIDES: Slide[] = [
     body: 'Here\u2019s the weekly rhythm:',
     bullets: [
       'A theme is announced at the start of the week',
-      'Submit one photo, tagged as Digital or Film',
+      'Submit one photo for it, tagged as Digital or Film',
+      'Post a daily photo too: one shot a day, any subject, no theme. It keeps your streak alive',
       'Everyone votes on their favorites all week',
-      'Top photos win currency and climb the rankings',
     ],
   },
   {
     icon: 'heart-outline',
-    title: 'Voting & currency',
-    body: 'Two things power the whole app:',
+    title: 'Voting & shutters',
+    body: 'Shutters are ShuttInk\u2019s currency. Here\u2019s how they work:',
     bullets: [
-      'Double-tap or hit the heart to vote — you can vote for as many photos as you like',
-      'Win votes to earn "shutters," the in-app currency',
-      'Spend shutters on profile customization: avatar frames, banners, and badges',
+      'Double-tap or hit the heart to vote. Vote for as many photos as you like',
+      'The top 3 in Digital and in Film win 20, 10 and 5 shutters. Ties share the spot',
+      'Every daily photo earns you 1 shutter',
+    ],
+  },
+  {
+    icon: 'happy-outline',
+    mascot: true,
+    title: 'Meet Ocho',
+    body: 'Ocho is ShuttInk\u2019s resident octopus, and he\u2019s camera-obsessed for a reason: his eyes basically are cameras.',
+    bullets: [
+      'Octopus eyes are built like a camera, with an iris, a lens and a retina, much like an aperture, lens and sensor',
+      'To focus, he slides his lens closer or farther away, the same way a camera lens does',
+      'So every camera he sees feels like family. Eight arms helps, too: he never misses a shot',
+    ],
+  },
+  {
+    icon: 'storefront-outline',
+    title: 'The Shop',
+    body: 'Shell out your shutters in the Shop:',
+    bullets: [
+      'Avatar frames, banners and badges for your profile',
+      'Make Ocho your own: name him, then dress him up with colors, hats, glasses, props and new things to say',
+      'Film stamps to tag the stock you shot on',
+      'Theme tickets to pitch next week\u2019s theme',
     ],
   },
 ];
@@ -67,10 +91,16 @@ export default function OnboardingScreen({ onDone }: Props) {
         )}
       </View>
 
-      <View style={styles.content}>
-        <View style={styles.iconCircle}>
-          <Ionicons name={slide.icon} size={36} color="#0B1418" />
-        </View>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {slide.mascot ? (
+          <View style={styles.mascot}>
+            <Octopus color="#a78bfa" accessory="beret" heldItem="camera" size={130} />
+          </View>
+        ) : (
+          <View style={styles.iconCircle}>
+            <Ionicons name={slide.icon} size={36} color="#0B1418" />
+          </View>
+        )}
 
         <Text style={styles.title}>{slide.title}</Text>
         <Text style={styles.body}>{slide.body}</Text>
@@ -85,7 +115,7 @@ export default function OnboardingScreen({ onDone }: Props) {
             ))}
           </View>
         )}
-      </View>
+      </ScrollView>
 
       <View style={styles.footer}>
         <View style={styles.dots}>
@@ -95,7 +125,7 @@ export default function OnboardingScreen({ onDone }: Props) {
         </View>
 
         <Pressable style={styles.continueButton} onPress={handleContinue}>
-          <Text style={styles.continueText}>{isLast ? 'Get started' : 'Continue'}</Text>
+          <Text style={styles.continueText}>{isLast ? 'Let\u2019s dive in' : 'Continue'}</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -107,7 +137,8 @@ const styles = StyleSheet.create({
   skipRow: { alignItems: 'flex-end', paddingHorizontal: 20, paddingTop: 8, minHeight: 32 },
   skipText: { fontSize: 13, color: '#46606B' },
 
-  content: { flex: 1, justifyContent: 'center', paddingHorizontal: 32 },
+  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 32, paddingVertical: 12 },
+  mascot: { alignSelf: 'center', marginBottom: 8 },
   iconCircle: {
     width: 72,
     height: 72,
