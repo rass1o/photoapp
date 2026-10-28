@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, FlatList, StyleSheet, Pressable, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -95,10 +95,20 @@ export default function RankingsScreen() {
     setRankings(rows.map((r) => ({ ...r, username: usernameById.get(r.user_id) ?? 'unknown' })));
   }, [user]);
 
-  useEffect(() => {
-    setIsLoading(true);
-    loadData(feed).finally(() => setIsLoading(false));
-  }, [feed, loadData]);
+  // Reload whenever the tab comes into focus (new votes and submissions show
+  // up without pulling to refresh) or the feed changes. Only the first load
+  // of each feed shows the spinner.
+  const loadedFeedRef = useRef<Feed | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      const firstLoad = loadedFeedRef.current !== feed;
+      if (firstLoad) setIsLoading(true);
+      loadData(feed).finally(() => {
+        loadedFeedRef.current = feed;
+        setIsLoading(false);
+      });
+    }, [feed, loadData])
+  );
 
   useEffect(
     () =>

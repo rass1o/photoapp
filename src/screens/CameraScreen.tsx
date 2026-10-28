@@ -18,7 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
-import { readImageFile, imageContentType } from '../lib/upload';
+import { readImage } from '../lib/upload';
 import { localDateString } from '../lib/date';
 import { useAuth } from '../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
@@ -146,7 +146,7 @@ export default function CameraScreen() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.8,
     });
 
@@ -174,13 +174,12 @@ export default function CameraScreen() {
         return;
       }
 
-      const arrayBuffer = await readImageFile(imageUri);
-      const fileExt = imageUri.split('.').pop() ?? 'jpg';
-      const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+      const image = await readImage(imageUri);
+      const filePath = `${user.id}/${Date.now()}.${image.ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from('submissions')
-        .upload(filePath, arrayBuffer, { contentType: imageContentType(fileExt) });
+        .upload(filePath, image.bytes, { contentType: image.contentType });
 
       if (uploadError) throw uploadError;
 
@@ -229,13 +228,12 @@ export default function CameraScreen() {
         return;
       }
 
-      const arrayBuffer = await readImageFile(dailyImageUri);
-      const fileExt = dailyImageUri.split('.').pop() ?? 'jpg';
-      const filePath = `${user.id}/daily-${Date.now()}.${fileExt}`;
+      const image = await readImage(dailyImageUri);
+      const filePath = `${user.id}/daily-${Date.now()}.${image.ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from('submissions')
-        .upload(filePath, arrayBuffer, { contentType: imageContentType(fileExt) });
+        .upload(filePath, image.bytes, { contentType: image.contentType });
 
       if (uploadError) throw uploadError;
 

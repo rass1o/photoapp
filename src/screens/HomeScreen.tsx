@@ -11,6 +11,7 @@ import {
   Share,
   KeyboardAvoidingView,
   Platform,
+  Alert,
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -526,7 +527,14 @@ export default function HomeScreen() {
     [user, pendingVoteIds]
   );
 
+  const isOwnSubmission = (submissionId: string) =>
+    submissions.find((s) => s.id === submissionId)?.user_id === user?.id;
+
   const handleHeartTap = (submissionId: string) => {
+    if (isOwnSubmission(submissionId)) {
+      Alert.alert('That\u2019s your own catch', 'You can\u2019t vote for your own photo, but your friends can!');
+      return;
+    }
     votedIds.has(submissionId) ? removeVote(submissionId) : castVote(submissionId);
   };
 
@@ -542,9 +550,12 @@ export default function HomeScreen() {
         clearTimeout(pendingTimeout);
         delete singleTapTimeoutRef.current[submissionId];
       }
-      castVote(submissionId);
-      setBurstId(submissionId);
-      setTimeout(() => setBurstId((current) => (current === submissionId ? null : current)), 700);
+      // Double-tapping your own photo does nothing (no vote, no heart burst)
+      if (!isOwnSubmission(submissionId)) {
+        castVote(submissionId);
+        setBurstId(submissionId);
+        setTimeout(() => setBurstId((current) => (current === submissionId ? null : current)), 700);
+      }
       lastTapRef.current[submissionId] = 0;
     } else {
       lastTapRef.current[submissionId] = now;
@@ -589,7 +600,7 @@ export default function HomeScreen() {
       .single();
 
     if (!error && data) {
-      setComments((prev) => [...prev, { ...data, username: 'you' }]);
+      setComments((prev) => [...prev, { ...data, username: user.username }]);
       setCommentCounts((prev) => ({
         ...prev,
         [commentSubmissionId]: (prev[commentSubmissionId] ?? 0) + 1,

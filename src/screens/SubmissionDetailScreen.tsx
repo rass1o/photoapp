@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -114,6 +115,10 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
 
   const toggleVote = async () => {
     if (!user || !submission) return;
+    if (submission.user_id === user.id) {
+      Alert.alert('That\u2019s your own catch', 'You can\u2019t vote for your own photo, but your friends can!');
+      return;
+    }
     const wasVoted = hasVoted;
 
     setHasVoted(!wasVoted);
@@ -141,7 +146,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
       .single();
 
     if (!error && data) {
-      setComments((prev) => [...prev, { ...data, username: 'you' }]);
+      setComments((prev) => [...prev, { ...data, username: user.username }]);
     }
   };
 

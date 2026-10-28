@@ -22,7 +22,6 @@ export default function AuthScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
-    console.log('handleSubmit fired, mode:', mode);
     if (!email.includes('@')) {
       setError('Enter a valid email');
       return;
