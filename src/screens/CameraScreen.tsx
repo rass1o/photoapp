@@ -20,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
+import { readImageFile, imageContentType } from '../lib/upload';
 import { localDateString } from '../lib/date';
 import { useAuth } from '../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
@@ -173,14 +174,13 @@ export default function CameraScreen() {
         return;
       }
 
-      const response = await fetch(imageUri);
-      const arrayBuffer = await response.arrayBuffer();
+      const arrayBuffer = await readImageFile(imageUri);
       const fileExt = imageUri.split('.').pop() ?? 'jpg';
       const filePath = `${user.id}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('submissions')
-        .upload(filePath, arrayBuffer, { contentType: `image/${fileExt}` });
+        .upload(filePath, arrayBuffer, { contentType: imageContentType(fileExt) });
 
       if (uploadError) throw uploadError;
 
@@ -229,14 +229,13 @@ export default function CameraScreen() {
         return;
       }
 
-      const response = await fetch(dailyImageUri);
-      const arrayBuffer = await response.arrayBuffer();
+      const arrayBuffer = await readImageFile(dailyImageUri);
       const fileExt = dailyImageUri.split('.').pop() ?? 'jpg';
       const filePath = `${user.id}/daily-${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('submissions')
-        .upload(filePath, arrayBuffer, { contentType: `image/${fileExt}` });
+        .upload(filePath, arrayBuffer, { contentType: imageContentType(fileExt) });
 
       if (uploadError) throw uploadError;
 

@@ -7,6 +7,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { readImageFile, imageContentType } from '../lib/upload';
 import { ProfileCategory, ShopItem, PROFILE_COLUMN, isOwned, loadShop } from '../lib/shop';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import SectionHeader from '../components/SectionHeader';
@@ -167,14 +168,13 @@ export default function ProfileScreen() {
     setIsUploadingAvatar(true);
     try {
       const uri = result.assets[0].uri;
-      const response = await fetch(uri);
-      const arrayBuffer = await response.arrayBuffer();
+      const arrayBuffer = await readImageFile(uri);
       const fileExt = uri.split('.').pop() ?? 'jpg';
       const filePath = `${user.id}/avatar-${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, arrayBuffer, { contentType: `image/${fileExt}` });
+        .upload(filePath, arrayBuffer, { contentType: imageContentType(fileExt) });
 
       if (uploadError) throw uploadError;
 
@@ -207,14 +207,13 @@ export default function ProfileScreen() {
     setUploadingShowcaseSlot(slotIndex);
     try {
       const uri = result.assets[0].uri;
-      const response = await fetch(uri);
-      const arrayBuffer = await response.arrayBuffer();
+      const arrayBuffer = await readImageFile(uri);
       const fileExt = uri.split('.').pop() ?? 'jpg';
       const filePath = `${user.id}/showcase-${slotIndex}-${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('submissions')
-        .upload(filePath, arrayBuffer, { contentType: `image/${fileExt}` });
+        .upload(filePath, arrayBuffer, { contentType: imageContentType(fileExt) });
 
       if (uploadError) throw uploadError;
 
