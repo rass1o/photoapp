@@ -21,6 +21,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
+import { localDateString } from '../lib/date';
 import { useAuth } from '../context/AuthContext';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import WeeklyWinnersModal, { Winner } from '../components/WeeklyWinnersModal';
@@ -293,7 +294,7 @@ export default function HomeScreen() {
 
   // Load today's freelance daily photos from everyone, BeReal-style
   const loadDailyPhotos = useCallback(async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateString();
     const { data } = await supabase
       .from('daily_submissions')
       .select('id, user_id, image_url')

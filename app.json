@@ -2,5 +2,19 @@
   "name": "ShuttInk",
   "plugins": [
     "expo-status-bar"
-  ]
+  ],
+  "extra": {
+    "eas": {
+      "projectId": "db93b5fd-a9f3-47c0-b0ff-44406b5fd945"
+    }
+  },
+  "owner": "horassio",
+  "runtimeVersion": {
+    "policy": "sdkVersion"
+  },
+  "updates": {
+    "url": "https://u.expo.dev/db93b5fd-a9f3-47c0-b0ff-44406b5fd945"
+  },
+  "android": {},
+  "ios": {}
 }

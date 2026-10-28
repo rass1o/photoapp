@@ -20,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
+import { localDateString } from '../lib/date';
 import { useAuth } from '../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { ShopItem, isOwned, loadShop } from '../lib/shop';
@@ -77,7 +78,7 @@ export default function CameraScreen() {
 
   const checkExistingDailySubmission = async () => {
     if (!user) return;
-    const today = new Date().toISOString().slice(0, 10);
+    const today = localDateString();
     const { data } = await supabase
       .from('daily_submissions')
       .select('id')
@@ -106,13 +107,14 @@ export default function CameraScreen() {
     };
 
     loadTheme();
-    checkExistingDailySubmission();
   }, [user]);
 
-  // Refresh on focus so stamps bought in the Shop show up right away
+  // Refresh on focus so stamps bought in the Shop show up right away, and so
+  // the daily photo unlocks again after local midnight without a restart
   useFocusEffect(
     useCallback(() => {
       if (!user) return;
+      checkExistingDailySubmission();
       loadShop(user.id).then(({ items, ownedIds }) =>
         setOwnedStamps(items.filter((i) => i.category === 'stamp' && isOwned(i, ownedIds)))
       );
@@ -213,7 +215,7 @@ export default function CameraScreen() {
     setIsUploadingDaily(true);
 
     try {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = localDateString();
 
       const { data: existing } = await supabase
         .from('daily_submissions')
