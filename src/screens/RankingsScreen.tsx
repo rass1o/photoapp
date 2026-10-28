@@ -235,13 +235,13 @@ const styles = StyleSheet.create({
 
   toggleRow: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    backgroundColor: colors.sandTrack,
     borderRadius: 20,
     padding: 3,
     marginBottom: 24, // room for the wave below
   },
   toggle: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 18 },
-  toggleActive: { backgroundColor: colors.white },
+  toggleActive: { backgroundColor: colors.shell },
   toggleText: { color: colors.muted, fontSize: 13 },
   toggleTextActive: { fontWeight: '600', fontSize: 13, color: colors.deep },
 

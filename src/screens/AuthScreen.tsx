@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   },
   modeRow: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.6)',
+    backgroundColor: colors.sandTrack,
     borderRadius: 8,
     padding: 2,
     marginBottom: 20,

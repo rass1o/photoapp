@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: colors.shell,
   },
   friendButtonPrimary: { backgroundColor: colors.deep },
   friendButtonText: { fontSize: 13, fontWeight: '600', color: colors.deep },

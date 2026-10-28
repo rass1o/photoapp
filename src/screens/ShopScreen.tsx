@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: '#d97706',
-    backgroundColor: '#fffbeb',
+    backgroundColor: colors.sandLight,
     borderRadius: 12,
     padding: 14,
     marginBottom: 12,

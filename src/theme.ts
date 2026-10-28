@@ -8,7 +8,7 @@ export const colors = {
   ink: '#0B3049', // strong text
   text: '#2C5872', // body text
   muted: '#5B8299', // secondary text
-  faint: '#93AFBF', // hints, placeholders, inactive icons
+  faint: '#7D9BAC', // hints, placeholders, inactive icons
   reef: '#0E86A8', // accent: links, active tabs, highlighted buttons
   reefDark: '#0B6E8C',
   reefBorder: '#A6DCEA',
@@ -17,16 +17,17 @@ export const colors = {
   seaDeep: '#8FD3E3', // wave crests and accents on the sea
 
   // Beach
-  shell: '#FFFCF6', // sheets and cards (warm white)
-  sand: '#F5EBD7', // filled rows, chips, inputs
-  sandLight: '#FAF3E6',
-  sandBorder: '#E8D7B5',
-  sandDark: '#DCC7A0',
+  shell: '#F2E2C2', // sheets, cards and the tab bar (dry sand)
+  sand: '#E8D3AA', // filled rows, chips, inputs (a shade darker than the sheet)
+  sandLight: '#EEDCB8',
+  sandBorder: '#D9BF8E',
+  sandDark: '#C9AB78',
 
   coral: '#E8664A', // avatar initials and playful accents
   coralLight: '#FFE3D8',
 
   white: '#FFFFFF',
+  sandTrack: 'rgba(242, 226, 194, 0.6)', // toggle tracks sitting on the sea
   backdrop: 'rgba(6, 40, 64, 0.5)', // behind bottom sheets
 };
 

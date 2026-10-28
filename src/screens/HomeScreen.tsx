@@ -1073,7 +1073,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginHorizontal: 16,
     marginBottom: 24, // room for the wave below
-    backgroundColor: 'rgba(255,255,255,0.5)',
+    backgroundColor: colors.sandTrack,
     borderRadius: 20,
     padding: 3,
   },
