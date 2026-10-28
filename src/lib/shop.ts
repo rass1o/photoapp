@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 
 export type ProfileCategory = 'frame' | 'banner' | 'badge';
 export type OctoCategory = 'octo_color' | 'octo_accessory' | 'octo_item' | 'octo_dialogue';
-export type ShopCategory = ProfileCategory | OctoCategory | 'stamp' | 'ticket';
+export type ShopCategory = ProfileCategory | OctoCategory | 'stamp' | 'ticket' | 'blind_box';
 
 export type ShopItem = {
   id: string;
@@ -14,6 +14,8 @@ export type ShopItem = {
   is_purchasable: boolean;
   unlock_hint: string | null;
   accent: string | null;
+  rarity: string; // rarities.id, e.g. 'common'
+  in_blind_box: boolean;
 };
 
 // Maps each profile cosmetic category to the profile column it equips into
@@ -33,7 +35,7 @@ export async function loadShop(userId: string) {
   const [{ data: items }, { data: inventory }] = await Promise.all([
     supabase
       .from('shop_items')
-      .select('id, category, value, label, price, is_purchasable, unlock_hint, accent')
+      .select('id, category, value, label, price, is_purchasable, unlock_hint, accent, rarity, in_blind_box')
       .order('sort_order'),
     supabase.from('user_inventory').select('item_id').eq('user_id', userId),
   ]);

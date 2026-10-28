@@ -8,12 +8,15 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { ProfileCategory, ShopItem, PROFILE_COLUMN, isOwned, loadShop, confirmPurchase } from '../lib/shop';
 import { OctopusData } from '../lib/octopus';
+import { Rarity, boxOdds, boxPool, loadRarities, openBlindBox } from '../lib/blindBox';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import SectionHeader from '../components/SectionHeader';
 import ShopTile, { TileStatus } from '../components/ShopTile';
 import Octopus from '../components/Octopus';
 import FilmStamp from '../components/FilmStamp';
 import CosmeticSwatch from '../components/CosmeticSwatch';
+import Clam from '../components/Clam';
+import BlindBoxModal from '../components/BlindBoxModal';
 import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
 import Wave from '../components/Wave';
@@ -55,6 +58,8 @@ export default function ShopScreen() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
+  const [rarities, setRarities] = useState<Rarity[]>([]);
+  const [blindBoxOpen, setBlindBoxOpen] = useState(false);
 
   const [ticketTitle, setTicketTitle] = useState('');
   const [ticketDescription, setTicketDescription] = useState('');
@@ -65,7 +70,7 @@ export default function ShopScreen() {
 
   const load = useCallback(async () => {
     if (!user) return;
-    const [{ data: profileData }, { data: octoData }, { data: suggestionData }, shop] = await Promise.all([
+    const [{ data: profileData }, { data: octoData }, { data: suggestionData }, shop, rarityList] = await Promise.all([
       supabase
         .from('profiles')
         .select('username, avatar_url, avatar_frame_color, banner_color, badge, currency_balance')
@@ -82,12 +87,14 @@ export default function ShopScreen() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false }),
       loadShop(user.id),
+      loadRarities(),
     ]);
     if (profileData) setProfile(profileData);
     setOctopus(octoData);
     setSuggestions(suggestionData ?? []);
     setItems(shop.items);
     setOwnedIds(shop.ownedIds);
+    setRarities(rarityList);
   }, [user]);
 
   // Reload on every focus so the balance reflects daily posts and payouts
@@ -126,6 +133,19 @@ export default function ShopScreen() {
   };
 
   const ticket = items.find((i) => i.category === 'ticket');
+  const blindBox = items.find((i) => i.category === 'blind_box' && i.is_purchasable);
+  const blindBoxOdds = boxOdds(boxPool(items, ownedIds), rarities);
+
+  // Opens on the server, then adds the finds to what you own
+  const openClam = async () => {
+    if (!blindBox) return [];
+    const result = await openBlindBox(blindBox.id);
+    setOwnedIds((prev) => new Set([...prev, ...result.item_ids]));
+    setProfile((p) => (p ? { ...p, currency_balance: result.balance } : p));
+    return result.item_ids
+      .map((id) => items.find((i) => i.id === id))
+      .filter((i): i is ShopItem => !!i);
+  };
 
   const submitTicket = () => {
     if (!profile || !ticket) return;
@@ -236,6 +256,27 @@ export default function ShopScreen() {
                 <View style={styles.octoButton}>
                   <Text style={styles.octoButtonText}>Customize</Text>
                   <Ionicons name="chevron-forward" size={14} color={colors.white} />
+                </View>
+              </Pressable>
+            </>
+          )}
+
+          {blindBox && (
+            <>
+              <SectionHeader icon="gift-outline" label="Blind box" />
+              <Pressable style={styles.clamCard} onPress={() => setBlindBoxOpen(true)}>
+                <Clam size={78} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.clamTitle}>{blindBox.label}</Text>
+                  <Text style={styles.octoBlurb}>
+                    {blindBoxOdds.length >= 2
+                      ? '2 surprise accessories for your octopus. Tap to see what\u2019s inside.'
+                      : 'You\u2019ve nearly collected them all. Tap for details.'}
+                  </Text>
+                </View>
+                <View style={styles.clamPrice}>
+                  <Ionicons name="flash" size={12} color={colors.white} />
+                  <Text style={styles.octoButtonText}>{blindBox.price}</Text>
                 </View>
               </Pressable>
             </>
@@ -355,6 +396,19 @@ export default function ShopScreen() {
           )}
         </ScrollView>
       </View>
+
+      <BlindBoxModal
+        box={blindBoxOpen && blindBox ? blindBox : null}
+        odds={blindBoxOdds}
+        balance={profile.currency_balance}
+        octopusColor={octopus?.color ?? '#a78bfa'}
+        onOpen={openClam}
+        onClose={() => setBlindBoxOpen(false)}
+        onCustomize={() => {
+          setBlindBoxOpen(false);
+          navigation.push('Octopus');
+        }}
+      />
     </SafeAreaView>
   );
 }
@@ -429,6 +483,27 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   octoName: { fontSize: 15, fontWeight: '700', color: colors.deep },
+  clamCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.reefLight,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.reefBorder,
+    padding: 12,
+    marginBottom: 18,
+  },
+  clamTitle: { ...bubbly, fontSize: 18 },
+  clamPrice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.deep,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
   octoBlurb: { fontSize: 12, color: colors.muted, marginTop: 2, lineHeight: 16 },
   octoButton: {
     flexDirection: 'row',
