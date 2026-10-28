@@ -6,6 +6,8 @@ import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import FormatTag from '../components/FormatTag';
+import { loadFriendIds, onFriendsChanged } from '../lib/friends';
 
 type Theme = {
   id: string;
@@ -16,9 +18,15 @@ type RankedSubmission = {
   id: string;
   user_id: string;
   image_url: string;
+  format: 'digital' | 'film';
   vote_count: number;
   username: string;
 };
+
+type Feed = 'friends' | 'global';
+
+// Weekly prizes for 1st -> 5th, paid by process_due_payouts on the server
+const REWARDS = [50, 40, 30, 20, 15];
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -26,13 +34,13 @@ export default function RankingsScreen() {
   const { user } = useAuth();
   const navigation = useNavigation<NavProp>();
   const [theme, setTheme] = useState<Theme | null>(null);
-  const [format, setFormat] = useState<'digital' | 'film'>('digital');
+  const [feed, setFeed] = useState<Feed>('global');
   const [rankings, setRankings] = useState<RankedSubmission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const loadData = useCallback(async (selectedFormat: 'digital' | 'film') => {
+  const loadData = useCallback(async (selectedFeed: Feed) => {
     setErrorMessage(null);
 
     const nowIso = new Date().toISOString();
@@ -57,12 +65,14 @@ export default function RankingsScreen() {
       return;
     }
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('submissions')
-      .select('id, user_id, image_url, vote_count')
-      .eq('theme_id', themeData.id)
-      .eq('format', selectedFormat)
-      .order('vote_count', { ascending: false });
+      .select('id, user_id, image_url, format, vote_count')
+      .eq('theme_id', themeData.id);
+    if (selectedFeed === 'friends' && user) {
+      query = query.in('user_id', [user.id, ...(await loadFriendIds(user.id))]);
+    }
+    const { data, error } = await query.order('vote_count', { ascending: false });
 
     if (error) {
       setErrorMessage(error.message);
@@ -80,21 +90,29 @@ export default function RankingsScreen() {
     }
 
     setRankings(rows.map((r) => ({ ...r, username: usernameById.get(r.user_id) ?? 'unknown' })));
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     setIsLoading(true);
-    loadData(format).finally(() => setIsLoading(false));
-  }, [format, loadData]);
+    loadData(feed).finally(() => setIsLoading(false));
+  }, [feed, loadData]);
+
+  useEffect(
+    () =>
+      onFriendsChanged(() => {
+        if (feed === 'friends') loadData('friends');
+      }),
+    [feed, loadData]
+  );
 
   const onRefresh = async () => {
     setIsRefreshing(true);
-    await loadData(format);
+    await loadData(feed);
     setIsRefreshing(false);
   };
 
   // Ties share a rank and skip the next one (10, 10, 7 votes -> 1, 1, 3),
-  // matching how payouts place them.
+  // matching how payouts place them. In Friends, ranks are among your friends.
   const ranks = rankings.map((r) => 1 + rankings.filter((o) => o.vote_count > r.vote_count).length);
 
   const myRankIndex = rankings.findIndex((r) => r.user_id === user?.id);
@@ -105,22 +123,27 @@ export default function RankingsScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <Text style={styles.title}>Rankings</Text>
       {theme && <Text style={styles.subtitle}>{theme.name}</Text>}
+      <Text style={styles.prizeHint}>
+        {feed === 'global'
+          ? `Top 5 overall win ${REWARDS.join(' · ')} shutters`
+          : 'How you stack up against your friends'}
+      </Text>
 
       <View style={styles.toggleRow}>
         <Pressable
-          style={[styles.toggle, format === 'digital' && styles.toggleActive]}
-          onPress={() => setFormat('digital')}
+          style={[styles.toggle, feed === 'friends' && styles.toggleActive]}
+          onPress={() => setFeed('friends')}
         >
-          <Text style={format === 'digital' ? styles.toggleTextActive : styles.toggleText}>
-            Digital
+          <Text style={feed === 'friends' ? styles.toggleTextActive : styles.toggleText}>
+            Friends
           </Text>
         </Pressable>
         <Pressable
-          style={[styles.toggle, format === 'film' && styles.toggleActive]}
-          onPress={() => setFormat('film')}
+          style={[styles.toggle, feed === 'global' && styles.toggleActive]}
+          onPress={() => setFeed('global')}
         >
-          <Text style={format === 'film' ? styles.toggleTextActive : styles.toggleText}>
-            Film
+          <Text style={feed === 'global' ? styles.toggleTextActive : styles.toggleText}>
+            Global
           </Text>
         </Pressable>
       </View>
@@ -140,17 +163,22 @@ export default function RankingsScreen() {
           refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={
             <View style={styles.centered}>
-              <Text style={styles.emptyText}>No {format} submissions yet. It's quiet under the sea.</Text>
+              <Text style={styles.emptyText}>
+                {feed === 'friends'
+                  ? 'No submissions from you or your friends yet. It\'s quiet under the sea.'
+                  : 'No submissions yet. It\'s quiet under the sea.'}
+              </Text>
             </View>
           }
           renderItem={({ item, index }) => {
             const isMe = item.user_id === user?.id;
             const rank = ranks[index];
-            const isPodium = rank <= 3 && item.vote_count > 0;
+            // Prize spots only highlight in Global, since payouts are global
+            const isPrize = feed === 'global' && rank <= REWARDS.length && item.vote_count > 0;
             const isTie = ranks.filter((r) => r === rank).length > 1;
             return (
               <View style={[styles.row, isMe && styles.rowMe]}>
-                <Text style={[styles.rank, isPodium && styles.rankTop]}>
+                <Text style={[styles.rank, isPrize && styles.rankTop]}>
                   {isTie ? 'T' : ''}
                   {rank}
                 </Text>
@@ -161,7 +189,13 @@ export default function RankingsScreen() {
                   style={{ flex: 1 }}
                   onPress={() => navigation.push('UserProfile', { userId: item.user_id })}
                 >
-                  <Text style={styles.username}>{isMe ? 'You' : item.username}</Text>
+                  <View style={styles.nameRow}>
+                    <Text style={styles.username} numberOfLines={1}>
+                      {isMe ? 'You' : item.username}
+                    </Text>
+                    <FormatTag format={item.format} />
+                  </View>
+                  {isPrize && <Text style={styles.rewardText}>+{REWARDS[rank - 1]} shutters</Text>}
                 </Pressable>
                 <Text style={styles.votes}>{item.vote_count} votes</Text>
               </View>
@@ -170,7 +204,7 @@ export default function RankingsScreen() {
         />
       )}
 
-      {myRanking && myRank !== null && myRank > 3 && (
+      {myRanking && myRank !== null && myRank > REWARDS.length && (
         <View style={styles.pinnedRow}>
           <Text style={styles.pinnedRank}>#{myRank}</Text>
           <Image source={{ uri: myRanking.image_url }} style={styles.thumb} />
@@ -185,7 +219,8 @@ export default function RankingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
   title: { fontSize: 20, fontWeight: '600' },
-  subtitle: { fontSize: 13, color: '#6b7280', marginBottom: 12 },
+  subtitle: { fontSize: 13, color: '#6b7280' },
+  prizeHint: { fontSize: 12, color: '#b45309', fontWeight: '500', marginTop: 2, marginBottom: 12 },
 
   toggleRow: {
     flexDirection: 'row',
@@ -216,7 +251,9 @@ const styles = StyleSheet.create({
   rank: { width: 28, fontWeight: '600', color: '#6b7280', fontSize: 14 },
   rankTop: { color: '#b45309' },
   thumb: { width: 40, height: 40, borderRadius: 6, backgroundColor: '#f3f4f6' },
-  username: { fontSize: 14 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  username: { fontSize: 14, flexShrink: 1 },
+  rewardText: { fontSize: 11, color: '#b45309', marginTop: 2 },
   votes: { fontSize: 13, color: '#6b7280' },
 
   pinnedRow: {

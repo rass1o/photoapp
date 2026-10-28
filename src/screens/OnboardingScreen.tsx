@@ -40,7 +40,7 @@ const SLIDES: Slide[] = [
     body: 'Shutters are ShuttInk\u2019s currency. Here\u2019s how they work:',
     bullets: [
       'Double-tap or hit the heart to vote. Vote for as many photos as you like',
-      'The top 3 in Digital and in Film win 20, 10 and 5 shutters. Ties share the spot',
+      'Each week\u2019s top 5, film or digital, win 50, 40, 30, 20 and 15 shutters. Ties share the spot',
       'Every daily photo earns you 1 shutter',
     ],
   },

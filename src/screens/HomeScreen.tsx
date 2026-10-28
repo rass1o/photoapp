@@ -27,6 +27,8 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import WeeklyWinnersModal, { Winner } from '../components/WeeklyWinnersModal';
 import ThemeWelcomeModal from '../components/ThemeWelcomeModal';
 import FilmStamp from '../components/FilmStamp';
+import FormatTag from '../components/FormatTag';
+import { loadFriendIds, onFriendsChanged } from '../lib/friends';
 
 type Theme = {
   id: string;
@@ -65,6 +67,10 @@ type Notification = {
   createdAt: string;
 };
 
+type Feed = 'friends' | 'global';
+
+const SUBMISSION_COLUMNS = 'id, user_id, image_url, format, caption, film_stamp, vote_count, created_at';
+
 function formatCountdown(endDate: string): string {
   const msLeft = new Date(endDate).getTime() - Date.now();
   if (msLeft <= 0) return 'Voting closed';
@@ -85,7 +91,7 @@ export default function HomeScreen() {
   const [votedIds, setVotedIds] = useState<Set<string>>(new Set());
   const [pendingVoteIds, setPendingVoteIds] = useState<Set<string>>(new Set());
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
-  const [format, setFormat] = useState<'digital' | 'film'>('digital');
+  const [feed, setFeed] = useState<Feed>('friends');
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -113,6 +119,8 @@ export default function HomeScreen() {
   const singleTapTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const currentThemeIdRef = useRef<string | null>(null);
+  // Whose posts the current feed shows: you plus your friends, or null for everyone
+  const feedUserIdsRef = useRef<string[] | null>(null);
 
   // Daily freelance photos strip (BeReal-style, no theme, just today's posts)
   const [dailyPhotos, setDailyPhotos] = useState<
@@ -147,8 +155,15 @@ export default function HomeScreen() {
     }));
   };
 
+  // One page of this theme's submissions for the current feed
+  const fetchSubmissionsPage = (themeId: string, from: number) => {
+    let query = supabase.from('submissions').select(SUBMISSION_COLUMNS).eq('theme_id', themeId);
+    if (feedUserIdsRef.current) query = query.in('user_id', feedUserIdsRef.current);
+    return query.order('created_at', { ascending: false }).range(from, from + PAGE_SIZE - 1);
+  };
+
   const loadFirstPage = useCallback(
-    async (selectedFormat: 'digital' | 'film') => {
+    async (selectedFeed: Feed) => {
       setErrorMessage(null);
 
       const nowIso = new Date().toISOString();
@@ -196,13 +211,10 @@ export default function HomeScreen() {
         setHasSubmittedThisTheme(!!mine);
       }
 
-      const { data: submissionsData, error: submissionsError } = await supabase
-        .from('submissions')
-        .select('id, user_id, image_url, format, caption, film_stamp, vote_count, created_at')
-        .eq('theme_id', themeData.id)
-        .eq('format', selectedFormat)
-        .order('created_at', { ascending: false })
-        .range(0, PAGE_SIZE - 1);
+      feedUserIdsRef.current =
+        selectedFeed === 'friends' && user ? [user.id, ...(await loadFriendIds(user.id))] : null;
+
+      const { data: submissionsData, error: submissionsError } = await fetchSubmissionsPage(themeData.id, 0);
 
       if (submissionsError) {
         setErrorMessage(submissionsError.message);
@@ -246,13 +258,7 @@ export default function HomeScreen() {
     if (isLoadingMore || !hasMore || !currentThemeIdRef.current) return;
     setIsLoadingMore(true);
 
-    const { data, error } = await supabase
-      .from('submissions')
-      .select('id, user_id, image_url, format, caption, film_stamp, vote_count, created_at')
-      .eq('theme_id', currentThemeIdRef.current)
-      .eq('format', format)
-      .order('created_at', { ascending: false })
-      .range(submissions.length, submissions.length + PAGE_SIZE - 1);
+    const { data, error } = await fetchSubmissionsPage(currentThemeIdRef.current, submissions.length);
 
     if (!error && data) {
       const rows = data as Submission[];
@@ -289,8 +295,17 @@ export default function HomeScreen() {
 
   useEffect(() => {
     setIsLoading(true);
-    loadFirstPage(format).finally(() => setIsLoading(false));
-  }, [format, loadFirstPage]);
+    loadFirstPage(feed).finally(() => setIsLoading(false));
+  }, [feed, loadFirstPage]);
+
+  // New or removed friends change what the Friends feed shows
+  useEffect(
+    () =>
+      onFriendsChanged(() => {
+        if (feed === 'friends') loadFirstPage('friends');
+      }),
+    [feed, loadFirstPage]
+  );
 
   // Load today's freelance daily photos from everyone, BeReal-style
   const loadDailyPhotos = useCallback(async () => {
@@ -376,17 +391,17 @@ export default function HomeScreen() {
 
       const winnersList: Winner[] = rows.map((r) => ({
         submissionId: r.submission_id,
-        place: r.place as 1 | 2 | 3,
+        place: r.place as Winner['place'],
         format: r.format as 'digital' | 'film',
-        isTie: rows.some((o) => o !== r && o.format === r.format && o.place === r.place),
+        isTie: rows.some((o) => o !== r && o.place === r.place),
         username: usernameById.get(r.user_id) ?? 'unknown',
         imageUrl: imageById.get(r.submission_id) ?? '',
         voteCount: r.vote_count,
         reward: r.reward,
       }));
 
-      // Build up to the win: 3rd place first, digital before film within a place
-      winnersList.sort((a, b) => b.place - a.place || a.format.localeCompare(b.format));
+      // Build up to the win: 5th place first
+      winnersList.sort((a, b) => b.place - a.place);
 
       setWinnersThemeName(endedTheme.name);
       setWinners(winnersList);
@@ -434,7 +449,7 @@ export default function HomeScreen() {
 
   const onRefresh = async () => {
     setIsRefreshing(true);
-    await loadFirstPage(format);
+    await loadFirstPage(feed);
     setIsRefreshing(false);
   };
 
@@ -725,19 +740,19 @@ export default function HomeScreen() {
 
       <View style={styles.toggleRow}>
         <Pressable
-          style={[styles.toggle, format === 'digital' && styles.toggleActive]}
-          onPress={() => setFormat('digital')}
+          style={[styles.toggle, feed === 'friends' && styles.toggleActive]}
+          onPress={() => setFeed('friends')}
         >
-          <Text style={format === 'digital' ? styles.toggleTextActive : styles.toggleText}>
-            Digital
+          <Text style={feed === 'friends' ? styles.toggleTextActive : styles.toggleText}>
+            Friends
           </Text>
         </Pressable>
         <Pressable
-          style={[styles.toggle, format === 'film' && styles.toggleActive]}
-          onPress={() => setFormat('film')}
+          style={[styles.toggle, feed === 'global' && styles.toggleActive]}
+          onPress={() => setFeed('global')}
         >
-          <Text style={format === 'film' ? styles.toggleTextActive : styles.toggleText}>
-            Film
+          <Text style={feed === 'global' ? styles.toggleTextActive : styles.toggleText}>
+            Global
           </Text>
         </Pressable>
       </View>
@@ -764,8 +779,15 @@ export default function HomeScreen() {
           ListEmptyComponent={
             <View style={styles.centered}>
               <Text style={styles.emptyText}>
-                No {format} submissions yet for this theme. Water you waiting for? Be the first!
+                {feed === 'friends'
+                  ? 'Nothing from your friends for this theme yet. Add friends from their profiles, or dive into Global.'
+                  : 'No submissions yet for this theme. Water you waiting for? Be the first!'}
               </Text>
+              {feed === 'friends' && (
+                <Pressable style={styles.emptyButton} onPress={() => setFeed('global')}>
+                  <Text style={styles.emptyButtonText}>Browse Global</Text>
+                </Pressable>
+              )}
             </View>
           }
           renderItem={({ item }) => {
@@ -782,6 +804,7 @@ export default function HomeScreen() {
                     <View style={styles.avatar} />
                   )}
                   <Text style={styles.username}>{item.username}</Text>
+                  <FormatTag format={item.format} />
                 </Pressable>
 
                 <Pressable onPress={() => handleImageTap(item.id)}>
@@ -1065,6 +1088,8 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, paddingHorizontal: 30 },
   errorText: { color: '#b91c1c', fontSize: 13, textAlign: 'center' },
   emptyText: { color: '#9ca3af', fontSize: 13, textAlign: 'center' },
+  emptyButton: { marginTop: 12, backgroundColor: '#0B1418', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 9 },
+  emptyButtonText: { fontSize: 13, color: '#ffffff', fontWeight: '600' },
 
   card: { paddingHorizontal: 16, paddingTop: 14 },
   cardHeaderTouchable: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },

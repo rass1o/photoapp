@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, Pressable, FlatList, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, StyleSheet, Image, Pressable, FlatList, ActivityIndicator, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -9,6 +9,15 @@ import SectionHeader from '../components/SectionHeader';
 import BackBar from '../components/BackBar';
 import { OctopusCard } from '../components/Octopus';
 import { OctopusData, loadOctopus } from '../lib/octopus';
+import { useAuth } from '../context/AuthContext';
+import {
+  FriendStatus,
+  friendCount,
+  getFriendship,
+  removeFriendship,
+  respondToRequest,
+  sendFriendRequest,
+} from '../lib/friends';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 
@@ -39,6 +48,8 @@ type CameraItem = {
 
 export default function UserProfileScreen({ route, navigation }: Props) {
   const { userId } = route.params;
+  const { user } = useAuth();
+  const isMe = user?.id === userId;
   const [profile, setProfile] = useState<Profile | null>(null);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [cameras, setCameras] = useState<CameraItem[]>([]);
@@ -46,6 +57,10 @@ export default function UserProfileScreen({ route, navigation }: Props) {
   const [octopus, setOctopus] = useState<{ data: OctopusData; line: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [friendStatus, setFriendStatus] = useState<FriendStatus>('none');
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [friends, setFriends] = useState(0);
+  const [friendBusy, setFriendBusy] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -86,11 +101,51 @@ export default function UserProfileScreen({ route, navigation }: Props) {
       const octo = await loadOctopus(userId);
       if (octo.octopus) setOctopus({ data: octo.octopus, line: octo.line });
 
+      setFriends(await friendCount(userId));
+      if (user && user.id !== userId) {
+        const friendship = await getFriendship(user.id, userId);
+        setFriendStatus(friendship.status);
+        setRequestId(friendship.requestId);
+      }
+
       setIsLoading(false);
     };
 
     load();
-  }, [userId]);
+  }, [userId, user]);
+
+  // Runs a friend action, then re-reads where things stand from the server
+  const friendAction = async (action: () => Promise<unknown>) => {
+    if (!user) return;
+    setFriendBusy(true);
+    try {
+      await action();
+    } catch (err) {
+      Alert.alert('Couldn\u2019t do that', err instanceof Error ? err.message : 'Please try again.');
+    }
+    const [friendship, count] = await Promise.all([getFriendship(user.id, userId), friendCount(userId)]);
+    setFriendStatus(friendship.status);
+    setRequestId(friendship.requestId);
+    setFriends(count);
+    setFriendBusy(false);
+  };
+
+  const onFriendButton = () => {
+    if (!profile) return;
+    if (friendStatus === 'none') {
+      friendAction(() => sendFriendRequest(userId));
+    } else if (friendStatus === 'outgoing') {
+      Alert.alert('Cancel friend request?', `${profile.username} won\u2019t see it anymore.`, [
+        { text: 'Keep it', style: 'cancel' },
+        { text: 'Cancel request', style: 'destructive', onPress: () => friendAction(() => removeFriendship(userId)) },
+      ]);
+    } else if (friendStatus === 'friends') {
+      Alert.alert(`Unfriend ${profile.username}?`, 'Their photos will only show in Global.', [
+        { text: 'Stay friends', style: 'cancel' },
+        { text: 'Unfriend', style: 'destructive', onPress: () => friendAction(() => removeFriendship(userId)) },
+      ]);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -133,6 +188,56 @@ export default function UserProfileScreen({ route, navigation }: Props) {
           <Text style={styles.username}>{profile.username}</Text>
           <Text style={styles.bio}>{profile.bio || 'No bio yet'}</Text>
 
+          {!isMe &&
+            (friendStatus === 'incoming' && requestId ? (
+              <View style={styles.friendButtonRow}>
+                <Pressable
+                  style={[styles.friendButton, styles.friendButtonPrimary]}
+                  disabled={friendBusy}
+                  onPress={() => friendAction(() => respondToRequest(requestId, true))}
+                >
+                  <Ionicons name="checkmark" size={15} color="#ffffff" />
+                  <Text style={styles.friendButtonTextPrimary}>Accept request</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.friendButton}
+                  disabled={friendBusy}
+                  onPress={() => friendAction(() => respondToRequest(requestId, false))}
+                >
+                  <Text style={styles.friendButtonText}>Decline</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.friendButtonRow}>
+                <Pressable
+                  style={[styles.friendButton, friendStatus === 'none' && styles.friendButtonPrimary]}
+                  disabled={friendBusy}
+                  onPress={onFriendButton}
+                >
+                  {friendBusy ? (
+                    <ActivityIndicator size="small" color={friendStatus === 'none' ? '#ffffff' : '#0B1418'} />
+                  ) : (
+                    <>
+                      <Ionicons
+                        name={
+                          friendStatus === 'friends'
+                            ? 'people'
+                            : friendStatus === 'outgoing'
+                              ? 'time-outline'
+                              : 'person-add-outline'
+                        }
+                        size={15}
+                        color={friendStatus === 'none' ? '#ffffff' : '#0B1418'}
+                      />
+                      <Text style={friendStatus === 'none' ? styles.friendButtonTextPrimary : styles.friendButtonText}>
+                        {friendStatus === 'friends' ? 'Friends' : friendStatus === 'outgoing' ? 'Requested' : 'Add friend'}
+                      </Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
+            ))}
+
           <View style={styles.statsRow}>
             <View style={styles.stat}>
               <Text style={styles.statValue}>{profile.streak_count}</Text>
@@ -141,6 +246,10 @@ export default function UserProfileScreen({ route, navigation }: Props) {
             <View style={styles.stat}>
               <Text style={styles.statValue}>{gallery.length}</Text>
               <Text style={styles.statLabel}>submissions</Text>
+            </View>
+            <View style={styles.stat}>
+              <Text style={styles.statValue}>{friends}</Text>
+              <Text style={styles.statLabel}>friends</Text>
             </View>
             <View style={styles.stat}>
               <Text style={styles.statValue}>{profile.currency_balance}</Text>
@@ -263,6 +372,21 @@ const styles = StyleSheet.create({
   username: { fontSize: 18, fontWeight: '700', color: '#0B1418' },
   bio: { fontSize: 13, color: '#46606B', marginTop: 2, marginBottom: 8, textAlign: 'center', paddingHorizontal: 30 },
   statsRow: { flexDirection: 'row', gap: 24, marginBottom: 10 },
+  friendButtonRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  friendButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minWidth: 120,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+  },
+  friendButtonPrimary: { backgroundColor: '#0B1418' },
+  friendButtonText: { fontSize: 13, fontWeight: '600', color: '#0B1418' },
+  friendButtonTextPrimary: { fontSize: 13, fontWeight: '600', color: '#ffffff' },
   stat: { alignItems: 'center' },
   statValue: { fontSize: 16, fontWeight: '600', color: '#0B1418' },
   statLabel: { fontSize: 11, color: '#46606B' },

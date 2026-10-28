@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppNavigator from './src/navigation/AppNavigator';
 import AuthScreen from './src/screens/AuthScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
+import FriendRequestPopup from './src/components/FriendRequestPopup';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 
 const ONBOARDING_STORAGE_KEY = 'hasSeenOnboarding';
@@ -41,6 +42,7 @@ function Root() {
   return (
     <NavigationContainer>
       {user ? <AppNavigator /> : <AuthScreen />}
+      {user && <FriendRequestPopup />}
       <StatusBar style="auto" />
     </NavigationContainer>
   );

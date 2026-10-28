@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, Image, FlatList, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,7 +13,16 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import SectionHeader from '../components/SectionHeader';
 import { OctopusCard } from '../components/Octopus';
 import LockerModal from '../components/LockerModal';
+import FriendsModal, { FriendsTab } from '../components/FriendsModal';
 import { OctopusData, loadOctopus } from '../lib/octopus';
+import {
+  FriendProfile,
+  FriendRequest,
+  loadFriends,
+  loadIncomingRequests,
+  onFriendsChanged,
+  respondToRequest,
+} from '../lib/friends';
 
 type Profile = {
   id: string;
@@ -81,6 +90,10 @@ export default function ProfileScreen() {
   const [ownedIds, setOwnedIds] = useState<Set<string>>(new Set());
   const [lockerCategory, setLockerCategory] = useState<ProfileCategory | null>(null);
   const [octopus, setOctopus] = useState<{ data: OctopusData; line: string } | null>(null);
+  const [friends, setFriends] = useState<FriendProfile[]>([]);
+  const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
+  const [friendsTab, setFriendsTab] = useState<FriendsTab | null>(null);
+  const [respondingIds, setRespondingIds] = useState<Set<string>>(new Set());
   const [newGoalText, setNewGoalText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -121,6 +134,39 @@ export default function ProfileScreen() {
 
     const octo = await loadOctopus(user.id);
     setOctopus(octo.octopus ? { data: octo.octopus, line: octo.line } : null);
+
+    await loadFriendData();
+  };
+
+  const loadFriendData = async () => {
+    if (!user) return;
+    const [friendList, requests] = await Promise.all([loadFriends(user.id), loadIncomingRequests(user.id)]);
+    setFriends(friendList);
+    setFriendRequests(requests);
+  };
+
+  // Requests arriving live, or answered from the popup, update this screen too
+  useEffect(() => onFriendsChanged(() => loadFriendData()), [user]);
+
+  const respondToFriendRequest = async (request: FriendRequest, accept: boolean) => {
+    setRespondingIds((prev) => new Set(prev).add(request.id));
+    try {
+      await respondToRequest(request.id, accept);
+    } catch (err) {
+      Alert.alert('Couldn’t do that', err instanceof Error ? err.message : 'Please try again.');
+      await loadFriendData();
+    } finally {
+      setRespondingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(request.id);
+        return next;
+      });
+    }
+  };
+
+  const openFriendProfile = (userId: string) => {
+    setFriendsTab(null);
+    navigation.push('UserProfile', { userId });
   };
 
   // Reload on focus so purchases from the Shop tab and new balances show up.
@@ -378,6 +424,10 @@ export default function ProfileScreen() {
                   <Text style={styles.statValue}>{gallery.length}</Text>
                   <Text style={styles.statLabel}>submissions</Text>
                 </View>
+                <Pressable style={styles.stat} onPress={() => setFriendsTab('friends')}>
+                  <Text style={styles.statValue}>{friends.length}</Text>
+                  <Text style={styles.statLabel}>friends</Text>
+                </Pressable>
                 <View style={styles.stat}>
                   <Text style={styles.statValue}>{profile.currency_balance}</Text>
                   <Text style={styles.statLabel}>shutters</Text>
@@ -390,6 +440,21 @@ export default function ProfileScreen() {
                 <CustomizeButton icon="image-outline" label="Banner" onPress={() => setLockerCategory('banner')} />
                 <CustomizeButton icon="ribbon-outline" label="Badge" onPress={() => setLockerCategory('badge')} />
                 <CustomizeButton icon="create-outline" label="Edit bio" onPress={startEditBio} accent />
+              </View>
+
+              <SectionHeader icon="people-outline" label="Friends" />
+              <View style={styles.customizeGrid}>
+                <CustomizeButton
+                  icon="people-outline"
+                  label={`Friends · ${friends.length}`}
+                  onPress={() => setFriendsTab('friends')}
+                />
+                <CustomizeButton
+                  icon="person-add-outline"
+                  label={friendRequests.length > 0 ? `Requests · ${friendRequests.length}` : 'Requests'}
+                  onPress={() => setFriendsTab('requests')}
+                  accent={friendRequests.length > 0}
+                />
               </View>
 
               <SectionHeader icon="flag-outline" label="Goals" />
@@ -533,6 +598,17 @@ export default function ProfileScreen() {
         onEquip={equipFromLocker}
         onClose={() => setLockerCategory(null)}
         onOpenShop={openShopFromLocker}
+      />
+
+      <FriendsModal
+        tab={friendsTab}
+        friends={friends}
+        requests={friendRequests}
+        busyIds={respondingIds}
+        onTabChange={setFriendsTab}
+        onRespond={respondToFriendRequest}
+        onOpenProfile={openFriendProfile}
+        onClose={() => setFriendsTab(null)}
       />
     </SafeAreaView>
   );

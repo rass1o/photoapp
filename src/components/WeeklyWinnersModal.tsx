@@ -4,9 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 
 export type Winner = {
   submissionId: string;
-  place: 1 | 2 | 3;
+  place: 1 | 2 | 3 | 4 | 5;
   format: 'digital' | 'film';
-  isTie: boolean; // shares this place with another photo in the same format
+  isTie: boolean; // shares this place with another photo
   username: string;
   imageUrl: string;
   voteCount: number;
@@ -16,15 +16,27 @@ export type Winner = {
 type Props = {
   visible: boolean;
   themeName: string;
-  winners: Winner[]; // ordered 3rd -> 1st so the swipe builds up to the win
+  winners: Winner[]; // ordered 5th -> 1st so the swipe builds up to the win
   onClose: () => void;
 };
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-const PLACE_LABELS: Record<number, string> = { 1: '1st place', 2: '2nd place', 3: '3rd place' };
+const PLACE_LABELS: Record<number, string> = {
+  1: '1st place',
+  2: '2nd place',
+  3: '3rd place',
+  4: '4th place',
+  5: '5th place',
+};
 const FORMAT_LABELS: Record<Winner['format'], string> = { digital: 'Digital', film: 'Film' };
-const PLACE_COLORS: Record<number, string> = { 1: '#f59e0b', 2: '#9ca3af', 3: '#b45309' };
+const PLACE_COLORS: Record<number, string> = {
+  1: '#f59e0b',
+  2: '#9ca3af',
+  3: '#b45309',
+  4: '#7dd3fc',
+  5: '#a5b4fc',
+};
 
 export default function WeeklyWinnersModal({ visible, themeName, winners, onClose }: Props) {
   const [pageIndex, setPageIndex] = useState(0);

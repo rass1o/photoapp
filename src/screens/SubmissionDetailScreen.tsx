@@ -18,6 +18,7 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import FilmStamp from '../components/FilmStamp';
+import FormatTag from '../components/FormatTag';
 import BackBar from '../components/BackBar';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SubmissionDetail'>;
@@ -26,6 +27,7 @@ type Submission = {
   id: string;
   user_id: string;
   image_url: string;
+  format: 'digital' | 'film';
   vote_count: number;
   caption: string;
   film_stamp: string | null;
@@ -55,7 +57,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
   const load = async () => {
     const { data: subData, error } = await supabase
       .from('submissions')
-      .select('id, user_id, image_url, vote_count, caption, film_stamp')
+      .select('id, user_id, image_url, format, vote_count, caption, film_stamp')
       .eq('id', submissionId)
       .single();
 
@@ -188,6 +190,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
                 )}
               </View>
               <Text style={styles.username}>{submission.username}</Text>
+              <FormatTag format={submission.format} />
             </Pressable>
 
             <View>
