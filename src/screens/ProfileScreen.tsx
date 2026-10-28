@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, ActivityIndicator, Image, FlatList, Alert } from 'react-native';
+import { View, StyleSheet, Pressable, ActivityIndicator, Image, FlatList, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -23,6 +23,9 @@ import {
   onFriendsChanged,
   respondToRequest,
 } from '../lib/friends';
+import { Text, TextInput } from '../components/Themed';
+import { colors, bubbly } from '../theme';
+import Wave from '../components/Wave';
 
 type Profile = {
   id: string;
@@ -68,7 +71,7 @@ function CustomizeButton({ icon, label, onPress, accent }: CustomizeButtonProps)
       onPress={onPress}
       style={[styles.customizeButton, accent && styles.customizeButtonAccent]}
     >
-      <Ionicons name={icon} size={16} color={accent ? '#4f46e5' : '#374151'} />
+      <Ionicons name={icon} size={16} color={accent ? colors.reef : colors.text} />
       <Text style={[styles.customizeButtonText, accent && styles.customizeButtonTextAccent]}>
         {label}
       </Text>
@@ -354,7 +357,7 @@ export default function ProfileScreen() {
   if (isLoading || !profile) {
     return (
       <SafeAreaView style={[styles.screen, { alignItems: 'center', justifyContent: 'center' }]}>
-        <ActivityIndicator color="#0B1418" />
+        <ActivityIndicator color={colors.deep} />
       </SafeAreaView>
     );
   }
@@ -367,14 +370,14 @@ export default function ProfileScreen() {
       <View style={styles.header}>
         <Pressable onPress={pickAvatar} style={[styles.avatar, { borderColor: profile.avatar_frame_color }]}>
           {isUploadingAvatar ? (
-            <ActivityIndicator color="#6d28d9" />
+            <ActivityIndicator color={colors.coral} />
           ) : profile.avatar_url ? (
             <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
           ) : (
             <Text style={styles.avatarInitials}>{profile.username.slice(0, 2).toUpperCase()}</Text>
           )}
           <View style={styles.avatarEditBadge}>
-            <Ionicons name="camera" size={12} color="#ffffff" />
+            <Ionicons name="camera" size={12} color={colors.white} />
           </View>
         </Pressable>
 
@@ -391,7 +394,7 @@ export default function ProfileScreen() {
               placeholder="Add a bio"
             />
             <Pressable onPress={saveBio} style={styles.bioSaveButton}>
-              <Ionicons name="checkmark" size={16} color="#ffffff" />
+              <Ionicons name="checkmark" size={16} color={colors.white} />
             </Pressable>
           </View>
         ) : (
@@ -407,6 +410,7 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.sheet}>
+        <Wave />
         <FlatList
           data={gallery}
           keyExtractor={(g) => g.id}
@@ -468,14 +472,14 @@ export default function ProfileScreen() {
                         <Ionicons
                           name={g.is_completed ? 'checkbox' : 'square-outline'}
                           size={19}
-                          color={g.is_completed ? '#10b981' : '#9ca3af'}
+                          color={g.is_completed ? '#10b981' : colors.faint}
                         />
                       </Pressable>
                       <Text style={[styles.goalText, g.is_completed && styles.goalTextCompleted]}>
                         {g.text}
                       </Text>
                       <Pressable onPress={() => removeGoal(g.id)}>
-                        <Ionicons name="close-circle" size={16} color="#d1d5db" />
+                        <Ionicons name="close-circle" size={16} color={colors.sandDark} />
                       </Pressable>
                     </View>
                   ))
@@ -491,7 +495,7 @@ export default function ProfileScreen() {
                   returnKeyType="done"
                 />
                 <Pressable style={styles.addCameraButton} onPress={addGoal}>
-                  <Ionicons name="add" size={18} color="#ffffff" />
+                  <Ionicons name="add" size={18} color={colors.white} />
                 </Pressable>
               </View>
 
@@ -504,7 +508,7 @@ export default function ProfileScreen() {
                     onPress={() => pickShowcasePhoto(i as 0 | 1 | 2)}
                   >
                     {uploadingShowcaseSlot === i ? (
-                      <ActivityIndicator color="#6d28d9" />
+                      <ActivityIndicator color={colors.coral} />
                     ) : url ? (
                       <>
                         <Image source={{ uri: url }} style={styles.showcaseImage} />
@@ -512,11 +516,11 @@ export default function ProfileScreen() {
                           style={styles.showcaseRemove}
                           onPress={() => clearShowcaseSlot(i as 0 | 1 | 2)}
                         >
-                          <Ionicons name="close" size={12} color="#ffffff" />
+                          <Ionicons name="close" size={12} color={colors.white} />
                         </Pressable>
                       </>
                     ) : (
-                      <Ionicons name="add" size={22} color="#9ca3af" />
+                      <Ionicons name="add" size={22} color={colors.faint} />
                     )}
                   </Pressable>
                 ))}
@@ -529,10 +533,10 @@ export default function ProfileScreen() {
                 ) : (
                   cameras.map((c) => (
                     <View key={c.id} style={styles.cameraChip}>
-                      <Ionicons name="camera-outline" size={13} color="#374151" />
+                      <Ionicons name="camera-outline" size={13} color={colors.text} />
                       <Text style={styles.cameraChipText}>{c.camera_name}</Text>
                       <Pressable onPress={() => removeCamera(c.id)}>
-                        <Ionicons name="close-circle" size={15} color="#9ca3af" />
+                        <Ionicons name="close-circle" size={15} color={colors.faint} />
                       </Pressable>
                     </View>
                   ))
@@ -548,7 +552,7 @@ export default function ProfileScreen() {
                   returnKeyType="done"
                 />
                 <Pressable style={styles.addCameraButton} onPress={addCamera}>
-                  <Ionicons name="add" size={18} color="#ffffff" />
+                  <Ionicons name="add" size={18} color={colors.white} />
                 </Pressable>
               </View>
 
@@ -577,7 +581,7 @@ export default function ProfileScreen() {
                     heldItem={octopus.data.held_item}
                   />
                   <Pressable style={styles.octopusButton} onPress={() => navigation.push('Octopus')}>
-                    <Ionicons name="color-wand-outline" size={16} color="#4f46e5" />
+                    <Ionicons name="color-wand-outline" size={16} color={colors.reef} />
                     <Text style={styles.octopusButtonText}>Customize {octopus.data.name}</Text>
                   </Pressable>
                 </View>
@@ -616,12 +620,12 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  header: { alignItems: 'center', paddingTop: 20, paddingBottom: 14 },
+  header: { alignItems: 'center', paddingTop: 20, paddingBottom: 26 },
   avatar: {
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: '#ede9fe',
+    backgroundColor: colors.coralLight,
     borderWidth: 3,
     alignItems: 'center',
     justifyContent: 'center',
@@ -629,22 +633,22 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarImage: { width: '100%', height: '100%' },
-  avatarInitials: { fontSize: 18, fontWeight: '600', color: '#6d28d9' },
+  avatarInitials: { fontSize: 18, fontWeight: '600', color: colors.coral },
   avatarEditBadge: {
     position: 'absolute',
     bottom: -2,
     right: -2,
-    backgroundColor: '#0B1418',
+    backgroundColor: colors.deep,
     borderRadius: 10,
     width: 20,
     height: 20,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#ffffff',
+    borderColor: colors.white,
   },
-  username: { fontSize: 18, fontWeight: '700', color: '#0B1418' },
-  bio: { fontSize: 13, color: '#46606B', marginTop: 2, marginBottom: 8 },
+  username: { ...bubbly, fontSize: 24 },
+  bio: { fontSize: 13, color: colors.muted, marginTop: 2, marginBottom: 8 },
   bioEditRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -655,13 +659,13 @@ const styles = StyleSheet.create({
   },
   bioInput: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.shell,
     borderRadius: 6,
     paddingHorizontal: 10,
     paddingVertical: 6,
     fontSize: 13,
   },
-  bioSaveButton: { backgroundColor: '#0B1418', borderRadius: 6, padding: 8 },
+  bioSaveButton: { backgroundColor: colors.deep, borderRadius: 6, padding: 8 },
   streakPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -675,9 +679,7 @@ const styles = StyleSheet.create({
 
   sheet: {
     flex: 1,
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: colors.shell,
     paddingHorizontal: 16,
     paddingTop: 14,
   },
@@ -686,14 +688,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderColor: '#f3f4f6',
+    borderColor: colors.sand,
     marginBottom: 14,
   },
   stat: { alignItems: 'center' },
-  statValue: { fontSize: 16, fontWeight: '600', color: '#111827' },
-  statLabel: { fontSize: 11, color: '#9ca3af' },
+  statValue: { fontSize: 16, fontWeight: '600', color: colors.ink },
+  statLabel: { fontSize: 11, color: colors.faint },
 
-  sectionLabel: { fontSize: 12, fontWeight: '600', color: '#6b7280', marginBottom: 8, marginTop: 4 },
+  sectionLabel: { fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 8, marginTop: 4 },
 
   customizeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
   customizeButton: {
@@ -705,30 +707,30 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.sandBorder,
   },
-  customizeButtonAccent: { borderColor: '#c7d2fe', backgroundColor: '#eef2ff' },
-  customizeButtonText: { fontSize: 12, color: '#374151', fontWeight: '500' },
-  customizeButtonTextAccent: { color: '#4f46e5' },
+  customizeButtonAccent: { borderColor: colors.reefBorder, backgroundColor: colors.reefLight },
+  customizeButtonText: { fontSize: 12, color: colors.text, fontWeight: '500' },
+  customizeButtonTextAccent: { color: colors.reef },
 
   goalsList: { marginBottom: 10, gap: 6 },
   goalRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.sand,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
   goalCheckbox: { padding: 2 },
-  goalText: { flex: 1, fontSize: 13, color: '#374151' },
-  goalTextCompleted: { color: '#9ca3af', textDecorationLine: 'line-through' },
+  goalText: { flex: 1, fontSize: 13, color: colors.text },
+  goalTextCompleted: { color: colors.faint, textDecorationLine: 'line-through' },
   addGoalRow: { flexDirection: 'row', gap: 8, marginBottom: 18 },
   addGoalInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.sandBorder,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 9,
@@ -740,10 +742,10 @@ const styles = StyleSheet.create({
     flex: 1,
     aspectRatio: 1,
     borderRadius: 10,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.sand,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: '#d1d5db',
+    borderColor: colors.sandDark,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -766,32 +768,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.sand,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
-  cameraChipText: { flex: 1, fontSize: 13, color: '#374151' },
+  cameraChipText: { flex: 1, fontSize: 13, color: colors.text },
   addCameraRow: { flexDirection: 'row', gap: 8, marginBottom: 18 },
   addCameraInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.sandBorder,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 9,
     fontSize: 13,
   },
   addCameraButton: {
-    backgroundColor: '#0B1418',
+    backgroundColor: colors.deep,
     borderRadius: 8,
     width: 38,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  emptyText: { color: '#9ca3af', fontSize: 13, textAlign: 'center', paddingVertical: 10 },
-  galleryTile: { flex: 1 / 3, aspectRatio: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: '#f3f4f6' },
+  emptyText: { color: colors.faint, fontSize: 13, textAlign: 'center', paddingVertical: 10 },
+  galleryTile: { flex: 1 / 3, aspectRatio: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.sand },
   galleryImage: { width: '100%', height: '100%' },
 
   octopusSection: { marginTop: 18 },
@@ -804,10 +806,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#c7d2fe',
-    backgroundColor: '#eef2ff',
+    borderColor: colors.reefBorder,
+    backgroundColor: colors.reefLight,
   },
-  octopusButtonText: { fontSize: 13, color: '#4f46e5', fontWeight: '600' },
+  octopusButtonText: { fontSize: 13, color: colors.reef, fontWeight: '600' },
   signOutButton: {
     flexDirection: 'row',
     alignItems: 'center',

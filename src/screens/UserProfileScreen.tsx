@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Image, Pressable, FlatList, ActivityIndicator, Modal, Alert } from 'react-native';
+import { View, StyleSheet, Image, Pressable, FlatList, ActivityIndicator, Modal, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -18,6 +18,9 @@ import {
   respondToRequest,
   sendFriendRequest,
 } from '../lib/friends';
+import { Text } from '../components/Themed';
+import { colors, bubbly } from '../theme';
+import Wave from '../components/Wave';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 
@@ -152,7 +155,7 @@ export default function UserProfileScreen({ route, navigation }: Props) {
       <SafeAreaView style={styles.page} edges={['top', 'bottom']}>
         <BackBar />
         <View style={styles.centered}>
-          <ActivityIndicator color="#0B1418" />
+          <ActivityIndicator color={colors.deep} />
         </View>
       </SafeAreaView>
     );
@@ -196,7 +199,7 @@ export default function UserProfileScreen({ route, navigation }: Props) {
                   disabled={friendBusy}
                   onPress={() => friendAction(() => respondToRequest(requestId, true))}
                 >
-                  <Ionicons name="checkmark" size={15} color="#ffffff" />
+                  <Ionicons name="checkmark" size={15} color={colors.white} />
                   <Text style={styles.friendButtonTextPrimary}>Accept request</Text>
                 </Pressable>
                 <Pressable
@@ -215,7 +218,7 @@ export default function UserProfileScreen({ route, navigation }: Props) {
                   onPress={onFriendButton}
                 >
                   {friendBusy ? (
-                    <ActivityIndicator size="small" color={friendStatus === 'none' ? '#ffffff' : '#0B1418'} />
+                    <ActivityIndicator size="small" color={friendStatus === 'none' ? colors.white : colors.deep} />
                   ) : (
                     <>
                       <Ionicons
@@ -227,7 +230,7 @@ export default function UserProfileScreen({ route, navigation }: Props) {
                               : 'person-add-outline'
                         }
                         size={15}
-                        color={friendStatus === 'none' ? '#ffffff' : '#0B1418'}
+                        color={friendStatus === 'none' ? colors.white : colors.deep}
                       />
                       <Text style={friendStatus === 'none' ? styles.friendButtonTextPrimary : styles.friendButtonText}>
                         {friendStatus === 'friends' ? 'Friends' : friendStatus === 'outgoing' ? 'Requested' : 'Add friend'}
@@ -266,6 +269,7 @@ export default function UserProfileScreen({ route, navigation }: Props) {
         </View>
 
         <View style={styles.sheet}>
+          <Wave />
           <FlatList
             data={gallery}
             keyExtractor={(g) => g.id}
@@ -297,7 +301,7 @@ export default function UserProfileScreen({ route, navigation }: Props) {
                     <View style={styles.cameraList}>
                       {cameras.map((c) => (
                         <View key={c.id} style={styles.cameraChip}>
-                          <Ionicons name="camera-outline" size={13} color="#374151" />
+                          <Ionicons name="camera-outline" size={13} color={colors.text} />
                           <Text style={styles.cameraChipText}>{c.camera_name}</Text>
                         </View>
                       ))}
@@ -339,7 +343,7 @@ export default function UserProfileScreen({ route, navigation }: Props) {
         <Pressable style={styles.viewerBackdrop} onPress={() => setViewerUrl(null)}>
           {viewerUrl && <Image source={{ uri: viewerUrl }} style={styles.viewerImage} resizeMode="contain" />}
           <Pressable style={styles.viewerCloseButton} onPress={() => setViewerUrl(null)}>
-            <Ionicons name="close" size={22} color="#ffffff" />
+            <Ionicons name="close" size={22} color={colors.white} />
           </Pressable>
         </Pressable>
       </Modal>
@@ -351,16 +355,16 @@ const styles = StyleSheet.create({
   octopusSection: { marginTop: 18 },
   screen: { flex: 1 },
   flex: { flex: 1 },
-  page: { flex: 1, backgroundColor: '#ffffff' },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
-  emptyText: { color: '#9ca3af', fontSize: 13, textAlign: 'center', padding: 20 },
+  page: { flex: 1, backgroundColor: colors.shell },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.shell },
+  emptyText: { color: colors.faint, fontSize: 13, textAlign: 'center', padding: 20 },
 
-  header: { alignItems: 'center', paddingTop: 8, paddingBottom: 14 },
+  header: { alignItems: 'center', paddingTop: 8, paddingBottom: 26 },
   avatar: {
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: '#ede9fe',
+    backgroundColor: colors.coralLight,
     borderWidth: 3,
     alignItems: 'center',
     justifyContent: 'center',
@@ -368,9 +372,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarImage: { width: '100%', height: '100%' },
-  avatarInitials: { fontSize: 18, fontWeight: '600', color: '#6d28d9' },
-  username: { fontSize: 18, fontWeight: '700', color: '#0B1418' },
-  bio: { fontSize: 13, color: '#46606B', marginTop: 2, marginBottom: 8, textAlign: 'center', paddingHorizontal: 30 },
+  avatarInitials: { fontSize: 18, fontWeight: '600', color: colors.coral },
+  username: { ...bubbly, fontSize: 24 },
+  bio: { fontSize: 13, color: colors.muted, marginTop: 2, marginBottom: 8, textAlign: 'center', paddingHorizontal: 30 },
   statsRow: { flexDirection: 'row', gap: 24, marginBottom: 10 },
   friendButtonRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   friendButton: {
@@ -384,12 +388,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: 'rgba(255,255,255,0.85)',
   },
-  friendButtonPrimary: { backgroundColor: '#0B1418' },
-  friendButtonText: { fontSize: 13, fontWeight: '600', color: '#0B1418' },
-  friendButtonTextPrimary: { fontSize: 13, fontWeight: '600', color: '#ffffff' },
+  friendButtonPrimary: { backgroundColor: colors.deep },
+  friendButtonText: { fontSize: 13, fontWeight: '600', color: colors.deep },
+  friendButtonTextPrimary: { fontSize: 13, fontWeight: '600', color: colors.white },
   stat: { alignItems: 'center' },
-  statValue: { fontSize: 16, fontWeight: '600', color: '#0B1418' },
-  statLabel: { fontSize: 11, color: '#46606B' },
+  statValue: { fontSize: 16, fontWeight: '600', color: colors.deep },
+  statLabel: { fontSize: 11, color: colors.muted },
   streakPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -403,20 +407,18 @@ const styles = StyleSheet.create({
 
   sheet: {
     flex: 1,
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: colors.shell,
     paddingHorizontal: 16,
     paddingTop: 14,
   },
-  sectionLabel: { fontSize: 12, fontWeight: '600', color: '#6b7280', marginBottom: 8, marginTop: 4 },
+  sectionLabel: { fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 8, marginTop: 4 },
 
   showcaseRow: { flexDirection: 'row', gap: 8, marginBottom: 18 },
   showcaseTile: {
     flex: 1,
     aspectRatio: 1,
     borderRadius: 10,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.sand,
     overflow: 'hidden',
   },
   showcaseImage: { width: '100%', height: '100%' },
@@ -426,14 +428,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.sand,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
-  cameraChipText: { fontSize: 13, color: '#374151' },
+  cameraChipText: { fontSize: 13, color: colors.text },
 
-  galleryTile: { flex: 1 / 3, aspectRatio: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: '#f3f4f6' },
+  galleryTile: { flex: 1 / 3, aspectRatio: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.sand },
   galleryImage: { width: '100%', height: '100%' },
 
   viewerBackdrop: {

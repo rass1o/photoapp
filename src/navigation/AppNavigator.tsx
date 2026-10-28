@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import type { NavigatorScreenParams } from '@react-navigation/native';
+import { colors, fonts } from '../theme';
 
 import HomeScreen from '../screens/HomeScreen';
 import CameraScreen from '../screens/CameraScreen';
@@ -38,6 +39,10 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
+        tabBarActiveTintColor: colors.reef,
+        tabBarInactiveTintColor: colors.faint,
+        tabBarStyle: { backgroundColor: colors.shell, borderTopColor: colors.sandBorder },
+        tabBarLabelStyle: { fontFamily: fonts.semibold, fontSize: 11 },
         tabBarIcon: ({ color, size }) => {
           const icons: Record<keyof RootTabParamList, IoniconName> = {
             Home: 'home-outline',

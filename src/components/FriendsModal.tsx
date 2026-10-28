@@ -1,7 +1,9 @@
-import { View, Text, StyleSheet, Modal, Pressable, ScrollView, Image } from 'react-native';
+import { View, StyleSheet, Modal, Pressable, ScrollView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FriendProfile, FriendRequest } from '../lib/friends';
+import { Text } from './Themed';
+import { colors } from '../theme';
 
 export type FriendsTab = 'friends' | 'requests';
 
@@ -48,7 +50,7 @@ export default function FriendsModal({
             <Text style={styles.title}>Friends</Text>
           </View>
           <Pressable onPress={onClose} hitSlop={10}>
-            <Ionicons name="close" size={22} color="#374151" />
+            <Ionicons name="close" size={22} color={colors.text} />
           </Pressable>
         </View>
 
@@ -82,7 +84,7 @@ export default function FriendsModal({
                 <Pressable key={f.id} style={styles.row} onPress={() => onOpenProfile(f.id)}>
                   <Avatar profile={f} />
                   <Text style={styles.username}>{f.username}</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                  <Ionicons name="chevron-forward" size={16} color={colors.faint} />
                 </Pressable>
               ))
             ))}
@@ -126,9 +128,9 @@ export default function FriendsModal({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(11, 20, 24, 0.45)' },
+  backdrop: { flex: 1, backgroundColor: colors.backdrop },
   sheet: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.shell,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 16,
@@ -140,7 +142,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#d1d5db',
+    backgroundColor: colors.sandDark,
     marginBottom: 10,
   },
   headerRow: {
@@ -150,16 +152,16 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     marginBottom: 12,
     borderBottomWidth: 2,
-    borderBottomColor: '#111827',
+    borderBottomColor: colors.ink,
   },
-  kicker: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: '#6b7280', textTransform: 'uppercase' },
-  title: { fontSize: 18, fontWeight: '700', color: '#0B1418' },
+  kicker: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: colors.muted, textTransform: 'uppercase' },
+  title: { fontSize: 18, fontWeight: '700', color: colors.deep },
 
-  toggleRow: { flexDirection: 'row', backgroundColor: '#f3f4f6', borderRadius: 8, padding: 2, marginBottom: 10 },
+  toggleRow: { flexDirection: 'row', backgroundColor: colors.sand, borderRadius: 8, padding: 2, marginBottom: 10 },
   toggle: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
-  toggleActive: { backgroundColor: '#ffffff' },
-  toggleText: { fontSize: 13, color: '#46606B' },
-  toggleTextActive: { fontSize: 13, fontWeight: '600', color: '#0B1418' },
+  toggleActive: { backgroundColor: colors.shell },
+  toggleText: { fontSize: 13, color: colors.muted },
+  toggleTextActive: { fontSize: 13, fontWeight: '600', color: colors.deep },
 
   list: { paddingBottom: 16 },
   row: {
@@ -168,24 +170,24 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderColor: '#f3f4f6',
+    borderColor: colors.sand,
   },
   rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatar: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#ede9fe',
+    backgroundColor: colors.coralLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  initials: { fontSize: 12, fontWeight: '600', color: '#6d28d9' },
-  username: { flex: 1, fontSize: 14, fontWeight: '500', color: '#111827' },
+  initials: { fontSize: 12, fontWeight: '600', color: colors.coral },
+  username: { flex: 1, fontSize: 14, fontWeight: '500', color: colors.ink },
   smallButton: { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 7 },
-  declineButton: { borderWidth: 1, borderColor: '#e5e7eb' },
-  declineText: { fontSize: 12, color: '#374151', fontWeight: '600' },
-  acceptButton: { backgroundColor: '#0B1418' },
-  acceptText: { fontSize: 12, color: '#ffffff', fontWeight: '600' },
+  declineButton: { borderWidth: 1, borderColor: colors.sandBorder },
+  declineText: { fontSize: 12, color: colors.text, fontWeight: '600' },
+  acceptButton: { backgroundColor: colors.deep },
+  acceptText: { fontSize: 12, color: colors.white, fontWeight: '600' },
   buttonBusy: { opacity: 0.5 },
-  emptyText: { color: '#9ca3af', fontSize: 13, textAlign: 'center', paddingVertical: 20, paddingHorizontal: 10 },
+  emptyText: { color: colors.faint, fontSize: 13, textAlign: 'center', paddingVertical: 20, paddingHorizontal: 10 },
 });

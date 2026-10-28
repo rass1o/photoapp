@@ -1,9 +1,11 @@
-import { View, Text, StyleSheet, Modal, Pressable, ScrollView } from 'react-native';
+import { View, StyleSheet, Modal, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ProfileCategory, ShopItem } from '../lib/shop';
 import ShopTile from './ShopTile';
 import CosmeticSwatch from './CosmeticSwatch';
+import { Text } from './Themed';
+import { colors } from '../theme';
 
 const TITLES: Record<ProfileCategory, string> = {
   frame: 'Avatar frames',
@@ -33,7 +35,7 @@ export default function LockerModal({ category, ownedItems, equippedValue, onEqu
             <Text style={styles.title}>{category ? TITLES[category] : ''}</Text>
           </View>
           <Pressable onPress={onClose} hitSlop={10}>
-            <Ionicons name="close" size={22} color="#374151" />
+            <Ionicons name="close" size={22} color={colors.text} />
           </Pressable>
         </View>
 
@@ -61,7 +63,7 @@ export default function LockerModal({ category, ownedItems, equippedValue, onEqu
             : 'Tap anything to wear it.'}
         </Text>
         <Pressable style={styles.shopButton} onPress={onOpenShop}>
-          <Ionicons name="storefront-outline" size={16} color="#ffffff" />
+          <Ionicons name="storefront-outline" size={16} color={colors.white} />
           <Text style={styles.shopButtonText}>Find more in the Shop</Text>
         </Pressable>
       </SafeAreaView>
@@ -70,9 +72,9 @@ export default function LockerModal({ category, ownedItems, equippedValue, onEqu
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(11, 20, 24, 0.45)' },
+  backdrop: { flex: 1, backgroundColor: colors.backdrop },
   sheet: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.shell,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 16,
@@ -84,7 +86,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#d1d5db',
+    backgroundColor: colors.sandDark,
     marginBottom: 10,
   },
   headerRow: {
@@ -94,21 +96,21 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     marginBottom: 12,
     borderBottomWidth: 2,
-    borderBottomColor: '#111827',
+    borderBottomColor: colors.ink,
   },
-  kicker: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: '#6b7280', textTransform: 'uppercase' },
-  title: { fontSize: 18, fontWeight: '700', color: '#0B1418' },
+  kicker: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: colors.muted, textTransform: 'uppercase' },
+  title: { fontSize: 18, fontWeight: '700', color: colors.deep },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 12 },
-  hint: { fontSize: 12, color: '#6b7280', textAlign: 'center', marginBottom: 10 },
+  hint: { fontSize: 12, color: colors.muted, textAlign: 'center', marginBottom: 10 },
   shopButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#0B1418',
+    backgroundColor: colors.deep,
     borderRadius: 8,
     paddingVertical: 12,
     marginBottom: 8,
   },
-  shopButtonText: { fontSize: 14, color: '#ffffff', fontWeight: '600' },
+  shopButtonText: { fontSize: 14, color: colors.white, fontWeight: '600' },
 });

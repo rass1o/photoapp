@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Image, ActivityIndicator, Alert, TextInput } from 'react-native';
+import { View, StyleSheet, Pressable, ScrollView, Image, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -14,6 +14,9 @@ import ShopTile, { TileStatus } from '../components/ShopTile';
 import Octopus from '../components/Octopus';
 import FilmStamp from '../components/FilmStamp';
 import CosmeticSwatch from '../components/CosmeticSwatch';
+import { Text, TextInput } from '../components/Themed';
+import { colors, bubbly } from '../theme';
+import Wave from '../components/Wave';
 
 type Profile = {
   username: string;
@@ -37,7 +40,7 @@ const PROFILE_SECTIONS: Array<{ category: ProfileCategory; label: string; icon: 
 ];
 
 const STATUS_STYLES: Record<Suggestion['status'], { bg: string; fg: string; label: string }> = {
-  pending: { bg: '#f3f4f6', fg: '#6b7280', label: 'In review' },
+  pending: { bg: colors.sand, fg: colors.muted, label: 'In review' },
   approved: { bg: '#ecfdf5', fg: '#047857', label: 'Approved' },
   declined: { bg: '#fef2f2', fg: '#b91c1c', label: 'Declined' },
 };
@@ -165,7 +168,7 @@ export default function ShopScreen() {
   if (isLoading || !profile) {
     return (
       <SafeAreaView style={[styles.screen, { alignItems: 'center', justifyContent: 'center' }]}>
-        <ActivityIndicator color="#0B1418" />
+        <ActivityIndicator color={colors.deep} />
       </SafeAreaView>
     );
   }
@@ -215,6 +218,7 @@ export default function ShopScreen() {
       </View>
 
       <View style={styles.sheet}>
+        <Wave />
         <ScrollView
           contentContainerStyle={{ paddingBottom: 24 }}
           showsVerticalScrollIndicator={false}
@@ -231,7 +235,7 @@ export default function ShopScreen() {
                 </View>
                 <View style={styles.octoButton}>
                   <Text style={styles.octoButtonText}>Customize</Text>
-                  <Ionicons name="chevron-forward" size={14} color="#ffffff" />
+                  <Ionicons name="chevron-forward" size={14} color={colors.white} />
                 </View>
               </Pressable>
             </>
@@ -319,11 +323,11 @@ export default function ShopScreen() {
                   disabled={isSubmittingTicket}
                 >
                   {isSubmittingTicket ? (
-                    <ActivityIndicator color="#ffffff" />
+                    <ActivityIndicator color={colors.white} />
                   ) : (
                     <>
                       <Text style={styles.ticketButtonText}>Use ticket</Text>
-                      <Ionicons name="flash" size={12} color="#ffffff" />
+                      <Ionicons name="flash" size={12} color={colors.white} />
                       <Text style={styles.ticketButtonText}>{ticket.price}</Text>
                     </>
                   )}
@@ -364,7 +368,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 12,
   },
-  title: { fontSize: 20, fontWeight: '600', color: '#0B1418' },
+  title: { ...bubbly, fontSize: 28 },
   balancePill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -376,12 +380,12 @@ const styles = StyleSheet.create({
   },
   balanceText: { fontSize: 12, color: '#92400e', fontWeight: '600' },
 
-  header: { alignItems: 'center', paddingTop: 8, paddingBottom: 14 },
+  header: { alignItems: 'center', paddingTop: 8, paddingBottom: 26 },
   avatar: {
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: '#ede9fe',
+    backgroundColor: colors.coralLight,
     borderWidth: 3,
     alignItems: 'center',
     justifyContent: 'center',
@@ -389,8 +393,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarImage: { width: '100%', height: '100%' },
-  avatarInitials: { fontSize: 18, fontWeight: '600', color: '#6d28d9' },
-  username: { fontSize: 18, fontWeight: '700', color: '#0B1418', marginBottom: 6 },
+  avatarInitials: { fontSize: 18, fontWeight: '600', color: colors.coral },
+  username: { ...bubbly, fontSize: 22, marginBottom: 6 },
   badgePill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -401,19 +405,17 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   badgePillText: { fontSize: 11, color: '#92400e', fontWeight: '500' },
-  resetPreview: { fontSize: 11, color: '#46606B', marginTop: 8 },
+  resetPreview: { fontSize: 11, color: colors.muted, marginTop: 8 },
 
   sheet: {
     flex: 1,
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: colors.shell,
     paddingHorizontal: 16,
     paddingTop: 14,
   },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
-  sectionBlurb: { fontSize: 12, color: '#6b7280', marginBottom: 10, lineHeight: 17 },
+  sectionBlurb: { fontSize: 12, color: colors.muted, marginBottom: 10, lineHeight: 17 },
 
   stampSwatch: { height: 40, justifyContent: 'center' },
 
@@ -421,23 +423,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.sand,
     borderRadius: 12,
     padding: 12,
     marginBottom: 18,
   },
-  octoName: { fontSize: 15, fontWeight: '700', color: '#0B1418' },
-  octoBlurb: { fontSize: 12, color: '#6b7280', marginTop: 2, lineHeight: 16 },
+  octoName: { fontSize: 15, fontWeight: '700', color: colors.deep },
+  octoBlurb: { fontSize: 12, color: colors.muted, marginTop: 2, lineHeight: 16 },
   octoButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    backgroundColor: '#0B1418',
+    backgroundColor: colors.deep,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
-  octoButtonText: { fontSize: 12, color: '#ffffff', fontWeight: '600' },
+  octoButtonText: { fontSize: 12, color: colors.white, fontWeight: '600' },
 
   ticketCard: {
     borderWidth: 1,
@@ -452,7 +454,7 @@ const styles = StyleSheet.create({
   ticketTitle: { fontSize: 14, fontWeight: '700', color: '#78350f' },
   ticketBlurb: { fontSize: 12, color: '#92400e', lineHeight: 17, marginBottom: 10 },
   ticketInput: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.shell,
     borderWidth: 1,
     borderColor: '#fde68a',
     borderRadius: 8,
@@ -467,23 +469,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
-    backgroundColor: '#0B1418',
+    backgroundColor: colors.deep,
     borderRadius: 8,
     paddingVertical: 11,
   },
-  ticketButtonText: { fontSize: 13, color: '#ffffff', fontWeight: '600' },
+  ticketButtonText: { fontSize: 13, color: colors.white, fontWeight: '600' },
 
   suggestionList: { gap: 6, marginBottom: 18 },
   suggestionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.sand,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
-  suggestionTitle: { flex: 1, fontSize: 13, color: '#374151' },
+  suggestionTitle: { flex: 1, fontSize: 13, color: colors.text },
   statusChip: { borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 },
   statusChipText: { fontSize: 11, fontWeight: '600' },
 });

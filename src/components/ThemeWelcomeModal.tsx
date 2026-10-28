@@ -1,5 +1,7 @@
-import { View, Text, StyleSheet, Modal, Image, Pressable, ScrollView } from 'react-native';
+import { View, StyleSheet, Modal, Image, Pressable, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Text } from './Themed';
+import { colors, bubbly } from '../theme';
 
 type Props = {
   visible: boolean;
@@ -39,14 +41,14 @@ export default function ThemeWelcomeModal({
             <Image source={{ uri: exampleImageUrl }} style={styles.image} resizeMode="cover" />
           ) : (
             <View style={styles.iconPlaceholder}>
-              <Ionicons name="camera" size={48} color="#6b7280" />
+              <Ionicons name="camera" size={48} color={colors.muted} />
             </View>
           )}
 
           {filmList.length > 0 ? (
             <View style={styles.filmsSection}>
               <View style={styles.filmsSectionHeader}>
-                <Ionicons name="film" size={16} color="#9ca3af" />
+                <Ionicons name="film" size={16} color={colors.faint} />
                 <Text style={styles.filmsSectionTitle}>Film recommendations</Text>
               </View>
 
@@ -98,30 +100,37 @@ export default function ThemeWelcomeModal({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B1418' },
+  container: { flex: 1, backgroundColor: colors.deep },
   scrollContent: { alignItems: 'center', paddingHorizontal: 24, paddingBottom: 20 },
   header: { alignItems: 'center', paddingTop: 60, paddingBottom: 20 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#ffffff' },
-  themeName: { fontSize: 24, fontWeight: '700', color: '#ffffff', marginTop: 8, textAlign: 'center' },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: colors.white },
+  themeName: {
+    ...bubbly,
+    fontSize: 32,
+    color: colors.white,
+    textShadowColor: colors.reef,
+    marginTop: 8,
+    textAlign: 'center',
+  },
   image: {
     width: '100%',
     height: 280,
     borderRadius: 14,
-    backgroundColor: '#1f2937',
+    backgroundColor: colors.abyss,
     marginBottom: 20,
   },
   iconPlaceholder: {
     width: '100%',
     height: 200,
     borderRadius: 14,
-    backgroundColor: '#1f2937',
+    backgroundColor: colors.abyss,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
   },
   filmsSection: { width: '100%', marginBottom: 20 },
   filmsSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  filmsSectionTitle: { fontSize: 13, fontWeight: '700', color: '#9ca3af' },
+  filmsSectionTitle: { fontSize: 13, fontWeight: '700', color: colors.faint },
   filmStripRow: { gap: 12, paddingRight: 8, paddingVertical: 2 },
   filmCard: {
     width: 136,
@@ -162,19 +171,19 @@ const styles = StyleSheet.create({
   filmCardText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#ffffff',
+    color: colors.white,
     textAlign: 'center',
   },
   filmsTip: {
     fontSize: 12,
-    color: '#6b7280',
+    color: colors.muted,
     marginTop: 10,
     textAlign: 'center',
   },
   goodLuckWrap: { alignItems: 'center', marginTop: 12 },
-  goodLuckText: { fontSize: 18, fontWeight: '700', color: '#ffffff' },
-  goodLuckSubtext: { fontSize: 13, color: '#9ca3af', marginTop: 6, textAlign: 'center' },
+  goodLuckText: { fontSize: 18, fontWeight: '700', color: colors.white },
+  goodLuckSubtext: { fontSize: 13, color: colors.faint, marginTop: 6, textAlign: 'center' },
   footer: { alignItems: 'center', paddingBottom: 40, paddingTop: 10 },
-  closeButton: { backgroundColor: '#ffffff', borderRadius: 8, paddingHorizontal: 32, paddingVertical: 12 },
-  closeButtonText: { fontSize: 14, fontWeight: '700', color: '#0B1418' },
+  closeButton: { backgroundColor: colors.shell, borderRadius: 8, paddingHorizontal: 32, paddingVertical: 12 },
+  closeButtonText: { fontSize: 14, fontWeight: '700', color: colors.deep },
 });

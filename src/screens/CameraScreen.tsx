@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   View,
-  Text,
   Pressable,
   StyleSheet,
   Image,
   Alert,
   ActivityIndicator,
   Linking,
-  TextInput,
   Keyboard,
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
@@ -27,6 +25,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ShopItem, isOwned, loadShop } from '../lib/shop';
 import FilmStamp from '../components/FilmStamp';
 import SectionHeader from '../components/SectionHeader';
+import { Text, TextInput } from '../components/Themed';
+import { colors, bubbly } from '../theme';
 
 type Theme = {
   id: string;
@@ -267,7 +267,7 @@ export default function CameraScreen() {
   if (isLoadingTheme) {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator style={{ marginTop: 40 }} color="#0B1418" />
+        <ActivityIndicator style={{ marginTop: 40 }} color={colors.deep} />
       </SafeAreaView>
     );
   }
@@ -280,7 +280,7 @@ export default function CameraScreen() {
             <View style={styles.topRow}>
               <View />
               <Pressable style={styles.cheatSheetButton} onPress={() => setCheatSheetVisible(true)}>
-                <Ionicons name="book-outline" size={14} color="#4f46e5" />
+                <Ionicons name="book-outline" size={14} color={colors.reef} />
                 <Text style={styles.cheatSheetButtonText}>Cheat sheet</Text>
               </Pressable>
             </View>
@@ -365,7 +365,7 @@ export default function CameraScreen() {
                   <TextInput
                     style={styles.captionInput}
                     placeholder="Add a caption (optional)"
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={colors.faint}
                     value={caption}
                     onChangeText={setCaption}
                     maxLength={140}
@@ -385,7 +385,7 @@ export default function CameraScreen() {
                   disabled={!imageUri || isUploading}
                 >
                   {isUploading ? (
-                    <ActivityIndicator color="#ffffff" />
+                    <ActivityIndicator color={colors.white} />
                   ) : (
                     <Text style={styles.submitText}>Submit</Text>
                   )}
@@ -398,7 +398,7 @@ export default function CameraScreen() {
               <SectionHeader icon="sunny-outline" label="Daily photo" />
 
               {isCheckingDaily ? (
-                <ActivityIndicator color="#0B1418" style={{ marginTop: 10 }} />
+                <ActivityIndicator color={colors.deep} style={{ marginTop: 10 }} />
               ) : dailyAlreadySubmitted ? (
                 <View style={styles.dailyDoneRow}>
                   <Ionicons name="checkmark-circle" size={16} color="#166534" />
@@ -428,7 +428,7 @@ export default function CameraScreen() {
                     disabled={!dailyImageUri || isUploadingDaily}
                   >
                     {isUploadingDaily ? (
-                      <ActivityIndicator color="#ffffff" />
+                      <ActivityIndicator color={colors.white} />
                     ) : (
                       <Text style={styles.submitText}>Post daily photo</Text>
                     )}
@@ -450,7 +450,7 @@ export default function CameraScreen() {
               <View style={styles.cheatSheetHeader}>
                 <Text style={styles.cheatSheetTitle}>Exposure cheat sheet</Text>
                 <Pressable onPress={() => setCheatSheetVisible(false)}>
-                  <Ionicons name="close" size={22} color="#374151" />
+                  <Ionicons name="close" size={22} color={colors.text} />
                 </Pressable>
               </View>
               <ScrollView>
@@ -475,19 +475,19 @@ export default function CameraScreen() {
 
 const styles = StyleSheet.create({
   stampPicker: { marginBottom: 12 },
-  stampPickerLabel: { fontSize: 12, fontWeight: '600', color: '#6b7280', marginBottom: 6 },
-  stampPickerEmpty: { fontSize: 12, color: '#9ca3af' },
+  stampPickerLabel: { fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 6 },
+  stampPickerEmpty: { fontSize: 12, color: colors.faint },
   stampRow: { gap: 6, paddingVertical: 2 },
   stampOption: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.sandBorder,
     borderRadius: 8,
     padding: 4,
     minHeight: 32,
     justifyContent: 'center',
   },
-  stampOptionActive: { borderColor: '#0B1418', borderWidth: 2, padding: 3 },
-  stampNoneText: { fontSize: 11, color: '#6b7280', paddingHorizontal: 6 },
+  stampOptionActive: { borderColor: colors.deep, borderWidth: 2, padding: 3 },
+  stampNoneText: { fontSize: 11, color: colors.muted, paddingHorizontal: 6 },
   container: { flex: 1 },
   flex: { flex: 1 },
   scrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 30 },
@@ -496,36 +496,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: '#eef2ff',
+    backgroundColor: colors.reefLight,
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  cheatSheetButtonText: { fontSize: 12, fontWeight: '600', color: '#4f46e5' },
+  cheatSheetButtonText: { fontSize: 12, fontWeight: '600', color: colors.reef },
   section: {},
-  title: { fontSize: 18, fontWeight: '600' },
-  subtitle: { fontSize: 13, color: '#6b7280', marginBottom: 20 },
+  title: { ...bubbly, fontSize: 24 },
+  subtitle: { fontSize: 13, color: colors.muted, marginBottom: 20 },
   captureButton: {
     height: 260,
     borderRadius: 12,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: '#9ca3af',
+    borderColor: colors.faint,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 20,
     overflow: 'hidden',
   },
-  captureText: { color: '#6b7280', fontSize: 14 },
+  captureText: { color: colors.muted, fontSize: 14 },
   preview: { width: '100%', height: '100%' },
-  toggleRow: { flexDirection: 'row', borderRadius: 8, borderWidth: 1, borderColor: '#e5e7eb', overflow: 'hidden', marginBottom: 16 },
+  toggleRow: { flexDirection: 'row', borderRadius: 8, borderWidth: 1, borderColor: colors.sandBorder, overflow: 'hidden', marginBottom: 16 },
   toggle: { flex: 1, padding: 10, alignItems: 'center' },
-  toggleActive: { backgroundColor: '#f3f4f6' },
-  toggleText: { color: '#6b7280', fontSize: 13 },
+  toggleActive: { backgroundColor: colors.sand },
+  toggleText: { color: colors.muted, fontSize: 13 },
   toggleTextActive: { fontWeight: '600', fontSize: 13 },
   captionInput: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.sandBorder,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -535,26 +535,26 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   doneButton: { alignSelf: 'flex-end', marginTop: -8, marginBottom: 12 },
-  doneButtonText: { fontSize: 12, color: '#4f46e5', fontWeight: '600' },
+  doneButtonText: { fontSize: 12, color: colors.reef, fontWeight: '600' },
   submitButton: {
-    backgroundColor: '#0B1418',
+    backgroundColor: colors.deep,
     borderRadius: 8,
     paddingVertical: 13,
     alignItems: 'center',
   },
   submitButtonDisabled: { opacity: 0.4 },
-  submitText: { color: '#ffffff', fontSize: 14, fontWeight: '600' },
+  submitText: { color: colors.white, fontSize: 14, fontWeight: '600' },
   doneWrap: { paddingVertical: 40 },
   doneTitle: { fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 8 },
-  doneSubtitle: { fontSize: 13, color: '#6b7280', textAlign: 'center', lineHeight: 19 },
+  doneSubtitle: { fontSize: 13, color: colors.muted, textAlign: 'center', lineHeight: 19 },
 
   dailySection: {
     marginTop: 24,
     paddingTop: 18,
     borderTopWidth: 1,
-    borderColor: '#f3f4f6',
+    borderColor: colors.sand,
   },
-  dailySubtitle: { fontSize: 12, color: '#6b7280', marginBottom: 12, lineHeight: 17 },
+  dailySubtitle: { fontSize: 12, color: colors.muted, marginBottom: 12, lineHeight: 17 },
   dailyDoneRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
   dailyDoneText: { fontSize: 13, color: '#166534' },
   dailyCaptureButton: {
@@ -562,7 +562,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: '#d1d5db',
+    borderColor: colors.sandDark,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
@@ -575,9 +575,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  cheatSheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  cheatSheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.backdrop },
   cheatSheetCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.shell,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 16,
@@ -585,8 +585,8 @@ const styles = StyleSheet.create({
   },
   cheatSheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   cheatSheetTitle: { fontSize: 16, fontWeight: '600' },
-  cheatSheetIntro: { fontSize: 12, color: '#6b7280', marginBottom: 12, lineHeight: 17 },
-  cheatSheetRow: { paddingVertical: 10, borderBottomWidth: 1, borderColor: '#f3f4f6' },
-  cheatSheetSetting: { fontSize: 13, fontWeight: '600', color: '#111827', marginBottom: 3 },
-  cheatSheetEffect: { fontSize: 12, color: '#6b7280', lineHeight: 17 },
+  cheatSheetIntro: { fontSize: 12, color: colors.muted, marginBottom: 12, lineHeight: 17 },
+  cheatSheetRow: { paddingVertical: 10, borderBottomWidth: 1, borderColor: colors.sand },
+  cheatSheetSetting: { fontSize: 13, fontWeight: '600', color: colors.ink, marginBottom: 3 },
+  cheatSheetEffect: { fontSize: 12, color: colors.muted, lineHeight: 17 },
 });

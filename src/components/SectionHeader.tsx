@@ -1,5 +1,7 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Text } from './Themed';
+import { colors } from '../theme';
 
 type Props = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -12,7 +14,7 @@ type Props = {
 export default function SectionHeader({ icon, label }: Props) {
   return (
     <View style={styles.row}>
-      <Ionicons name={icon} size={15} color="#111827" />
+      <Ionicons name={icon} size={15} color={colors.ink} />
       <Text style={styles.label}>{label}</Text>
     </View>
   );
@@ -27,13 +29,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     marginTop: 4,
     borderBottomWidth: 2,
-    borderBottomColor: '#111827',
+    borderBottomColor: colors.ink,
   },
   label: {
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1,
-    color: '#111827',
+    color: colors.ink,
     textTransform: 'uppercase',
   },
 });

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Image, Animated, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Pressable, Image, Animated, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,6 +12,8 @@ import {
   notifyFriendsChanged,
   respondToRequest,
 } from '../lib/friends';
+import { Text } from './Themed';
+import { colors } from '../theme';
 
 const SEEN_KEY = 'seenFriendRequests';
 
@@ -127,7 +129,7 @@ export default function FriendRequestPopup() {
             </Text>
           </View>
           <Pressable onPress={dismiss} hitSlop={10}>
-            <Ionicons name="close" size={20} color="#6b7280" />
+            <Ionicons name="close" size={20} color={colors.muted} />
           </Pressable>
         </View>
 
@@ -136,7 +138,7 @@ export default function FriendRequestPopup() {
             <Text style={styles.declineText}>Decline</Text>
           </Pressable>
           <Pressable style={[styles.button, styles.acceptButton]} onPress={() => respond(true)} disabled={busy}>
-            {busy ? <ActivityIndicator color="#ffffff" size="small" /> : <Text style={styles.acceptText}>Accept</Text>}
+            {busy ? <ActivityIndicator color={colors.white} size="small" /> : <Text style={styles.acceptText}>Accept</Text>}
           </Pressable>
         </View>
       </View>
@@ -147,7 +149,7 @@ export default function FriendRequestPopup() {
 const styles = StyleSheet.create({
   wrap: { position: 'absolute', left: 12, right: 12, zIndex: 100, elevation: 10 },
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.shell,
     borderRadius: 14,
     padding: 14,
     shadowColor: '#000',
@@ -155,26 +157,26 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     borderWidth: 2,
-    borderColor: '#111827',
+    borderColor: colors.ink,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#ede9fe',
+    backgroundColor: colors.coralLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  initials: { fontSize: 13, fontWeight: '600', color: '#6d28d9' },
+  initials: { fontSize: 13, fontWeight: '600', color: colors.coral },
   textCol: { flex: 1 },
-  kicker: { fontSize: 10, fontWeight: '700', letterSpacing: 1, color: '#6b7280', textTransform: 'uppercase' },
-  message: { fontSize: 13, color: '#374151', marginTop: 2 },
-  username: { fontWeight: '700', color: '#0B1418' },
+  kicker: { fontSize: 10, fontWeight: '700', letterSpacing: 1, color: colors.muted, textTransform: 'uppercase' },
+  message: { fontSize: 13, color: colors.text, marginTop: 2 },
+  username: { fontWeight: '700', color: colors.deep },
   buttons: { flexDirection: 'row', gap: 8, marginTop: 12 },
   button: { flex: 1, borderRadius: 8, paddingVertical: 10, alignItems: 'center', justifyContent: 'center' },
-  declineButton: { borderWidth: 1, borderColor: '#e5e7eb' },
-  declineText: { fontSize: 13, color: '#374151', fontWeight: '600' },
-  acceptButton: { backgroundColor: '#0B1418' },
-  acceptText: { fontSize: 13, color: '#ffffff', fontWeight: '600' },
+  declineButton: { borderWidth: 1, borderColor: colors.sandBorder },
+  declineText: { fontSize: 13, color: colors.text, fontWeight: '600' },
+  acceptButton: { backgroundColor: colors.deep },
+  acceptText: { fontSize: 13, color: colors.white, fontWeight: '600' },
 });

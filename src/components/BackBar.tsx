@@ -1,6 +1,8 @@
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { Text } from './Themed';
+import { colors } from '../theme';
 
 type Props = {
   title?: string;
@@ -15,7 +17,7 @@ export default function BackBar({ title }: Props) {
   return (
     <View style={styles.bar}>
       <Pressable style={styles.back} onPress={() => navigation.goBack()} hitSlop={10}>
-        <Ionicons name="chevron-back" size={22} color="#0B1418" />
+        <Ionicons name="chevron-back" size={22} color={colors.deep} />
         <Text style={styles.backText}>Back</Text>
       </Pressable>
       {title ? (
@@ -30,7 +32,7 @@ export default function BackBar({ title }: Props) {
 const styles = StyleSheet.create({
   bar: { height: 44, justifyContent: 'center', paddingHorizontal: 8 },
   back: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', zIndex: 1 },
-  backText: { fontSize: 16, color: '#0B1418' },
+  backText: { fontSize: 16, color: colors.deep },
   title: {
     position: 'absolute',
     left: 90,
@@ -38,6 +40,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
     fontWeight: '600',
-    color: '#0B1418',
+    color: colors.deep,
   },
 });

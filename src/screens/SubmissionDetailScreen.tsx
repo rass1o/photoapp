@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
   Image,
   Pressable,
   FlatList,
-  TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -20,6 +18,8 @@ import { useAuth } from '../context/AuthContext';
 import FilmStamp from '../components/FilmStamp';
 import FormatTag from '../components/FormatTag';
 import BackBar from '../components/BackBar';
+import { Text, TextInput } from '../components/Themed';
+import { colors } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SubmissionDetail'>;
 
@@ -150,7 +150,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
       <SafeAreaView style={styles.page} edges={['top', 'bottom']}>
         <BackBar />
         <View style={styles.centered}>
-          <ActivityIndicator color="#0B1418" />
+          <ActivityIndicator color={colors.deep} />
         </View>
       </SafeAreaView>
     );
@@ -216,7 +216,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
                 <Ionicons
                   name={hasVoted ? 'heart' : 'heart-outline'}
                   size={22}
-                  color={hasVoted ? '#dc2626' : '#4b5563'}
+                  color={hasVoted ? '#dc2626' : colors.text}
                 />
                 <Text style={[styles.actionText, hasVoted && styles.actionTextActive]}>
                   {submission.vote_count}
@@ -251,7 +251,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
           onChangeText={setCommentInput}
         />
         <Pressable style={styles.commentSendButton} onPress={postComment}>
-          <Ionicons name="send" size={16} color="#ffffff" />
+          <Ionicons name="send" size={16} color={colors.white} />
         </Pressable>
       </View>
       </KeyboardAvoidingView>
@@ -260,30 +260,30 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#ffffff' },
-  page: { flex: 1, backgroundColor: '#ffffff' },
+  flex: { flex: 1, backgroundColor: colors.shell },
+  page: { flex: 1, backgroundColor: colors.shell },
   stampOverlay: { position: 'absolute', left: 10, bottom: 10 },
-  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff' },
-  emptyText: { color: '#9ca3af', fontSize: 13, textAlign: 'center', padding: 20 },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.shell },
+  emptyText: { color: colors.faint, fontSize: 13, textAlign: 'center', padding: 20 },
 
   userRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 16 },
-  avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#ede9fe', borderWidth: 2, overflow: 'hidden' },
+  avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.coralLight, borderWidth: 2, overflow: 'hidden' },
   avatarImage: { width: '100%', height: '100%' },
-  username: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  username: { fontSize: 15, fontWeight: '600', color: colors.ink },
 
-  image: { width: '100%', backgroundColor: '#f3f4f6' },
+  image: { width: '100%', backgroundColor: colors.sand },
 
   actionsRow: { flexDirection: 'row', padding: 16 },
   actionItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  actionText: { fontSize: 15, color: '#4b5563' },
+  actionText: { fontSize: 15, color: colors.text },
   actionTextActive: { color: '#dc2626', fontWeight: '600' },
-  caption: { fontSize: 14, color: '#374151', paddingHorizontal: 16, paddingBottom: 12, lineHeight: 19 },
-  captionUsername: { fontWeight: '600', color: '#111827' },
+  caption: { fontSize: 14, color: colors.text, paddingHorizontal: 16, paddingBottom: 12, lineHeight: 19 },
+  captionUsername: { fontWeight: '600', color: colors.ink },
 
-  commentsHeader: { fontSize: 13, fontWeight: '600', color: '#6b7280', paddingHorizontal: 16, marginBottom: 4 },
-  commentRow: { paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderColor: '#f3f4f6' },
-  commentUsername: { fontSize: 12, fontWeight: '600', color: '#374151' },
-  commentBody: { fontSize: 14, color: '#111827', marginTop: 2 },
+  commentsHeader: { fontSize: 13, fontWeight: '600', color: colors.muted, paddingHorizontal: 16, marginBottom: 4 },
+  commentRow: { paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderColor: colors.sand },
+  commentUsername: { fontSize: 12, fontWeight: '600', color: colors.text },
+  commentBody: { fontSize: 14, color: colors.ink, marginTop: 2 },
 
   commentInputRow: {
     flexDirection: 'row',
@@ -291,15 +291,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     borderTopWidth: 1,
-    borderColor: '#f3f4f6',
+    borderColor: colors.sand,
   },
   commentInput: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.sand,
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 13,
   },
-  commentSendButton: { backgroundColor: '#0B1418', borderRadius: 20, padding: 10 },
+  commentSendButton: { backgroundColor: colors.deep, borderRadius: 20, padding: 10 },
 });

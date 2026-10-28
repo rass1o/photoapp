@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, Pressable, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -11,6 +11,9 @@ import Octopus, { OctopusCard } from '../components/Octopus';
 import ShopTile, { TileStatus } from '../components/ShopTile';
 import SectionHeader from '../components/SectionHeader';
 import BackBar from '../components/BackBar';
+import { Text, TextInput } from '../components/Themed';
+import { colors } from '../theme';
+import Wave from '../components/Wave';
 
 const SECTIONS: Array<{ category: OctoCategory; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
   { category: 'octo_color', label: 'Colors', icon: 'color-palette-outline' },
@@ -108,7 +111,7 @@ export default function OctopusScreen() {
       <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
         <BackBar title="Your octopus" />
         <View style={[styles.screen, styles.centered]}>
-          <ActivityIndicator color="#0B1418" />
+          <ActivityIndicator color={colors.deep} />
         </View>
       </SafeAreaView>
     );
@@ -147,7 +150,7 @@ export default function OctopusScreen() {
       case 'octo_item':
         return <Octopus color={octopus.color} heldItem={value} size={54} animated={false} />;
       case 'octo_dialogue':
-        return <Ionicons name="chatbubble-outline" size={18} color="#6b7280" />;
+        return <Ionicons name="chatbubble-outline" size={18} color={colors.muted} />;
     }
   };
 
@@ -178,6 +181,7 @@ export default function OctopusScreen() {
         </View>
 
         <View style={styles.sheet}>
+          <Wave />
           <SectionHeader icon="pricetag-outline" label="Name" />
           {isEditingName ? (
             <View style={styles.nameRow}>
@@ -192,7 +196,7 @@ export default function OctopusScreen() {
                 returnKeyType="done"
               />
               <Pressable onPress={saveName} style={styles.nameSaveButton}>
-                <Ionicons name="checkmark" size={18} color="#ffffff" />
+                <Ionicons name="checkmark" size={18} color={colors.white} />
               </Pressable>
             </View>
           ) : (
@@ -204,7 +208,7 @@ export default function OctopusScreen() {
               }}
             >
               <Text style={styles.nameText}>{octopus.name}</Text>
-              <Ionicons name="create-outline" size={16} color="#4f46e5" />
+              <Ionicons name="create-outline" size={16} color={colors.reef} />
             </Pressable>
           )}
 
@@ -257,11 +261,11 @@ export default function OctopusScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#D9E2E6' },
+  screen: { flex: 1, backgroundColor: colors.sea },
   centered: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30 },
-  emptyText: { color: '#46606B', fontSize: 13, textAlign: 'center' },
+  emptyText: { color: colors.muted, fontSize: 13, textAlign: 'center' },
 
-  header: { alignItems: 'center', paddingTop: 12, paddingBottom: 16, paddingHorizontal: 16 },
+  header: { alignItems: 'center', paddingTop: 12, paddingBottom: 26, paddingHorizontal: 16 },
   balancePill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -274,12 +278,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   balanceText: { fontSize: 12, color: '#92400e', fontWeight: '600' },
-  resetPreview: { fontSize: 11, color: '#46606B', marginTop: 8 },
+  resetPreview: { fontSize: 11, color: colors.muted, marginTop: 8 },
 
   sheet: {
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: colors.shell,
     paddingHorizontal: 16,
     paddingTop: 14,
     minHeight: 400,
@@ -289,14 +291,14 @@ const styles = StyleSheet.create({
   nameInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.sandBorder,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 9,
     fontSize: 14,
   },
   nameSaveButton: {
-    backgroundColor: '#0B1418',
+    backgroundColor: colors.deep,
     borderRadius: 8,
     width: 38,
     alignItems: 'center',
@@ -306,15 +308,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.sand,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginBottom: 18,
   },
-  nameText: { fontSize: 14, fontWeight: '600', color: '#111827' },
+  nameText: { fontSize: 14, fontWeight: '600', color: colors.ink },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
   list: { gap: 8, marginBottom: 18 },
-  colorSwatch: { width: 40, height: 40, borderRadius: 20, borderWidth: 3, borderColor: '#1f2937' },
+  colorSwatch: { width: 40, height: 40, borderRadius: 20, borderWidth: 3, borderColor: colors.abyss },
 });

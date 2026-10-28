@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Octopus from '../components/Octopus';
+import { Text } from '../components/Themed';
+import { colors, bubbly } from '../theme';
 
 type Props = {
   onDone: () => void;
@@ -98,7 +100,7 @@ export default function OnboardingScreen({ onDone }: Props) {
           </View>
         ) : (
           <View style={styles.iconCircle}>
-            <Ionicons name={slide.icon} size={36} color="#0B1418" />
+            <Ionicons name={slide.icon} size={36} color={colors.deep} />
           </View>
         )}
 
@@ -133,9 +135,9 @@ export default function OnboardingScreen({ onDone }: Props) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#D9E2E6' },
+  screen: { flex: 1, backgroundColor: colors.sea },
   skipRow: { alignItems: 'flex-end', paddingHorizontal: 20, paddingTop: 8, minHeight: 32 },
-  skipText: { fontSize: 13, color: '#46606B' },
+  skipText: { fontSize: 13, color: colors.muted },
 
   content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 32, paddingVertical: 12 },
   mascot: { alignSelf: 'center', marginBottom: 8 },
@@ -143,14 +145,14 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.shell,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
     alignSelf: 'center',
   },
-  title: { fontSize: 26, fontWeight: '700', color: '#0B1418', textAlign: 'center', marginBottom: 12 },
-  body: { fontSize: 14, color: '#46606B', textAlign: 'center', lineHeight: 21 },
+  title: { ...bubbly, fontSize: 30, textAlign: 'center', marginBottom: 12 },
+  body: { fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 21 },
 
   bulletList: { marginTop: 20, gap: 12 },
   bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
@@ -158,21 +160,21 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#0B1418',
+    backgroundColor: colors.deep,
     marginTop: 7,
   },
-  bulletText: { flex: 1, fontSize: 14, color: '#1A2A32', lineHeight: 20 },
+  bulletText: { flex: 1, fontSize: 14, color: colors.ink, lineHeight: 20 },
 
   footer: { paddingHorizontal: 24, paddingBottom: 20 },
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 20 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#b8c4c9' },
-  dotActive: { backgroundColor: '#0B1418', width: 18 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.sandDark },
+  dotActive: { backgroundColor: colors.deep, width: 18 },
 
   continueButton: {
-    backgroundColor: '#0B1418',
+    backgroundColor: colors.deep,
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  continueText: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
+  continueText: { color: colors.white, fontSize: 15, fontWeight: '600' },
 });

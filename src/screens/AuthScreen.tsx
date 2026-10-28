@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import {
   View,
-  Text,
-  TextInput,
   Pressable,
   StyleSheet,
   KeyboardAvoidingView,
@@ -10,6 +8,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
+import { Text, TextInput } from '../components/Themed';
+import { colors, bubbly } from '../theme';
 
 export default function AuthScreen() {
   const { signIn, signUp, authError } = useAuth();
@@ -83,7 +83,7 @@ export default function AuthScreen() {
             <TextInput
               style={styles.input}
               placeholder="Username"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.faint}
               autoCapitalize="none"
               value={username}
               onChangeText={setUsername}
@@ -93,7 +93,7 @@ export default function AuthScreen() {
           <TextInput
             style={styles.input}
             placeholder="Email"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={colors.faint}
             autoCapitalize="none"
             keyboardType="email-address"
             value={email}
@@ -103,7 +103,7 @@ export default function AuthScreen() {
           <TextInput
             style={styles.input}
             placeholder="Password"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={colors.faint}
             secureTextEntry
             value={password}
             onChangeText={setPassword}
@@ -127,13 +127,13 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#D9E2E6' },
+  screen: { flex: 1, backgroundColor: colors.sea },
   flex: { flex: 1 },
   content: { flex: 1, justifyContent: 'center', paddingHorizontal: 28 },
-  logo: { fontSize: 30, fontWeight: '700', color: '#0B1418', textAlign: 'center' },
+  logo: { ...bubbly, fontSize: 44, textAlign: 'center', textShadowOffset: { width: 0, height: 3 } },
   tagline: {
     fontSize: 13,
-    color: '#46606B',
+    color: colors.muted,
     textAlign: 'center',
     marginTop: 6,
     marginBottom: 28,
@@ -146,27 +146,27 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modeTab: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
-  modeTabActive: { backgroundColor: '#ffffff' },
-  modeText: { fontSize: 13, color: '#46606B' },
-  modeTextActive: { fontSize: 13, fontWeight: '600', color: '#0B1418' },
+  modeTabActive: { backgroundColor: colors.shell },
+  modeText: { fontSize: 13, color: colors.muted },
+  modeTextActive: { fontSize: 13, fontWeight: '600', color: colors.deep },
   input: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.shell,
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: colors.sandBorder,
   },
   error: { color: '#b91c1c', fontSize: 12, marginBottom: 10 },
   submitButton: {
-    backgroundColor: '#0B1418',
+    backgroundColor: colors.deep,
     borderRadius: 8,
     paddingVertical: 13,
     alignItems: 'center',
     marginTop: 6,
   },
   submitButtonDisabled: { opacity: 0.6 },
-  submitText: { color: '#ffffff', fontSize: 14, fontWeight: '600' },
+  submitText: { color: colors.white, fontSize: 14, fontWeight: '600' },
 });

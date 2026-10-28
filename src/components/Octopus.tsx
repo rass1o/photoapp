@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Easing, View, Text, StyleSheet } from 'react-native';
+import { Animated, Easing, View, StyleSheet } from 'react-native';
 import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
+import { Text } from './Themed';
+import { colors } from '../theme';
 
 // Placeholder mascot art — a simple cartoon octopus drawn in SVG so it can be
 // recolored and dressed up. Swap the shapes out once there's a real design.
 
-const OUTLINE = '#1f2937';
+const OUTLINE = colors.abyss;
 
 // Tentacles are drawn twice (dark wide stroke, then body-colored narrower
 // stroke on top) to get a thick cartoon outline.
@@ -39,8 +41,8 @@ function Accessory({ kind }: { kind: string }) {
     case 'round_glasses':
       return (
         <G stroke={OUTLINE} strokeWidth={4} fill="none" strokeLinecap="round">
-          <Circle cx={78} cy={88} r={19} fill="#ffffff" fillOpacity={0.15} />
-          <Circle cx={122} cy={88} r={19} fill="#ffffff" fillOpacity={0.15} />
+          <Circle cx={78} cy={88} r={19} fill={colors.white} fillOpacity={0.15} />
+          <Circle cx={122} cy={88} r={19} fill={colors.white} fillOpacity={0.15} />
           <Path d="M97,86 Q100,81 103,86" />
           <Path d="M59,84 L44,78" />
           <Path d="M141,84 L156,78" />
@@ -57,16 +59,16 @@ function Accessory({ kind }: { kind: string }) {
     case 'beret':
       return (
         <G stroke={OUTLINE} strokeWidth={3.5} rotation={-10} origin="100, 34">
-          <Ellipse cx={96} cy={32} rx={50} ry={15} fill="#374151" />
-          <Rect x={92} y={12} width={8} height={8} rx={3} fill="#374151" />
+          <Ellipse cx={96} cy={32} rx={50} ry={15} fill={colors.text} />
+          <Rect x={92} y={12} width={8} height={8} rx={3} fill={colors.text} />
         </G>
       );
     case 'top_hat':
       return (
         <G stroke={OUTLINE} strokeWidth={3.5} strokeLinejoin="round">
-          <Rect x={72} y={-14} width={56} height={50} rx={4} fill="#111827" />
+          <Rect x={72} y={-14} width={56} height={50} rx={4} fill={colors.ink} />
           <Rect x={72} y={22} width={56} height={9} fill="#dc2626" />
-          <Ellipse cx={100} cy={36} rx={48} ry={8} fill="#111827" />
+          <Ellipse cx={100} cy={36} rx={48} ry={8} fill={colors.ink} />
         </G>
       );
     case 'crown':
@@ -90,9 +92,9 @@ function HeldItem({ kind }: { kind: string }) {
     case 'camera':
       body = (
         <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round">
-          <Rect x={6} y={-6} width={11} height={7} rx={2} fill="#4b5563" />
-          <Rect x={0} y={0} width={42} height={28} rx={5} fill="#374151" />
-          <Circle cx={21} cy={14} r={10} fill="#9ca3af" />
+          <Rect x={6} y={-6} width={11} height={7} rx={2} fill={colors.text} />
+          <Rect x={0} y={0} width={42} height={28} rx={5} fill={colors.text} />
+          <Circle cx={21} cy={14} r={10} fill={colors.faint} />
           <Circle cx={21} cy={14} r={4.5} fill={OUTLINE} />
           <Circle cx={35} cy={6} r={2.5} fill="#fde68a" strokeWidth={0} />
         </G>
@@ -111,9 +113,9 @@ function HeldItem({ kind }: { kind: string }) {
     case 'coffee':
       body = (
         <G stroke={OUTLINE} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
-          <Path d="M10,-4 Q6,-10 10,-16 M20,-4 Q16,-10 20,-16" fill="none" stroke="#9ca3af" strokeWidth={2.5} />
+          <Path d="M10,-4 Q6,-10 10,-16 M20,-4 Q16,-10 20,-16" fill="none" stroke={colors.faint} strokeWidth={2.5} />
           <Path d="M30,10 C40,10 40,24 30,24" fill="none" />
-          <Rect x={2} y={2} width={28} height={30} rx={5} fill="#ffffff" />
+          <Rect x={2} y={2} width={28} height={30} rx={5} fill={colors.white} />
           <Ellipse cx={16} cy={6} rx={11} ry={3} fill="#78350f" strokeWidth={0} />
         </G>
       );
@@ -121,7 +123,7 @@ function HeldItem({ kind }: { kind: string }) {
     case 'polaroid':
       body = (
         <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round" rotation={8} origin="17, 20">
-          <Rect x={0} y={0} width={34} height={40} rx={2} fill="#ffffff" />
+          <Rect x={0} y={0} width={34} height={40} rx={2} fill={colors.white} />
           <Rect x={4} y={4} width={26} height={24} fill="#93c5fd" strokeWidth={0} />
           <Circle cx={22} cy={11} r={4} fill="#fde047" strokeWidth={0} />
           <Path d="M4,28 L13,17 L20,24 L24,20 L30,28 Z" fill="#16a34a" strokeWidth={0} />
@@ -131,8 +133,8 @@ function HeldItem({ kind }: { kind: string }) {
     case 'flash':
       body = (
         <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round">
-          <Rect x={4} y={14} width={22} height={24} rx={3} fill="#374151" />
-          <Rect x={-2} y={0} width={34} height={16} rx={3} fill="#e5e7eb" />
+          <Rect x={4} y={14} width={22} height={24} rx={3} fill={colors.text} />
+          <Rect x={-2} y={0} width={34} height={16} rx={3} fill={colors.sandBorder} />
           <Path d="M17,2 L10,9 L15,9 L12,15 L20,7 L15,7 Z" fill="#facc15" strokeWidth={1.5} />
         </G>
       );
@@ -171,17 +173,17 @@ export default function Octopus({ color, accessory, heldItem, size = 140, animat
         ))}
 
         <Ellipse cx={100} cy={82} rx={60} ry={52} fill={color} stroke={OUTLINE} strokeWidth={4} />
-        <Ellipse cx={72} cy={54} rx={15} ry={9} fill="#ffffff" opacity={0.35} rotation={-30} origin="72, 54" />
+        <Ellipse cx={72} cy={54} rx={15} ry={9} fill={colors.white} opacity={0.35} rotation={-30} origin="72, 54" />
 
         <Ellipse cx={62} cy={108} rx={9} ry={5} fill="#fb7185" opacity={0.5} />
         <Ellipse cx={138} cy={108} rx={9} ry={5} fill="#fb7185" opacity={0.5} />
 
-        <Ellipse cx={78} cy={88} rx={13} ry={15} fill="#ffffff" stroke={OUTLINE} strokeWidth={3} />
-        <Ellipse cx={122} cy={88} rx={13} ry={15} fill="#ffffff" stroke={OUTLINE} strokeWidth={3} />
+        <Ellipse cx={78} cy={88} rx={13} ry={15} fill={colors.white} stroke={OUTLINE} strokeWidth={3} />
+        <Ellipse cx={122} cy={88} rx={13} ry={15} fill={colors.white} stroke={OUTLINE} strokeWidth={3} />
         <Circle cx={80} cy={91} r={7} fill={OUTLINE} />
         <Circle cx={124} cy={91} r={7} fill={OUTLINE} />
-        <Circle cx={83} cy={87} r={2.5} fill="#ffffff" />
-        <Circle cx={127} cy={87} r={2.5} fill="#ffffff" />
+        <Circle cx={83} cy={87} r={2.5} fill={colors.white} />
+        <Circle cx={127} cy={87} r={2.5} fill={colors.white} />
 
         <Path d="M90,112 Q100,122 110,112" stroke={OUTLINE} strokeWidth={3.5} strokeLinecap="round" fill="none" />
 
@@ -223,14 +225,14 @@ export function OctopusCard({
 const styles = StyleSheet.create({
   card: {
     alignItems: 'center',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.sand,
     borderRadius: 12,
     paddingTop: 14,
     paddingBottom: 12,
     paddingHorizontal: 12,
   },
   bubble: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.shell,
     borderRadius: 14,
     borderWidth: 2,
     borderColor: OUTLINE,
@@ -239,18 +241,18 @@ const styles = StyleSheet.create({
     maxWidth: '85%',
     marginBottom: 2,
   },
-  bubbleText: { fontSize: 13, color: '#111827', fontWeight: '500', textAlign: 'center' },
+  bubbleText: { fontSize: 13, color: colors.ink, fontWeight: '500', textAlign: 'center' },
   bubbleTail: {
     position: 'absolute',
     bottom: -7,
     alignSelf: 'center',
     width: 12,
     height: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.shell,
     borderRightWidth: 2,
     borderBottomWidth: 2,
     borderColor: OUTLINE,
     transform: [{ rotate: '45deg' }],
   },
-  name: { fontSize: 15, fontWeight: '700', color: '#0B1418', marginTop: 2 },
+  name: { fontSize: 15, fontWeight: '700', color: colors.deep, marginTop: 2 },
 });

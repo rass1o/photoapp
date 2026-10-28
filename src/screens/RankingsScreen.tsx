@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, Pressable, Image, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, FlatList, StyleSheet, Pressable, Image, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
@@ -8,6 +8,9 @@ import { useAuth } from '../context/AuthContext';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import FormatTag from '../components/FormatTag';
 import { loadFriendIds, onFriendsChanged } from '../lib/friends';
+import { Text } from '../components/Themed';
+import { colors, bubbly } from '../theme';
+import Wave from '../components/Wave';
 
 type Theme = {
   id: string;
@@ -121,123 +124,130 @@ export default function RankingsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Text style={styles.title}>Rankings</Text>
-      {theme && <Text style={styles.subtitle}>{theme.name}</Text>}
-      <Text style={styles.prizeHint}>
-        {feed === 'global'
-          ? `Top 5 overall win ${REWARDS.join(' · ')} shutters`
-          : 'How you stack up against your friends'}
-      </Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Rankings</Text>
+        {theme && <Text style={styles.subtitle}>{theme.name}</Text>}
+        <Text style={styles.prizeHint}>
+          {feed === 'global'
+            ? `Top 5 overall win ${REWARDS.join(' · ')} shutters`
+            : 'How you stack up against your friends'}
+        </Text>
 
-      <View style={styles.toggleRow}>
-        <Pressable
-          style={[styles.toggle, feed === 'friends' && styles.toggleActive]}
-          onPress={() => setFeed('friends')}
-        >
-          <Text style={feed === 'friends' ? styles.toggleTextActive : styles.toggleText}>
-            Friends
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.toggle, feed === 'global' && styles.toggleActive]}
-          onPress={() => setFeed('global')}
-        >
-          <Text style={feed === 'global' ? styles.toggleTextActive : styles.toggleText}>
-            Global
-          </Text>
-        </Pressable>
+        <View style={styles.toggleRow}>
+          <Pressable
+            style={[styles.toggle, feed === 'friends' && styles.toggleActive]}
+            onPress={() => setFeed('friends')}
+          >
+            <Text style={feed === 'friends' ? styles.toggleTextActive : styles.toggleText}>
+              Friends
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.toggle, feed === 'global' && styles.toggleActive]}
+            onPress={() => setFeed('global')}
+          >
+            <Text style={feed === 'global' ? styles.toggleTextActive : styles.toggleText}>
+              Global
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
-      {isLoading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color="#0B1418" />
-        </View>
-      ) : errorMessage ? (
-        <View style={styles.centered}>
-          <Text style={styles.errorText}>{errorMessage}</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={rankings}
-          keyExtractor={(item) => item.id}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
-          ListEmptyComponent={
-            <View style={styles.centered}>
-              <Text style={styles.emptyText}>
-                {feed === 'friends'
-                  ? 'No submissions from you or your friends yet. It\'s quiet under the sea.'
-                  : 'No submissions yet. It\'s quiet under the sea.'}
-              </Text>
-            </View>
-          }
-          renderItem={({ item, index }) => {
-            const isMe = item.user_id === user?.id;
-            const rank = ranks[index];
-            // Prize spots only highlight in Global, since payouts are global
-            const isPrize = feed === 'global' && rank <= REWARDS.length && item.vote_count > 0;
-            const isTie = ranks.filter((r) => r === rank).length > 1;
-            return (
-              <View style={[styles.row, isMe && styles.rowMe]}>
-                <Text style={[styles.rank, isPrize && styles.rankTop]}>
-                  {isTie ? 'T' : ''}
-                  {rank}
-                </Text>
-                <Pressable onPress={() => navigation.push('SubmissionDetail', { submissionId: item.id })}>
-                  <Image source={{ uri: item.image_url }} style={styles.thumb} />
-                </Pressable>
-                <Pressable
-                  style={{ flex: 1 }}
-                  onPress={() => navigation.push('UserProfile', { userId: item.user_id })}
-                >
-                  <View style={styles.nameRow}>
-                    <Text style={styles.username} numberOfLines={1}>
-                      {isMe ? 'You' : item.username}
-                    </Text>
-                    <FormatTag format={item.format} />
-                  </View>
-                  {isPrize && <Text style={styles.rewardText}>+{REWARDS[rank - 1]} shutters</Text>}
-                </Pressable>
-                <Text style={styles.votes}>{item.vote_count} votes</Text>
-              </View>
-            );
-          }}
-        />
-      )}
+      <View style={styles.sheet}>
+        <Wave />
 
-      {myRanking && myRank !== null && myRank > REWARDS.length && (
-        <View style={styles.pinnedRow}>
-          <Text style={styles.pinnedRank}>#{myRank}</Text>
-          <Image source={{ uri: myRanking.image_url }} style={styles.thumb} />
-          <Text style={styles.pinnedUsername}>You</Text>
-          <Text style={styles.pinnedVotes}>{myRanking.vote_count} votes</Text>
-        </View>
-      )}
+        {isLoading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator color={colors.deep} />
+          </View>
+        ) : errorMessage ? (
+          <View style={styles.centered}>
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={rankings}
+            keyExtractor={(item) => item.id}
+            refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
+            ListEmptyComponent={
+              <View style={styles.centered}>
+                <Text style={styles.emptyText}>
+                  {feed === 'friends'
+                    ? 'No submissions from you or your friends yet. It\'s quiet under the sea.'
+                    : 'No submissions yet. It\'s quiet under the sea.'}
+                </Text>
+              </View>
+            }
+            renderItem={({ item, index }) => {
+              const isMe = item.user_id === user?.id;
+              const rank = ranks[index];
+              // Prize spots only highlight in Global, since payouts are global
+              const isPrize = feed === 'global' && rank <= REWARDS.length && item.vote_count > 0;
+              const isTie = ranks.filter((r) => r === rank).length > 1;
+              return (
+                <View style={[styles.row, isMe && styles.rowMe]}>
+                  <Text style={[styles.rank, isPrize && styles.rankTop]}>
+                    {isTie ? 'T' : ''}
+                    {rank}
+                  </Text>
+                  <Pressable onPress={() => navigation.push('SubmissionDetail', { submissionId: item.id })}>
+                    <Image source={{ uri: item.image_url }} style={styles.thumb} />
+                  </Pressable>
+                  <Pressable
+                    style={{ flex: 1 }}
+                    onPress={() => navigation.push('UserProfile', { userId: item.user_id })}
+                  >
+                    <View style={styles.nameRow}>
+                      <Text style={styles.username} numberOfLines={1}>
+                        {isMe ? 'You' : item.username}
+                      </Text>
+                      <FormatTag format={item.format} />
+                    </View>
+                    {isPrize && <Text style={styles.rewardText}>+{REWARDS[rank - 1]} shutters</Text>}
+                  </Pressable>
+                  <Text style={styles.votes}>{item.vote_count} votes</Text>
+                </View>
+              );
+            }}
+          />
+        )}
+
+        {myRanking && myRank !== null && myRank > REWARDS.length && (
+          <View style={styles.pinnedRow}>
+            <Text style={styles.pinnedRank}>#{myRank}</Text>
+            <Image source={{ uri: myRanking.image_url }} style={styles.thumb} />
+            <Text style={styles.pinnedUsername}>You</Text>
+            <Text style={styles.pinnedVotes}>{myRanking.vote_count} votes</Text>
+          </View>
+        )}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 16, paddingTop: 12 },
-  title: { fontSize: 20, fontWeight: '600' },
-  subtitle: { fontSize: 13, color: '#6b7280' },
-  prizeHint: { fontSize: 12, color: '#b45309', fontWeight: '500', marginTop: 2, marginBottom: 12 },
+  container: { flex: 1, backgroundColor: colors.sea },
+  header: { paddingHorizontal: 16, paddingTop: 12 },
+  sheet: { flex: 1, backgroundColor: colors.shell, paddingHorizontal: 16, paddingTop: 6 },
+  title: { ...bubbly, fontSize: 28 },
+  subtitle: { fontSize: 13, color: colors.muted },
+  prizeHint: { fontSize: 12, color: colors.reefDark, fontWeight: '500', marginTop: 2, marginBottom: 12 },
 
   toggleRow: {
     flexDirection: 'row',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    overflow: 'hidden',
-    marginBottom: 12,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    borderRadius: 20,
+    padding: 3,
+    marginBottom: 24, // room for the wave below
   },
-  toggle: { flex: 1, padding: 8, alignItems: 'center' },
-  toggleActive: { backgroundColor: '#f3f4f6' },
-  toggleText: { color: '#6b7280', fontSize: 13 },
-  toggleTextActive: { fontWeight: '600', fontSize: 13 },
+  toggle: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 18 },
+  toggleActive: { backgroundColor: colors.white },
+  toggleText: { color: colors.muted, fontSize: 13 },
+  toggleTextActive: { fontWeight: '600', fontSize: 13, color: colors.deep },
 
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, paddingHorizontal: 30 },
   errorText: { color: '#b91c1c', fontSize: 13, textAlign: 'center' },
-  emptyText: { color: '#9ca3af', fontSize: 13, textAlign: 'center' },
+  emptyText: { color: colors.faint, fontSize: 13, textAlign: 'center' },
 
   row: {
     flexDirection: 'row',
@@ -245,16 +255,16 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderColor: '#f3f4f6',
+    borderColor: colors.sand,
   },
-  rowMe: { backgroundColor: '#eef2ff', borderRadius: 8, paddingHorizontal: 8 },
-  rank: { width: 28, fontWeight: '600', color: '#6b7280', fontSize: 14 },
+  rowMe: { backgroundColor: colors.reefLight, borderRadius: 8, paddingHorizontal: 8 },
+  rank: { width: 28, fontWeight: '600', color: colors.muted, fontSize: 14 },
   rankTop: { color: '#b45309' },
-  thumb: { width: 40, height: 40, borderRadius: 6, backgroundColor: '#f3f4f6' },
+  thumb: { width: 40, height: 40, borderRadius: 6, backgroundColor: colors.sand },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   username: { fontSize: 14, flexShrink: 1 },
   rewardText: { fontSize: 11, color: '#b45309', marginTop: 2 },
-  votes: { fontSize: 13, color: '#6b7280' },
+  votes: { fontSize: 13, color: colors.muted },
 
   pinnedRow: {
     flexDirection: 'row',
@@ -263,10 +273,10 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 12,
     padding: 10,
-    backgroundColor: '#eef2ff',
+    backgroundColor: colors.reefLight,
     borderRadius: 8,
   },
-  pinnedRank: { width: 30, fontWeight: '600', color: '#4f46e5', fontSize: 14 },
-  pinnedUsername: { flex: 1, fontSize: 14, color: '#4f46e5', fontWeight: '500' },
-  pinnedVotes: { fontSize: 13, color: '#4f46e5' },
+  pinnedRank: { width: 30, fontWeight: '600', color: colors.reef, fontSize: 14 },
+  pinnedUsername: { flex: 1, fontSize: 14, color: colors.reef, fontWeight: '500' },
+  pinnedVotes: { fontSize: 13, color: colors.reef },
 });

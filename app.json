@@ -1,7 +1,8 @@
 {
   "name": "ShuttInk",
   "plugins": [
-    "expo-status-bar"
+    "expo-status-bar",
+    "expo-font"
   ],
   "extra": {
     "eas": {

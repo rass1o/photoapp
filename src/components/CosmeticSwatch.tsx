@@ -1,6 +1,7 @@
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { ProfileCategory } from '../lib/shop';
+import { colors } from '../theme';
 
 // Small preview of a profile cosmetic, used by the Shop and the Profile locker
 export default function CosmeticSwatch({ category, value }: { category: ProfileCategory; value: string }) {
@@ -18,8 +19,8 @@ export default function CosmeticSwatch({ category, value }: { category: ProfileC
 }
 
 const styles = StyleSheet.create({
-  frame: { width: 40, height: 40, borderRadius: 20, borderWidth: 3, backgroundColor: '#ede9fe' },
-  banner: { width: '100%', height: 40, borderRadius: 6, borderWidth: 1, borderColor: '#e5e7eb' },
+  frame: { width: 40, height: 40, borderRadius: 20, borderWidth: 3, backgroundColor: colors.coralLight },
+  banner: { width: '100%', height: 40, borderRadius: 6, borderWidth: 1, borderColor: colors.sandBorder },
   badge: {
     width: 40,
     height: 40,

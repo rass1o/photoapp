@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
-  Text,
   FlatList,
   StyleSheet,
   Pressable,
@@ -9,7 +8,6 @@ import {
   ActivityIndicator,
   RefreshControl,
   Modal,
-  TextInput,
   Share,
   KeyboardAvoidingView,
   Platform,
@@ -29,6 +27,9 @@ import ThemeWelcomeModal from '../components/ThemeWelcomeModal';
 import FilmStamp from '../components/FilmStamp';
 import FormatTag from '../components/FormatTag';
 import { loadFriendIds, onFriendsChanged } from '../lib/friends';
+import { Text, TextInput } from '../components/Themed';
+import { colors, bubbly } from '../theme';
+import Wave from '../components/Wave';
 
 type Theme = {
   id: string;
@@ -658,10 +659,10 @@ export default function HomeScreen() {
         <Text style={styles.appName}>ShuttInk</Text>
         <View style={styles.topBarIcons}>
           <Pressable onPress={() => setSearchVisible((v) => !v)}>
-            <Ionicons name="search-outline" size={20} color="#1A2A32" />
+            <Ionicons name="search-outline" size={20} color={colors.ink} />
           </Pressable>
           <Pressable onPress={openNotifications} style={{ marginLeft: 14 }}>
-            <Ionicons name="notifications-outline" size={20} color="#1A2A32" />
+            <Ionicons name="notifications-outline" size={20} color={colors.ink} />
           </Pressable>
         </View>
       </View>
@@ -669,7 +670,7 @@ export default function HomeScreen() {
       {searchVisible && (
         <View style={styles.searchWrap}>
           <View style={styles.searchBar}>
-            <Ionicons name="search-outline" size={16} color="#6b7280" />
+            <Ionicons name="search-outline" size={16} color={colors.muted} />
             <TextInput
               style={styles.searchInput}
               placeholder="Search users by username"
@@ -679,7 +680,7 @@ export default function HomeScreen() {
             />
             {searchQuery.length > 0 && (
               <Pressable onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={16} color="#9ca3af" />
+                <Ionicons name="close-circle" size={16} color={colors.faint} />
               </Pressable>
             )}
           </View>
@@ -687,7 +688,7 @@ export default function HomeScreen() {
           {searchQuery.trim() !== '' && (
             <View style={styles.searchResultsPanel}>
               {isSearching ? (
-                <ActivityIndicator style={{ marginVertical: 12 }} color="#0B1418" />
+                <ActivityIndicator style={{ marginVertical: 12 }} color={colors.deep} />
               ) : searchResults.length === 0 ? (
                 <Text style={styles.searchEmptyText}>No users found for "{searchQuery}"</Text>
               ) : (
@@ -703,7 +704,7 @@ export default function HomeScreen() {
                       <View style={styles.searchResultAvatar} />
                     )}
                     <Text style={styles.searchResultUsername}>{result.username}</Text>
-                    <Ionicons name="chevron-forward" size={16} color="#9ca3af" />
+                    <Ionicons name="chevron-forward" size={16} color={colors.faint} />
                   </Pressable>
                 ))
               )}
@@ -757,110 +758,113 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
-      {isLoading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color="#0B1418" />
-        </View>
-      ) : errorMessage ? (
-        <View style={styles.centered}>
-          <Text style={styles.errorText}>{errorMessage}</Text>
-        </View>
-      ) : (
-        <FlatList
-          style={styles.feedSheet}
-          data={submissions}
-          keyExtractor={(item) => item.id}
-          refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
-          onEndReachedThreshold={0.6}
-          onEndReached={loadMore}
-          ListFooterComponent={
-            isLoadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color="#0B1418" /> : undefined
-          }
-          ListEmptyComponent={
-            <View style={styles.centered}>
-              <Text style={styles.emptyText}>
-                {feed === 'friends'
-                  ? 'Nothing from your friends for this theme yet. Add friends from their profiles, or dive into Global.'
-                  : 'No submissions yet for this theme. Water you waiting for? Be the first!'}
-              </Text>
-              {feed === 'friends' && (
-                <Pressable style={styles.emptyButton} onPress={() => setFeed('global')}>
-                  <Text style={styles.emptyButtonText}>Browse Global</Text>
-                </Pressable>
-              )}
-            </View>
-          }
-          renderItem={({ item }) => {
-            const hasVoted = votedIds.has(item.id);
-            return (
-              <View style={styles.card}>
-                <Pressable
-                  style={styles.cardHeaderTouchable}
-                  onPress={() => navigation.push('UserProfile', { userId: item.user_id })}
-                >
-                  {item.avatar_url ? (
-                    <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
-                  ) : (
-                    <View style={styles.avatar} />
-                  )}
-                  <Text style={styles.username}>{item.username}</Text>
-                  <FormatTag format={item.format} />
-                </Pressable>
-
-                <Pressable onPress={() => handleImageTap(item.id)}>
-                  <Image
-                    source={{ uri: item.image_url }}
-                    style={[styles.image, { aspectRatio: aspectRatios[item.id] ?? 1 }]}
-                    onLoad={(e) => {
-                      const { width, height } = e.nativeEvent.source;
-                      if (width && height) {
-                        const ratio = Math.min(Math.max(width / height, 0.5), 2);
-                        setAspectRatios((prev) => ({ ...prev, [item.id]: ratio }));
-                      }
-                    }}
-                  />
-                  {item.film_stamp && (
-                    <View style={styles.stampOverlay} pointerEvents="none">
-                      <FilmStamp stock={item.film_stamp} />
-                    </View>
-                  )}
-                  {burstId === item.id && (
-                    <View style={styles.burstOverlay} pointerEvents="none">
-                      <Ionicons name="heart" size={80} color="#ffffff" />
-                    </View>
-                  )}
-                </Pressable>
-
-                {item.caption ? (
-                  <Text style={styles.caption}>
-                    <Text style={styles.captionUsername}>{item.username}</Text> {item.caption}
-                  </Text>
-                ) : null}
-
-                <View style={styles.actionsRow}>
-                  <Pressable style={styles.actionItem} onPress={() => handleHeartTap(item.id)}>
-                    <Ionicons
-                      name={hasVoted ? 'heart' : 'heart-outline'}
-                      size={20}
-                      color={hasVoted ? '#dc2626' : '#4b5563'}
-                    />
-                    <Text style={[styles.actionText, hasVoted && styles.actionTextActive]}>
-                      {item.vote_count}
-                    </Text>
+      <View style={styles.feedWrap}>
+        <Wave />
+        {isLoading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator color={colors.deep} />
+          </View>
+        ) : errorMessage ? (
+          <View style={styles.centered}>
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          </View>
+        ) : (
+          <FlatList
+            style={styles.feedSheet}
+            data={submissions}
+            keyExtractor={(item) => item.id}
+            refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
+            onEndReachedThreshold={0.6}
+            onEndReached={loadMore}
+            ListFooterComponent={
+              isLoadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color={colors.deep} /> : undefined
+            }
+            ListEmptyComponent={
+              <View style={styles.centered}>
+                <Text style={styles.emptyText}>
+                  {feed === 'friends'
+                    ? 'Nothing from your friends for this theme yet. Add friends from their profiles, or dive into Global.'
+                    : 'No submissions yet for this theme. Water you waiting for? Be the first!'}
+                </Text>
+                {feed === 'friends' && (
+                  <Pressable style={styles.emptyButton} onPress={() => setFeed('global')}>
+                    <Text style={styles.emptyButtonText}>Browse Global</Text>
                   </Pressable>
-                  <Pressable style={styles.actionItem} onPress={() => openComments(item.id)}>
-                    <Ionicons name="chatbubble-outline" size={17} color="#4b5563" />
-                    <Text style={styles.actionText}>{commentCounts[item.id] ?? 0}</Text>
-                  </Pressable>
-                  <Pressable style={{ marginLeft: 'auto' }} onPress={() => shareSubmission(item)}>
-                    <Ionicons name="share-outline" size={18} color="#4b5563" />
-                  </Pressable>
-                </View>
+                )}
               </View>
-            );
-          }}
-        />
-      )}
+            }
+            renderItem={({ item }) => {
+              const hasVoted = votedIds.has(item.id);
+              return (
+                <View style={styles.card}>
+                  <Pressable
+                    style={styles.cardHeaderTouchable}
+                    onPress={() => navigation.push('UserProfile', { userId: item.user_id })}
+                  >
+                    {item.avatar_url ? (
+                      <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+                    ) : (
+                      <View style={styles.avatar} />
+                    )}
+                    <Text style={styles.username}>{item.username}</Text>
+                    <FormatTag format={item.format} />
+                  </Pressable>
+
+                  <Pressable onPress={() => handleImageTap(item.id)}>
+                    <Image
+                      source={{ uri: item.image_url }}
+                      style={[styles.image, { aspectRatio: aspectRatios[item.id] ?? 1 }]}
+                      onLoad={(e) => {
+                        const { width, height } = e.nativeEvent.source;
+                        if (width && height) {
+                          const ratio = Math.min(Math.max(width / height, 0.5), 2);
+                          setAspectRatios((prev) => ({ ...prev, [item.id]: ratio }));
+                        }
+                      }}
+                    />
+                    {item.film_stamp && (
+                      <View style={styles.stampOverlay} pointerEvents="none">
+                        <FilmStamp stock={item.film_stamp} />
+                      </View>
+                    )}
+                    {burstId === item.id && (
+                      <View style={styles.burstOverlay} pointerEvents="none">
+                        <Ionicons name="heart" size={80} color={colors.white} />
+                      </View>
+                    )}
+                  </Pressable>
+
+                  {item.caption ? (
+                    <Text style={styles.caption}>
+                      <Text style={styles.captionUsername}>{item.username}</Text> {item.caption}
+                    </Text>
+                  ) : null}
+
+                  <View style={styles.actionsRow}>
+                    <Pressable style={styles.actionItem} onPress={() => handleHeartTap(item.id)}>
+                      <Ionicons
+                        name={hasVoted ? 'heart' : 'heart-outline'}
+                        size={20}
+                        color={hasVoted ? '#dc2626' : colors.text}
+                      />
+                      <Text style={[styles.actionText, hasVoted && styles.actionTextActive]}>
+                        {item.vote_count}
+                      </Text>
+                    </Pressable>
+                    <Pressable style={styles.actionItem} onPress={() => openComments(item.id)}>
+                      <Ionicons name="chatbubble-outline" size={17} color={colors.text} />
+                      <Text style={styles.actionText}>{commentCounts[item.id] ?? 0}</Text>
+                    </Pressable>
+                    <Pressable style={{ marginLeft: 'auto' }} onPress={() => shareSubmission(item)}>
+                      <Ionicons name="share-outline" size={18} color={colors.text} />
+                    </Pressable>
+                  </View>
+                </View>
+              );
+            }}
+          />
+        )}
+      </View>
 
       <Modal visible={!!commentSubmissionId} animationType="slide" transparent onRequestClose={() => setCommentSubmissionId(null)}>
         <KeyboardAvoidingView
@@ -871,12 +875,12 @@ export default function HomeScreen() {
             <View style={styles.commentSheetHeader}>
               <Text style={styles.commentSheetTitle}>Comments</Text>
               <Pressable onPress={() => setCommentSubmissionId(null)}>
-                <Ionicons name="close" size={22} color="#374151" />
+                <Ionicons name="close" size={22} color={colors.text} />
               </Pressable>
             </View>
 
             {commentsLoading ? (
-              <ActivityIndicator style={{ marginTop: 20 }} color="#0B1418" />
+              <ActivityIndicator style={{ marginTop: 20 }} color={colors.deep} />
             ) : (
               <FlatList
                 data={comments}
@@ -902,7 +906,7 @@ export default function HomeScreen() {
                 onChangeText={setCommentInput}
               />
               <Pressable style={styles.commentSendButton} onPress={postComment}>
-                <Ionicons name="send" size={16} color="#ffffff" />
+                <Ionicons name="send" size={16} color={colors.white} />
               </Pressable>
             </View>
           </View>
@@ -915,12 +919,12 @@ export default function HomeScreen() {
             <View style={styles.commentSheetHeader}>
               <Text style={styles.commentSheetTitle}>Notifications</Text>
               <Pressable onPress={() => setNotifVisible(false)}>
-                <Ionicons name="close" size={22} color="#374151" />
+                <Ionicons name="close" size={22} color={colors.text} />
               </Pressable>
             </View>
 
             {notifLoading ? (
-              <ActivityIndicator style={{ marginTop: 20 }} color="#0B1418" />
+              <ActivityIndicator style={{ marginTop: 20 }} color={colors.deep} />
             ) : (
               <FlatList
                 data={notifications}
@@ -949,7 +953,7 @@ export default function HomeScreen() {
             <Image source={{ uri: dailyViewerUrl }} style={styles.dailyViewerImage} resizeMode="contain" />
           )}
           <Pressable style={styles.dailyViewerCloseButton} onPress={() => setDailyViewerUrl(null)}>
-            <Ionicons name="close" size={22} color="#ffffff" />
+            <Ionicons name="close" size={22} color={colors.white} />
           </Pressable>
         </Pressable>
       </Modal>
@@ -977,7 +981,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#D9E2E6' },
+  screen: { flex: 1, backgroundColor: colors.sea },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -986,7 +990,7 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 4,
   },
-  appName: { fontSize: 17, fontWeight: '600', color: '#1A2A32' },
+  appName: { ...bubbly, fontSize: 24 },
   topBarIcons: { flexDirection: 'row', alignItems: 'center' },
 
   searchBar: {
@@ -995,7 +999,7 @@ const styles = StyleSheet.create({
     gap: 8,
     marginHorizontal: 16,
     marginTop: 8,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.shell,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -1005,12 +1009,12 @@ const styles = StyleSheet.create({
   searchResultsPanel: {
     marginHorizontal: 16,
     marginTop: 6,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.shell,
     borderRadius: 10,
     paddingVertical: 4,
     maxHeight: 260,
   },
-  searchEmptyText: { fontSize: 13, color: '#9ca3af', textAlign: 'center', paddingVertical: 14 },
+  searchEmptyText: { fontSize: 13, color: colors.faint, textAlign: 'center', paddingVertical: 14 },
   searchResultRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1018,23 +1022,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderColor: '#f3f4f6',
+    borderColor: colors.sand,
   },
-  searchResultAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#dbeafe' },
-  searchResultUsername: { flex: 1, fontSize: 14, fontWeight: '500', color: '#111827' },
+  searchResultAvatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.reefLight },
+  searchResultUsername: { flex: 1, fontSize: 14, fontWeight: '500', color: colors.ink },
 
   dailyStripWrap: { marginTop: 4, marginBottom: 4 },
   dailyStripLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#46606B',
+    color: colors.muted,
     letterSpacing: 0.4,
     textTransform: 'uppercase',
     marginBottom: 8,
     marginLeft: 16,
   },
-  dailyThumb: { width: 64, height: 64, borderRadius: 12, backgroundColor: '#f3f4f6' },
-  dailyThumbUsername: { fontSize: 10, color: '#46606B', marginTop: 4, width: 64, textAlign: 'center' },
+  dailyThumb: { width: 64, height: 64, borderRadius: 12, backgroundColor: colors.sand },
+  dailyThumbUsername: { fontSize: 10, color: colors.muted, marginTop: 4, width: 64, textAlign: 'center' },
   dailyViewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', alignItems: 'center', justifyContent: 'center' },
   dailyViewerImage: { width: '100%', height: '80%' },
   dailyViewerCloseButton: {
@@ -1050,9 +1054,9 @@ const styles = StyleSheet.create({
   },
 
   themeBanner: { alignItems: 'center', paddingVertical: 16 },
-  themeLabel: { fontSize: 11, color: '#46606B', letterSpacing: 0.5, marginBottom: 4 },
-  themeName: { fontSize: 26, fontWeight: '700', color: '#0B1418' },
-  themeCountdown: { fontSize: 12, color: '#46606B', marginTop: 6 },
+  themeLabel: { fontSize: 11, fontWeight: '600', color: colors.reefDark, letterSpacing: 1, marginBottom: 4 },
+  themeName: { ...bubbly, fontSize: 30, textAlign: 'center', paddingHorizontal: 16 },
+  themeCountdown: { fontSize: 12, color: colors.muted, marginTop: 6 },
   submittedPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1068,36 +1072,31 @@ const styles = StyleSheet.create({
   toggleRow: {
     flexDirection: 'row',
     marginHorizontal: 16,
-    marginBottom: 10,
+    marginBottom: 24, // room for the wave below
     backgroundColor: 'rgba(255,255,255,0.5)',
-    borderRadius: 8,
-    padding: 2,
+    borderRadius: 20,
+    padding: 3,
   },
-  toggle: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6 },
-  toggleActive: { backgroundColor: '#ffffff' },
-  toggleText: { fontSize: 13, color: '#46606B' },
-  toggleTextActive: { fontSize: 13, fontWeight: '600', color: '#0B1418' },
+  toggle: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 18 },
+  toggleActive: { backgroundColor: colors.shell },
+  toggleText: { fontSize: 13, color: colors.muted },
+  toggleTextActive: { fontSize: 13, fontWeight: '600', color: colors.deep },
 
-  feedSheet: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 4,
-  },
+  feedWrap: { flex: 1, backgroundColor: colors.shell },
+  feedSheet: { flex: 1, backgroundColor: colors.shell, paddingTop: 4 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, paddingHorizontal: 30 },
   errorText: { color: '#b91c1c', fontSize: 13, textAlign: 'center' },
-  emptyText: { color: '#9ca3af', fontSize: 13, textAlign: 'center' },
-  emptyButton: { marginTop: 12, backgroundColor: '#0B1418', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 9 },
-  emptyButtonText: { fontSize: 13, color: '#ffffff', fontWeight: '600' },
+  emptyText: { color: colors.faint, fontSize: 13, textAlign: 'center' },
+  emptyButton: { marginTop: 12, backgroundColor: colors.deep, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 9 },
+  emptyButtonText: { fontSize: 13, color: colors.white, fontWeight: '600' },
 
   card: { paddingHorizontal: 16, paddingTop: 14 },
   cardHeaderTouchable: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#dbeafe' },
-  username: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  image: { width: '100%', borderRadius: 10, backgroundColor: '#f3f4f6' },
-  caption: { fontSize: 13, color: '#374151', marginTop: 8, lineHeight: 18 },
-  captionUsername: { fontWeight: '600', color: '#111827' },
+  avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.reefLight },
+  username: { fontSize: 14, fontWeight: '600', color: colors.ink },
+  image: { width: '100%', borderRadius: 10, backgroundColor: colors.sand },
+  caption: { fontSize: 13, color: colors.text, marginTop: 8, lineHeight: 18 },
+  captionUsername: { fontWeight: '600', color: colors.ink },
   stampOverlay: { position: 'absolute', left: 10, bottom: 10 },
   burstOverlay: {
     ...StyleSheet.absoluteFill,
@@ -1106,12 +1105,12 @@ const styles = StyleSheet.create({
   },
   actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 10 },
   actionItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  actionText: { fontSize: 13, color: '#4b5563' },
+  actionText: { fontSize: 13, color: colors.text },
   actionTextActive: { color: '#dc2626', fontWeight: '600' },
 
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.backdrop },
   commentSheet: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.shell,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 16,
@@ -1124,21 +1123,21 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   commentSheetTitle: { fontSize: 16, fontWeight: '600' },
-  commentRow: { paddingVertical: 8, borderBottomWidth: 1, borderColor: '#f3f4f6' },
-  commentUsername: { fontSize: 12, fontWeight: '600', color: '#374151' },
-  commentBody: { fontSize: 13, color: '#111827', marginTop: 2 },
+  commentRow: { paddingVertical: 8, borderBottomWidth: 1, borderColor: colors.sand },
+  commentUsername: { fontSize: 12, fontWeight: '600', color: colors.text },
+  commentBody: { fontSize: 13, color: colors.ink, marginTop: 2 },
   commentInputRow: { flexDirection: 'row', gap: 8, marginTop: 12, alignItems: 'center' },
   commentInput: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: colors.sand,
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 13,
   },
-  commentSendButton: { backgroundColor: '#0B1418', borderRadius: 20, padding: 10 },
+  commentSendButton: { backgroundColor: colors.deep, borderRadius: 20, padding: 10 },
 
   notifRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  notifThumb: { width: 36, height: 36, borderRadius: 6, backgroundColor: '#f3f4f6' },
-  notifText: { fontSize: 13, color: '#374151', flex: 1 },
+  notifThumb: { width: 36, height: 36, borderRadius: 6, backgroundColor: colors.sand },
+  notifText: { fontSize: 13, color: colors.text, flex: 1 },
 });

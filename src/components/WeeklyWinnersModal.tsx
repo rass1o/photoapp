@@ -1,6 +1,8 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Modal, Image, Pressable, ScrollView, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
+import { View, StyleSheet, Modal, Image, Pressable, ScrollView, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Text } from './Themed';
+import { colors, bubbly } from '../theme';
 
 export type Winner = {
   submissionId: string;
@@ -32,7 +34,7 @@ const PLACE_LABELS: Record<number, string> = {
 const FORMAT_LABELS: Record<Winner['format'], string> = { digital: 'Digital', film: 'Film' };
 const PLACE_COLORS: Record<number, string> = {
   1: '#f59e0b',
-  2: '#9ca3af',
+  2: colors.faint,
   3: '#b45309',
   4: '#7dd3fc',
   5: '#a5b4fc',
@@ -53,7 +55,7 @@ export default function WeeklyWinnersModal({ visible, themeName, winners, onClos
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable style={styles.closeIcon} onPress={onClose} hitSlop={12}>
-            <Ionicons name="close" size={24} color="#9ca3af" />
+            <Ionicons name="close" size={24} color={colors.faint} />
           </Pressable>
           <Text style={styles.headerTitle}>Results are in</Text>
           <Text style={styles.headerSubtitle}>"{themeName}"</Text>
@@ -108,17 +110,17 @@ export default function WeeklyWinnersModal({ visible, themeName, winners, onClos
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B1418' },
+  container: { flex: 1, backgroundColor: colors.deep },
   header: { alignItems: 'center', paddingTop: 60, paddingBottom: 10 },
   closeIcon: { position: 'absolute', top: 56, right: 20 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#ffffff' },
-  headerSubtitle: { fontSize: 13, color: '#9ca3af', marginTop: 4 },
+  headerTitle: { ...bubbly, fontSize: 28, color: colors.white, textShadowColor: colors.reef },
+  headerSubtitle: { fontSize: 13, color: colors.faint, marginTop: 4 },
   page: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
   placeBadge: { borderRadius: 20, paddingHorizontal: 16, paddingVertical: 6, marginBottom: 16 },
-  placeBadgeText: { fontSize: 13, fontWeight: '700', color: '#111827' },
-  image: { width: '100%', height: 340, borderRadius: 14, backgroundColor: '#1f2937' },
-  username: { fontSize: 18, fontWeight: '700', color: '#ffffff', marginTop: 16 },
-  voteCount: { fontSize: 13, color: '#9ca3af', marginTop: 2 },
+  placeBadgeText: { fontSize: 13, fontWeight: '700', color: colors.ink },
+  image: { width: '100%', height: 340, borderRadius: 14, backgroundColor: colors.abyss },
+  username: { fontSize: 18, fontWeight: '700', color: colors.white, marginTop: 16 },
+  voteCount: { fontSize: 13, color: colors.faint, marginTop: 2 },
   rewardPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -132,9 +134,9 @@ const styles = StyleSheet.create({
   rewardText: { fontSize: 13, fontWeight: '600', color: '#92400e' },
   footer: { alignItems: 'center', paddingBottom: 40, paddingTop: 10 },
   dots: { flexDirection: 'row', gap: 6, marginBottom: 14 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#374151' },
-  dotActive: { backgroundColor: '#ffffff', width: 18 },
-  swipeHint: { fontSize: 12, color: '#6b7280' },
-  closeButton: { backgroundColor: '#ffffff', borderRadius: 8, paddingHorizontal: 28, paddingVertical: 12 },
-  closeButtonText: { fontSize: 14, fontWeight: '700', color: '#0B1418' },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.text },
+  dotActive: { backgroundColor: colors.shell, width: 18 },
+  swipeHint: { fontSize: 12, color: colors.muted },
+  closeButton: { backgroundColor: colors.shell, borderRadius: 8, paddingHorizontal: 28, paddingVertical: 12 },
+  closeButtonText: { fontSize: 14, fontWeight: '700', color: colors.deep },
 });
