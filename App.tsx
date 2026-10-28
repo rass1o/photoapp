@@ -16,6 +16,7 @@ import AuthScreen from './src/screens/AuthScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import FriendRequestPopup from './src/components/FriendRequestPopup';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { NotificationsProvider } from './src/context/NotificationsContext';
 import { colors } from './src/theme';
 
 // Screens without their own background sit on warm shell instead of gray
@@ -80,7 +81,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <Root />
+        <NotificationsProvider>
+          <Root />
+        </NotificationsProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

@@ -7,6 +7,7 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../lib/supabase';
 import SectionHeader from '../components/SectionHeader';
 import BackBar from '../components/BackBar';
+import SeeAllButton, { GALLERY_PREVIEW } from '../components/SeeAllButton';
 import { OctopusCard } from '../components/Octopus';
 import { OctopusData, loadOctopus } from '../lib/octopus';
 import { useAuth } from '../context/AuthContext';
@@ -271,7 +272,7 @@ export default function UserProfileScreen({ route, navigation }: Props) {
         <View style={styles.sheet}>
           <Wave />
           <FlatList
-            data={gallery}
+            data={gallery.slice(0, GALLERY_PREVIEW)}
             keyExtractor={(g) => g.id}
             numColumns={3}
             columnWrapperStyle={{ gap: 6 }}
@@ -314,18 +315,26 @@ export default function UserProfileScreen({ route, navigation }: Props) {
             }
             ListEmptyComponent={<Text style={styles.emptyText}>No submissions yet.</Text>}
             ListFooterComponent={
-              octopus ? (
-                <View style={styles.octopusSection}>
-                  <SectionHeader icon="happy-outline" label={`${profile.username}\u2019s octopus`} />
-                  <OctopusCard
-                    name={octopus.data.name}
-                    line={octopus.line}
-                    color={octopus.data.color}
-                    accessory={octopus.data.accessory}
-                    heldItem={octopus.data.held_item}
+              <View>
+                {gallery.length > GALLERY_PREVIEW && (
+                  <SeeAllButton
+                    count={gallery.length}
+                    onPress={() => navigation.push('Gallery', { userId, username: profile.username })}
                   />
-                </View>
-              ) : undefined
+                )}
+                {octopus && (
+                  <View style={styles.octopusSection}>
+                    <SectionHeader icon="happy-outline" label={`${profile.username}\u2019s octopus`} />
+                    <OctopusCard
+                      name={octopus.data.name}
+                      line={octopus.line}
+                      color={octopus.data.color}
+                      accessory={octopus.data.accessory}
+                      heldItem={octopus.data.held_item}
+                    />
+                  </View>
+                )}
+              </View>
             }
             renderItem={({ item }) => (
               <Pressable

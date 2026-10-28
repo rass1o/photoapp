@@ -28,6 +28,8 @@ import ThemeWelcomeModal from '../components/ThemeWelcomeModal';
 import FilmStamp from '../components/FilmStamp';
 import FormatTag from '../components/FormatTag';
 import { loadFriendIds, onFriendsChanged } from '../lib/friends';
+import NotificationsModal from '../components/NotificationsModal';
+import { useNotifications } from '../context/NotificationsContext';
 import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
 import Wave from '../components/Wave';
@@ -60,13 +62,6 @@ type Comment = {
   body: string;
   created_at: string;
   username: string;
-};
-
-type Notification = {
-  id: string;
-  voterUsername: string;
-  imageUrl: string;
-  createdAt: string;
 };
 
 type Feed = 'friends' | 'global';
@@ -108,8 +103,7 @@ export default function HomeScreen() {
   const [isSearching, setIsSearching] = useState(false);
 
   const [notifVisible, setNotifVisible] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [notifLoading, setNotifLoading] = useState(false);
+  const { unread } = useNotifications();
 
   const [commentSubmissionId, setCommentSubmissionId] = useState<string | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -610,50 +604,6 @@ export default function HomeScreen() {
     }
   };
 
-  const openNotifications = async () => {
-    setNotifVisible(true);
-    if (!user) return;
-    setNotifLoading(true);
-
-    const { data: mySubs } = await supabase.from('submissions').select('id, image_url').eq('user_id', user.id);
-    const myIds = (mySubs ?? []).map((s) => s.id);
-    const imageBySubId = new Map((mySubs ?? []).map((s) => [s.id, s.image_url]));
-
-    if (myIds.length === 0) {
-      setNotifications([]);
-      setNotifLoading(false);
-      return;
-    }
-
-    const { data: voteRows } = await supabase
-      .from('votes')
-      .select('id, user_id, submission_id, created_at')
-      .in('submission_id', myIds)
-      .neq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(20);
-
-    const rows = voteRows ?? [];
-    let usernameById = new Map<string, string>();
-    if (rows.length > 0) {
-      const { data: profileRows } = await supabase
-        .from('profiles')
-        .select('id, username')
-        .in('id', rows.map((r) => r.user_id));
-      usernameById = new Map((profileRows ?? []).map((p) => [p.id, p.username]));
-    }
-
-    setNotifications(
-      rows.map((r) => ({
-        id: r.id,
-        voterUsername: usernameById.get(r.user_id) ?? 'someone',
-        imageUrl: imageBySubId.get(r.submission_id) ?? '',
-        createdAt: r.created_at,
-      }))
-    );
-    setNotifLoading(false);
-  };
-
   const shareSubmission = async (item: Submission) => {
     try {
       await Share.share({
@@ -672,8 +622,13 @@ export default function HomeScreen() {
           <Pressable onPress={() => setSearchVisible((v) => !v)}>
             <Ionicons name="search-outline" size={20} color={colors.ink} />
           </Pressable>
-          <Pressable onPress={openNotifications} style={{ marginLeft: 14 }}>
-            <Ionicons name="notifications-outline" size={20} color={colors.ink} />
+          <Pressable onPress={() => setNotifVisible(true)} style={{ marginLeft: 14 }} hitSlop={8}>
+            <Ionicons name={unread > 0 ? 'notifications' : 'notifications-outline'} size={20} color={colors.ink} />
+            {unread > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{unread > 9 ? '9+' : unread}</Text>
+              </View>
+            )}
           </Pressable>
         </View>
       </View>
@@ -924,39 +879,18 @@ export default function HomeScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      <Modal visible={notifVisible} animationType="slide" transparent onRequestClose={() => setNotifVisible(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.commentSheet}>
-            <View style={styles.commentSheetHeader}>
-              <Text style={styles.commentSheetTitle}>Notifications</Text>
-              <Pressable onPress={() => setNotifVisible(false)}>
-                <Ionicons name="close" size={22} color={colors.text} />
-              </Pressable>
-            </View>
-
-            {notifLoading ? (
-              <ActivityIndicator style={{ marginTop: 20 }} color={colors.deep} />
-            ) : (
-              <FlatList
-                data={notifications}
-                keyExtractor={(n) => n.id}
-                style={{ maxHeight: 400 }}
-                ListEmptyComponent={
-                  <Text style={styles.emptyText}>No new votes on your photos yet.</Text>
-                }
-                renderItem={({ item }) => (
-                  <View style={styles.notifRow}>
-                    {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.notifThumb} /> : null}
-                    <Text style={styles.notifText}>
-                      <Text style={{ fontWeight: '600' }}>{item.voterUsername}</Text> voted on your photo
-                    </Text>
-                  </View>
-                )}
-              />
-            )}
-          </View>
-        </View>
-      </Modal>
+      <NotificationsModal
+        visible={notifVisible}
+        onClose={() => setNotifVisible(false)}
+        onOpenSubmission={(submissionId) => {
+          setNotifVisible(false);
+          navigation.push('SubmissionDetail', { submissionId });
+        }}
+        onOpenProfile={(userId) => {
+          setNotifVisible(false);
+          navigation.push('UserProfile', { userId });
+        }}
+      />
 
       <Modal visible={!!dailyViewerUrl} transparent animationType="fade" onRequestClose={() => setDailyViewerUrl(null)}>
         <Pressable style={styles.dailyViewerBackdrop} onPress={() => setDailyViewerUrl(null)}>
@@ -1148,7 +1082,17 @@ const styles = StyleSheet.create({
   },
   commentSendButton: { backgroundColor: colors.deep, borderRadius: 20, padding: 10 },
 
-  notifRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  notifThumb: { width: 36, height: 36, borderRadius: 6, backgroundColor: colors.sand },
-  notifText: { fontSize: 13, color: colors.text, flex: 1 },
+  bellBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -8,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    backgroundColor: colors.coral,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellBadgeText: { fontSize: 10, fontWeight: '700', color: colors.white },
 });

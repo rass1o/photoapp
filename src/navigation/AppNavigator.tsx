@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 import { colors, fonts } from '../theme';
+import { useNotifications } from '../context/NotificationsContext';
 
 import HomeScreen from '../screens/HomeScreen';
 import CameraScreen from '../screens/CameraScreen';
@@ -12,6 +13,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import SubmissionDetailScreen from '../screens/SubmissionDetailScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import OctopusScreen from '../screens/OctopusScreen';
+import GalleryScreen from '../screens/GalleryScreen';
 
 export type RootTabParamList = {
   Home: undefined;
@@ -27,6 +29,7 @@ export type RootStackParamList = {
   SubmissionDetail: { submissionId: string };
   UserProfile: { userId: string };
   Octopus: undefined;
+  Gallery: { userId: string; username: string };
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -35,6 +38,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
 function MainTabs() {
+  const { unread } = useNotifications();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -55,7 +59,14 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{
+          tabBarBadge: unread > 0 ? (unread > 9 ? '9+' : unread) : undefined,
+          tabBarBadgeStyle: { backgroundColor: colors.coral, fontFamily: fonts.semibold, fontSize: 10 },
+        }}
+      />
       <Tab.Screen name="Submit" component={CameraScreen} />
       <Tab.Screen name="Rankings" component={RankingsScreen} />
       <Tab.Screen name="Shop" component={ShopScreen} />
@@ -81,6 +92,11 @@ export default function AppNavigator() {
       <Stack.Screen
         name="Octopus"
         component={OctopusScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Gallery"
+        component={GalleryScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

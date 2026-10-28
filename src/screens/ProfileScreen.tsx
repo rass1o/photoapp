@@ -11,6 +11,7 @@ import { readImage } from '../lib/upload';
 import { ProfileCategory, ShopItem, PROFILE_COLUMN, isOwned, loadShop } from '../lib/shop';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import SectionHeader from '../components/SectionHeader';
+import SeeAllButton, { GALLERY_PREVIEW } from '../components/SeeAllButton';
 import { OctopusCard } from '../components/Octopus';
 import LockerModal from '../components/LockerModal';
 import FriendsModal, { FriendsTab } from '../components/FriendsModal';
@@ -410,7 +411,7 @@ export default function ProfileScreen() {
       <View style={styles.sheet}>
         <Wave />
         <FlatList
-          data={gallery}
+          data={gallery.slice(0, GALLERY_PREVIEW)}
           keyExtractor={(g) => g.id}
           numColumns={3}
           columnWrapperStyle={{ gap: 6 }}
@@ -568,6 +569,12 @@ export default function ProfileScreen() {
           )}
           ListFooterComponent={
             <View>
+              {gallery.length > GALLERY_PREVIEW && (
+                <SeeAllButton
+                  count={gallery.length}
+                  onPress={() => navigation.push('Gallery', { userId: profile.id, username: profile.username })}
+                />
+              )}
               {octopus && (
                 <View style={styles.octopusSection}>
                   <SectionHeader icon="happy-outline" label="Your octopus" />
