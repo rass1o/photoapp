@@ -594,6 +594,7 @@ export default function ProfileScreen() {
                     color={octopus.data.color}
                     accessory={octopus.data.accessory}
                     heldItem={octopus.data.held_item}
+                    pet={octopus.data.pet}
                   />
                   <Pressable style={styles.octopusButton} onPress={() => navigation.push('Octopus')}>
                     <Ionicons name="color-wand-outline" size={16} color={colors.reef} />

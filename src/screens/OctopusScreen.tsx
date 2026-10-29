@@ -9,6 +9,7 @@ import { OctoCategory, ShopItem, isOwned, loadShop, confirmPurchase } from '../l
 import { OctopusData, OCTO_COLUMN, DEFAULT_LINE } from '../lib/octopus';
 import Octopus, { OctopusCard } from '../components/Octopus';
 import ShopTile, { TileStatus } from '../components/ShopTile';
+import Sidekick from '../components/Sidekick';
 import SectionHeader from '../components/SectionHeader';
 import BackBar from '../components/BackBar';
 import { Text, TextInput } from '../components/Themed';
@@ -20,11 +21,12 @@ const SECTIONS: Array<{ category: OctoCategory; label: string; icon: keyof typeo
   { category: 'octo_color', label: 'Colors', icon: 'color-palette-outline' },
   { category: 'octo_accessory', label: 'Accessories', icon: 'glasses-outline' },
   { category: 'octo_item', label: 'Items', icon: 'cube-outline' },
+  { category: 'octo_pet', label: 'Sidekicks', icon: 'paw-outline' },
   { category: 'octo_dialogue', label: 'Dialogue', icon: 'chatbubble-ellipses-outline' },
 ];
 
 // Accessories and items can be taken off, so they get a "None" option
-const REMOVABLE: OctoCategory[] = ['octo_accessory', 'octo_item'];
+const REMOVABLE: OctoCategory[] = ['octo_accessory', 'octo_item', 'octo_pet'];
 
 export default function OctopusScreen() {
   const { user } = useAuth();
@@ -45,7 +47,7 @@ export default function OctopusScreen() {
     const [{ data: octoData }, { data: profileData }, shop] = await Promise.all([
       supabase
         .from('octopuses')
-        .select('user_id, name, color, accessory, held_item, dialogue')
+        .select('user_id, name, color, accessory, held_item, pet, dialogue')
         .eq('user_id', user.id)
         .maybeSingle(),
       supabase.from('profiles').select('currency_balance').eq('id', user.id).single(),
@@ -150,6 +152,8 @@ export default function OctopusScreen() {
         return <Octopus color={octopus.color} accessory={value} size={54} animated={false} />;
       case 'octo_item':
         return <Octopus color={octopus.color} heldItem={value} size={54} animated={false} />;
+      case 'octo_pet':
+        return value ? <Sidekick kind={value} size={52} /> : <Ionicons name="paw-outline" size={26} color={colors.faint} />;
       case 'octo_dialogue':
         return <Ionicons name="chatbubble-outline" size={18} color={colors.muted} />;
     }
@@ -171,6 +175,7 @@ export default function OctopusScreen() {
             color={shownValue('octo_color') ?? octopus.color}
             accessory={shownValue('octo_accessory')}
             heldItem={shownValue('octo_item')}
+            pet={shownValue('octo_pet')}
             size={150}
           />
 
@@ -244,6 +249,7 @@ export default function OctopusScreen() {
                         status={status}
                         price={item.price}
                         hint={item.unlock_hint}
+                        rarity={item.in_blind_box ? item.rarity : undefined}
                         busy={busyItemId === item.id}
                         selected={preview[section.category] === item.value}
                         onPress={() => setPreview((p) => ({ ...p, [section.category]: item.value }))}

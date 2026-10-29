@@ -3,6 +3,7 @@ import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from './Themed';
 import { colors } from '../theme';
+import { RARITY_COLORS } from '../lib/blindBox';
 
 // equipped/owned: equippable item you have; collected: owned but not
 // equippable (e.g. stamps, picked per photo); buy: for sale; locked: earned only
@@ -17,13 +18,14 @@ type Props = {
   selected?: boolean;
   busy?: boolean;
   wide?: boolean; // full-width row instead of a grid tile, for long labels
+  rarity?: string; // shows a rarity chip, for octopus gear
   onPress?: () => void;
   onEquip?: () => void;
   onBuy?: () => void;
 };
 
 // One grid tile used by the Shop and the octopus customizer
-export default function ShopTile({ label, swatch, status, price, hint, selected, busy, wide, onPress, onEquip, onBuy }: Props) {
+export default function ShopTile({ label, swatch, status, price, hint, selected, busy, wide, rarity, onPress, onEquip, onBuy }: Props) {
   const renderAction = () => {
     if (busy) return <ActivityIndicator style={styles.spinner} color={colors.deep} />;
 
@@ -73,9 +75,16 @@ export default function ShopTile({ label, swatch, status, price, hint, selected,
       onPress={onPress}
     >
       {swatch}
-      <Text style={[styles.label, wide && styles.labelWide]} numberOfLines={wide ? 2 : 1}>
+      <Text style={[styles.label, wide && styles.labelWide, rarity && styles.labelWithRarity]} numberOfLines={wide ? 2 : 1}>
         {label}
       </Text>
+      {rarity && (
+        <View style={[styles.rarity, { backgroundColor: (RARITY_COLORS[rarity] ?? RARITY_COLORS.common).bg }]}>
+          <Text style={[styles.rarityText, { color: (RARITY_COLORS[rarity] ?? RARITY_COLORS.common).fg }]}>
+            {rarity.charAt(0).toUpperCase() + rarity.slice(1)}
+          </Text>
+        </View>
+      )}
       <View style={wide ? styles.actionWide : styles.actionSlot}>{renderAction()}</View>
     </Pressable>
   );
@@ -94,6 +103,9 @@ const styles = StyleSheet.create({
   tileWide: { width: '100%', flexDirection: 'row', gap: 10, paddingHorizontal: 12 },
   tileSelected: { borderColor: colors.deep, backgroundColor: colors.sandLight },
   label: { fontSize: 12, color: colors.text, fontWeight: '500', marginTop: 6, marginBottom: 6 },
+  labelWithRarity: { marginBottom: 3 },
+  rarity: { borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1, marginBottom: 6 },
+  rarityText: { fontSize: 10, fontWeight: '700' },
   labelWide: { flex: 1, fontSize: 13, marginTop: 0, marginBottom: 0 },
   actionSlot: { alignSelf: 'stretch', alignItems: 'center' },
   actionWide: { width: 92, alignItems: 'center' },

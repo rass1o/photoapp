@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { ProfileCategory, ShopItem, PROFILE_COLUMN, isOwned, loadShop, confirmPurchase } from '../lib/shop';
 import { OctopusData } from '../lib/octopus';
-import { Rarity, boxOdds, boxPool, loadRarities, openBlindBox } from '../lib/blindBox';
+import { Duplicate, Rarity, loadDuplicates, loadRarities, openBlindBox, sellDuplicate, tierOdds } from '../lib/blindBox';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import SectionHeader from '../components/SectionHeader';
 import ShopTile, { TileStatus } from '../components/ShopTile';
@@ -61,6 +61,7 @@ export default function ShopScreen() {
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
   const [rarities, setRarities] = useState<Rarity[]>([]);
   const [blindBoxOpen, setBlindBoxOpen] = useState(false);
+  const [duplicates, setDuplicates] = useState<Duplicate[]>([]);
 
   const [ticketTitle, setTicketTitle] = useState('');
   const [ticketDescription, setTicketDescription] = useState('');
@@ -79,7 +80,7 @@ export default function ShopScreen() {
         .single(),
       supabase
         .from('octopuses')
-        .select('user_id, name, color, accessory, held_item, dialogue')
+        .select('user_id, name, color, accessory, held_item, pet, dialogue')
         .eq('user_id', user.id)
         .maybeSingle(),
       supabase
@@ -96,6 +97,7 @@ export default function ShopScreen() {
     setItems(shop.items);
     setOwnedIds(shop.ownedIds);
     setRarities(rarityList);
+    setDuplicates(await loadDuplicates(user.id, shop.items));
   }, [user]);
 
   // Reload on every focus so the balance reflects daily posts and payouts
@@ -135,17 +137,27 @@ export default function ShopScreen() {
 
   const ticket = items.find((i) => i.category === 'ticket');
   const blindBox = items.find((i) => i.category === 'blind_box' && i.is_purchasable);
-  const blindBoxOdds = boxOdds(boxPool(items, ownedIds), rarities);
+  const blindBoxTiers = tierOdds(items, rarities);
 
-  // Opens on the server, then adds the finds to what you own
+  // Opens on the server, then adds new finds to what you own and keeps
+  // duplicates around to sell
   const openClam = async () => {
     if (!blindBox) return [];
-    const result = await openBlindBox(blindBox.id);
-    setOwnedIds((prev) => new Set([...prev, ...result.item_ids]));
+    const result = await openBlindBox(blindBox.id, items);
+    setOwnedIds((prev) => new Set([...prev, ...result.picks.map((p) => p.item.id)]));
+    setDuplicates((prev) => [
+      ...prev,
+      ...result.picks.filter((p) => p.duplicateId).map((p) => ({ id: p.duplicateId as string, item: p.item })),
+    ]);
     setProfile((p) => (p ? { ...p, currency_balance: result.balance } : p));
-    return result.item_ids
-      .map((id) => items.find((i) => i.id === id))
-      .filter((i): i is ShopItem => !!i);
+    return result.picks;
+  };
+
+  const sellClamDuplicate = async (duplicateId: string) => {
+    const result = await sellDuplicate(duplicateId);
+    setDuplicates((prev) => prev.filter((d) => d.id !== duplicateId));
+    setProfile((p) => (p ? { ...p, currency_balance: result.balance } : p));
+    return result.refund;
   };
 
   const submitTicket = () => {
@@ -250,7 +262,7 @@ export default function ShopScreen() {
             <>
               <SectionHeader icon="happy-outline" label="Your octopus" />
               <Pressable style={styles.octoCard} onPress={() => navigation.push('Octopus')}>
-                <Octopus color={octopus.color} accessory={octopus.accessory} heldItem={octopus.held_item} size={64} />
+                <Octopus color={octopus.color} accessory={octopus.accessory} heldItem={octopus.held_item} pet={octopus.pet} size={56} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.octoName}>{octopus.name}</Text>
                   <Text style={styles.octoBlurb}>Colors, accessories, items and lines for your octopus.</Text>
@@ -271,9 +283,9 @@ export default function ShopScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.clamTitle}>{blindBox.label}</Text>
                   <Text style={styles.octoBlurb}>
-                    {blindBoxOdds.length >= 2
-                      ? '2 surprise accessories for your octopus. Tap to see what\u2019s inside.'
-                      : 'You\u2019ve nearly collected them all. Tap for details.'}
+                    {duplicates.length > 0
+                      ? `${duplicates.length} ${duplicates.length === 1 ? 'duplicate' : 'duplicates'} to sell. Tap to open.`
+                      : '2 surprises for Ocho, from common hats to legendary sidekicks. Tap for the odds.'}
                   </Text>
                 </View>
                 <View style={styles.clamPrice}>
@@ -401,7 +413,10 @@ export default function ShopScreen() {
 
       <BlindBoxModal
         box={blindBoxOpen && blindBox ? blindBox : null}
-        odds={blindBoxOdds}
+        tiers={blindBoxTiers}
+        ownedIds={ownedIds}
+        duplicates={duplicates}
+        onSell={sellClamDuplicate}
         balance={profile.currency_balance}
         octopusColor={octopus?.color ?? '#a78bfa'}
         onOpen={openClam}

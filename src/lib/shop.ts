@@ -2,7 +2,7 @@ import { Alert } from 'react-native';
 import { supabase } from './supabase';
 
 export type ProfileCategory = 'frame' | 'banner' | 'badge';
-export type OctoCategory = 'octo_color' | 'octo_accessory' | 'octo_item' | 'octo_dialogue';
+export type OctoCategory = 'octo_color' | 'octo_accessory' | 'octo_item' | 'octo_pet' | 'octo_dialogue';
 export type ShopCategory = ProfileCategory | OctoCategory | 'stamp' | 'ticket' | 'blind_box';
 
 export type ShopItem = {

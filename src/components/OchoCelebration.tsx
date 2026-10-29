@@ -203,6 +203,7 @@ export default function OchoCelebration({ visible, kind, themeName, streak, rewa
             color={octopus?.color ?? '#a78bfa'}
             accessory={octopus?.accessory}
             heldItem="camera"
+            pet={octopus?.pet}
             size={OCHO}
           />
           <Text style={styles.name}>{octopus?.name ?? 'Ocho'}</Text>

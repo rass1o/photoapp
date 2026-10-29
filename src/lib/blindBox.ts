@@ -1,64 +1,80 @@
 import { supabase } from './supabase';
-import { ShopItem, isOwned } from './shop';
+import { ShopItem } from './shop';
 
 export const ITEMS_PER_BOX = 2;
 
 export type Rarity = {
   id: string;
   label: string;
-  weight: number;
+  weight: number; // chance out of 100 that one pull lands in this tier
 };
 
-export type BoxOdds = {
-  item: ShopItem;
+export type TierOdds = {
   rarity: Rarity;
-  chance: number; // 0-1, chance this item is one of the box's picks
+  chance: number; // 0-1, per pull
+  items: ShopItem[];
 };
+
+export type Pick = { item: ShopItem; duplicateId: string | null };
+export type Duplicate = { id: string; item: ShopItem };
 
 // Accent colors for each rarity tier's chip
 export const RARITY_COLORS: Record<string, { bg: string; fg: string }> = {
   common: { bg: '#E0EEF2', fg: '#3F6F82' },
+  uncommon: { bg: '#DDF5E3', fg: '#23774A' },
   rare: { bg: '#D6ECFF', fg: '#1D5FA8' },
   epic: { bg: '#EBDDFB', fg: '#6B3FA0' },
   legendary: { bg: '#FCE8B2', fg: '#9A6400' },
 };
+
+const BOX_CATEGORIES = ['octo_accessory', 'octo_item', 'octo_pet'];
+
+// Duplicates sell back for half the item's price
+export const sellValue = (item: ShopItem) => Math.floor(item.price / 2);
 
 export async function loadRarities() {
   const { data } = await supabase.from('rarities').select('id, label, weight').order('sort_order');
   return (data ?? []).map((r) => ({ ...r, weight: Number(r.weight) })) as Rarity[];
 }
 
-// What this user could still pull: blind-box accessories they don't own.
-// Mirrors the pool in the open_blind_box function on the server.
-export function boxPool(items: ShopItem[], ownedIds: Set<string>) {
-  return items.filter((i) => i.category === 'octo_accessory' && i.in_blind_box && !isOwned(i, ownedIds));
+// Each pull rolls a tier by weight (only tiers with something in them), then
+// an item evenly within it. Mirrors open_blind_box on the server.
+export function tierOdds(items: ShopItem[], rarities: Rarity[]): TierOdds[] {
+  const inBox = items.filter((i) => BOX_CATEGORIES.includes(i.category) && i.in_blind_box);
+  const tiers = rarities
+    .map((rarity) => ({ rarity, items: inBox.filter((i) => i.rarity === rarity.id) }))
+    .filter((t) => t.items.length > 0);
+  const total = tiers.reduce((sum, t) => sum + t.rarity.weight, 0);
+  return tiers.map((t) => ({ ...t, chance: total ? t.rarity.weight / total : 0 }));
 }
 
-// Exact chance each item lands in a box of two, for a weighted draw without
-// replacement: picked first, or picked second after some other item went first.
-export function boxOdds(pool: ShopItem[], rarities: Rarity[]): BoxOdds[] {
-  const byId = new Map(rarities.map((r) => [r.id, r]));
-  const fallback: Rarity = { id: 'common', label: 'Common', weight: 1 };
-  const entries = pool.map((item) => ({ item, rarity: byId.get(item.rarity) ?? fallback }));
-  const total = entries.reduce((sum, e) => sum + e.rarity.weight, 0);
-  if (total === 0) return [];
-
-  return entries
-    .map(({ item, rarity }) => {
-      const w = rarity.weight;
-      let chance = w / total;
-      for (const other of entries) {
-        if (other.item.id === item.id) continue;
-        const wo = other.rarity.weight;
-        chance += (wo / total) * (w / (total - wo));
-      }
-      return { item, rarity, chance: Math.min(chance, 1) };
-    })
-    .sort((a, b) => b.chance - a.chance || a.item.label.localeCompare(b.item.label));
-}
-
-export async function openBlindBox(boxId: string) {
+export async function openBlindBox(boxId: string, items: ShopItem[]) {
   const { data, error } = await supabase.rpc('open_blind_box', { p_box_id: boxId });
   if (error) throw error;
-  return data as { balance: number; item_ids: string[] };
+  const result = data as { balance: number; picks: Array<{ item_id: string; duplicate_id: string | null }> };
+  const byId = new Map(items.map((i) => [i.id, i]));
+  return {
+    balance: result.balance,
+    picks: result.picks
+      .map((p) => ({ item: byId.get(p.item_id), duplicateId: p.duplicate_id }))
+      .filter((p): p is Pick => !!p.item),
+  };
+}
+
+export async function loadDuplicates(userId: string, items: ShopItem[]): Promise<Duplicate[]> {
+  const { data } = await supabase
+    .from('blind_box_duplicates')
+    .select('id, item_id')
+    .eq('user_id', userId)
+    .order('created_at');
+  const byId = new Map(items.map((i) => [i.id, i]));
+  return (data ?? [])
+    .map((d) => ({ id: d.id as string, item: byId.get(d.item_id) }))
+    .filter((d): d is Duplicate => !!d.item);
+}
+
+export async function sellDuplicate(duplicateId: string) {
+  const { data, error } = await supabase.rpc('sell_duplicate', { p_duplicate_id: duplicateId });
+  if (error) throw error;
+  return data as { balance: number; refund: number };
 }

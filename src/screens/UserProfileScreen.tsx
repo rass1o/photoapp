@@ -340,6 +340,7 @@ export default function UserProfileScreen({ route, navigation }: Props) {
                       color={octopus.data.color}
                       accessory={octopus.data.accessory}
                       heldItem={octopus.data.held_item}
+                      pet={octopus.data.pet}
                     />
                   </View>
                 )}

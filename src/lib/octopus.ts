@@ -6,6 +6,7 @@ export type OctopusData = {
   color: string;
   accessory: string | null;
   held_item: string | null;
+  pet: string | null;
   dialogue: string;
 };
 
@@ -14,6 +15,7 @@ export const OCTO_COLUMN = {
   octo_color: 'color',
   octo_accessory: 'accessory',
   octo_item: 'held_item',
+  octo_pet: 'pet',
   octo_dialogue: 'dialogue',
 } as const;
 
@@ -23,7 +25,7 @@ export const DEFAULT_LINE = 'Hi! I’m {name}.';
 export async function loadOctopus(userId: string) {
   const { data: octopus } = await supabase
     .from('octopuses')
-    .select('user_id, name, color, accessory, held_item, dialogue')
+    .select('user_id, name, color, accessory, held_item, pet, dialogue')
     .eq('user_id', userId)
     .maybeSingle();
 

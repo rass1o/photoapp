@@ -5,19 +5,25 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from './Themed';
 import Clam from './Clam';
 import Octopus from './Octopus';
+import Sidekick from './Sidekick';
 import { ShopItem } from '../lib/shop';
-import { BoxOdds, ITEMS_PER_BOX, RARITY_COLORS, Rarity } from '../lib/blindBox';
+import { Duplicate, ITEMS_PER_BOX, Pick, RARITY_COLORS, TierOdds, sellValue } from '../lib/blindBox';
 import { colors, bubbly } from '../theme';
 
 type Props = {
   box: ShopItem | null; // null = closed
-  odds: BoxOdds[];
+  tiers: TierOdds[];
+  ownedIds: Set<string>;
+  duplicates: Duplicate[]; // unsold, from earlier clams
   balance: number;
   octopusColor: string;
-  onOpen: () => Promise<ShopItem[]>; // charges and returns what was inside
+  onOpen: () => Promise<Pick[]>; // charges and returns what was inside
+  onSell: (duplicateId: string) => Promise<number>; // returns the refund
   onClose: () => void;
   onCustomize: () => void;
 };
+
+const SPARKS = 10;
 
 function formatChance(chance: number) {
   const pct = chance * 100;
@@ -33,23 +39,72 @@ function RarityChip({ rarityId, label }: { rarityId: string; label: string }) {
   );
 }
 
-// Bottom sheet for the clam blind box: what could be inside and the odds,
-// then the reveal once it's opened.
-export default function BlindBoxModal({ box, odds, balance, octopusColor, onOpen, onClose, onCustomize }: Props) {
+const rarityLabel = (id: string) => id.charAt(0).toUpperCase() + id.slice(1);
+
+// What an item looks like on your octopus (or beside it, for pets)
+export function ItemPreview({ item, color, size }: { item: ShopItem; color: string; size: number }) {
+  if (item.category === 'octo_pet') return <Sidekick kind={item.value} size={size * 0.9} />;
+  return (
+    <Octopus
+      color={color}
+      accessory={item.category === 'octo_accessory' ? item.value : null}
+      heldItem={item.category === 'octo_item' ? item.value : null}
+      size={size}
+      animated={false}
+    />
+  );
+}
+
+// Bottom sheet for the clam blind box: the odds by rarity, then a shake,
+// a burst and the reveal, with duplicates you can sell back for half price.
+export default function BlindBoxModal({
+  box,
+  tiers,
+  ownedIds,
+  duplicates,
+  balance,
+  octopusColor,
+  onOpen,
+  onSell,
+  onClose,
+  onCustomize,
+}: Props) {
   const [phase, setPhase] = useState<'info' | 'opening' | 'revealed'>('info');
-  const [found, setFound] = useState<Array<{ item: ShopItem; rarity?: Rarity }>>([]);
-  const pop = useRef(new Animated.Value(1)).current;
-  const wiggle = useRef(new Animated.Value(0)).current;
+  const [found, setFound] = useState<Pick[]>([]);
+  const [sold, setSold] = useState<Record<string, number>>({}); // duplicateId -> refund
+  const [sellingId, setSellingId] = useState<string | null>(null);
+
+  const shake = useRef(new Animated.Value(0)).current;
+  const swell = useRef(new Animated.Value(1)).current;
+  const burst = useRef(new Animated.Value(0)).current;
+  const reveal = useRef(new Animated.Value(0)).current;
+  const sparkAngles = useRef(Array.from({ length: SPARKS }, (_, i) => (i / SPARKS) * Math.PI * 2)).current;
 
   // Start fresh each time the sheet opens
   useEffect(() => {
     if (box) {
       setPhase('info');
       setFound([]);
+      setSold({});
+      [shake, burst, reveal].forEach((v) => v.setValue(0));
+      swell.setValue(1);
     }
   }, [box?.id]);
 
-  const canOpen = odds.length >= ITEMS_PER_BOX;
+  const canOpen = tiers.length > 0;
+
+  // Rattles harder and harder while the clam swells, about 1.6s
+  const rattle = () => {
+    const amps = [0.3, -0.3, 0.45, -0.45, 0.6, -0.6, 0.75, -0.75, 0.9, -0.9, 1, -1, 1, -1, 0];
+    return Animated.parallel([
+      Animated.sequence(
+        amps.map((toValue, i) =>
+          Animated.timing(shake, { toValue, duration: i < 4 ? 140 : 90, useNativeDriver: true })
+        )
+      ),
+      Animated.timing(swell, { toValue: 1.15, duration: 1500, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+    ]);
+  };
 
   const open = async () => {
     if (!box) return;
@@ -61,34 +116,68 @@ export default function BlindBoxModal({ box, odds, balance, octopusColor, onOpen
       return;
     }
 
-    // Once opened these leave the pool (you own them), so keep their rarity now
-    const rarityById = new Map(odds.map((o) => [o.item.id, o.rarity]));
     setPhase('opening');
-    const shake = Animated.loop(
-      Animated.sequence([
-        Animated.timing(wiggle, { toValue: 1, duration: 90, useNativeDriver: true }),
-        Animated.timing(wiggle, { toValue: -1, duration: 90, useNativeDriver: true }),
-      ])
-    );
-    shake.start();
+    const shaking = new Promise<void>((resolve) => rattle().start(() => resolve()));
 
     try {
-      const items = await onOpen();
-      shake.stop();
-      wiggle.setValue(0);
-      setFound(items.map((item) => ({ item, rarity: rarityById.get(item.id) })));
+      const [picks] = await Promise.all([onOpen(), shaking]);
+      setFound(picks);
       setPhase('revealed');
-      pop.setValue(0.6);
-      Animated.spring(pop, { toValue: 1, friction: 4, useNativeDriver: true }).start();
+      burst.setValue(0);
+      reveal.setValue(0);
+      swell.setValue(0.7);
+      Animated.parallel([
+        Animated.spring(swell, { toValue: 1, friction: 4, tension: 80, useNativeDriver: true }),
+        Animated.timing(burst, { toValue: 1, duration: 700, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.sequence([
+          Animated.delay(250),
+          Animated.spring(reveal, { toValue: 1, friction: 6, useNativeDriver: true }),
+        ]),
+      ]).start();
     } catch (err) {
-      shake.stop();
-      wiggle.setValue(0);
+      await shaking;
+      shake.setValue(0);
+      swell.setValue(1);
       setPhase('info');
       Alert.alert('The clam stayed shut', err instanceof Error ? err.message : 'Please try again.');
     }
   };
 
-  const rotate = wiggle.interpolate({ inputRange: [-1, 1], outputRange: ['-6deg', '6deg'] });
+  const sell = async (duplicateId: string) => {
+    setSellingId(duplicateId);
+    try {
+      const refund = await onSell(duplicateId);
+      setSold((s) => ({ ...s, [duplicateId]: refund }));
+    } catch (err) {
+      Alert.alert('Couldn’t sell that', err instanceof Error ? err.message : 'Please try again.');
+    }
+    setSellingId(null);
+  };
+
+  const rotate = shake.interpolate({ inputRange: [-1, 1], outputRange: ['-14deg', '14deg'] });
+  const gotLegendary = found.some((p) => p.item.rarity === 'legendary');
+  // Duplicates from earlier clams (this clam's show on their own cards)
+  const leftovers = duplicates.filter((d) => !found.some((p) => p.duplicateId === d.id) && !(d.id in sold));
+
+  const SellButton = ({ duplicateId, item }: { duplicateId: string; item: ShopItem }) =>
+    duplicateId in sold ? (
+      <View style={[styles.sellButton, styles.soldButton]}>
+        <Ionicons name="checkmark" size={13} color="#047857" />
+        <Text style={styles.soldText}>Sold +{sold[duplicateId]}</Text>
+      </View>
+    ) : (
+      <Pressable style={styles.sellButton} onPress={() => sell(duplicateId)} disabled={sellingId !== null}>
+        {sellingId === duplicateId ? (
+          <ActivityIndicator size="small" color={colors.white} />
+        ) : (
+          <>
+            <Text style={styles.sellText}>Sell</Text>
+            <Ionicons name="flash" size={11} color={colors.white} />
+            <Text style={styles.sellText}>{sellValue(item)}</Text>
+          </>
+        )}
+      </Pressable>
+    );
 
   return (
     <Modal visible={box !== null} transparent animationType="slide" onRequestClose={onClose}>
@@ -108,68 +197,161 @@ export default function BlindBoxModal({ box, odds, balance, octopusColor, onOpen
         </View>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <Animated.View style={[styles.clamWrap, { transform: [{ rotate }, { scale: pop }] }]}>
-            <Clam size={130} open={phase === 'revealed'} />
-          </Animated.View>
+          <View style={styles.stage}>
+            {phase === 'revealed' &&
+              sparkAngles.map((angle, i) => (
+                <Animated.View
+                  key={i}
+                  pointerEvents="none"
+                  style={[
+                    styles.spark,
+                    gotLegendary && styles.sparkGold,
+                    {
+                      opacity: burst.interpolate({ inputRange: [0, 0.2, 1], outputRange: [0, 1, 0] }),
+                      transform: [
+                        { translateX: burst.interpolate({ inputRange: [0, 1], outputRange: [0, Math.cos(angle) * 110] }) },
+                        { translateY: burst.interpolate({ inputRange: [0, 1], outputRange: [0, Math.sin(angle) * 80] }) },
+                        { scale: burst.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1.2] }) },
+                      ],
+                    },
+                  ]}
+                />
+              ))}
+            {phase === 'revealed' && (
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.flash,
+                  {
+                    opacity: burst.interpolate({ inputRange: [0, 0.15, 1], outputRange: [0.9, 0.6, 0] }),
+                    transform: [{ scale: burst.interpolate({ inputRange: [0, 1], outputRange: [0.3, 2.4] }) }],
+                  },
+                ]}
+              />
+            )}
+            <Animated.View style={{ transform: [{ rotate }, { scale: swell }] }}>
+              <Clam size={130} open={phase === 'revealed'} />
+            </Animated.View>
+          </View>
 
-          {phase === 'revealed' ? (
-            <>
-              <Text style={styles.revealTitle}>Shell yeah! You found:</Text>
+          {phase === 'opening' && <Text style={styles.openingText}>Something{'’'}s rattling in there…</Text>}
+
+          {phase === 'revealed' && (
+            <Animated.View
+              style={{
+                opacity: reveal,
+                transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [30, 0] }) }],
+              }}
+            >
+              <Text style={styles.revealTitle}>{gotLegendary ? 'LEGENDARY find!' : 'Shell yeah! You found:'}</Text>
               <View style={styles.foundRow}>
-                {found.map(({ item, rarity }) => (
-                  <View key={item.id} style={styles.foundCard}>
-                    <Octopus color={octopusColor} accessory={item.value} size={84} />
-                    <Text style={styles.foundLabel}>{item.label}</Text>
-                    {rarity && <RarityChip rarityId={rarity.id} label={rarity.label} />}
-                  </View>
-                ))}
+                {found.map(({ item, duplicateId }, i) => {
+                  const legendary = item.rarity === 'legendary';
+                  return (
+                    <View key={`${item.id}-${i}`} style={[styles.foundCard, legendary && styles.foundCardLegendary]}>
+                      <View style={[styles.newTag, duplicateId && styles.dupTag]}>
+                        <Text style={[styles.newTagText, duplicateId && styles.dupTagText]}>
+                          {duplicateId ? 'Duplicate' : 'New!'}
+                        </Text>
+                      </View>
+                      <View style={styles.foundArt}>
+                        <ItemPreview item={item} color={octopusColor} size={84} />
+                      </View>
+                      <Text style={styles.foundLabel}>{item.label}</Text>
+                      <RarityChip rarityId={item.rarity} label={rarityLabel(item.rarity)} />
+                      {duplicateId ? (
+                        <SellButton duplicateId={duplicateId} item={item} />
+                      ) : (
+                        <Text style={styles.addedText}>Added to your collection</Text>
+                      )}
+                    </View>
+                  );
+                })}
               </View>
-              <Text style={styles.note}>They{'’'}re in your collection now. Put one on Ocho!</Text>
-            </>
-          ) : (
+              {found.some((p) => p.duplicateId && !(p.duplicateId in sold)) && (
+                <Text style={styles.note}>
+                  Already had it? Sell duplicates for half their price, now or later from the clam.
+                </Text>
+              )}
+            </Animated.View>
+          )}
+
+          {phase === 'info' && (
             <>
               <Text style={styles.description}>
-                Crack it open for {ITEMS_PER_BOX} random accessories for your octopus. You only get ones you
-                don{'’'}t own yet, so never a duplicate.
+                Crack it open for {ITEMS_PER_BOX} surprises for your octopus: hats, gear and, if the tide{'’'}s
+                with you, a legendary sidekick. Pull something you already have? Sell it back for half its price.
               </Text>
 
-              <Text style={styles.sectionLabel}>What{'’'}s inside · your chances</Text>
+              <Text style={styles.sectionLabel}>Chances for each pull</Text>
               {canOpen ? (
                 <View style={styles.oddsList}>
-                  {odds.map(({ item, rarity, chance }) => (
-                    <View key={item.id} style={styles.oddsRow}>
-                      <View style={styles.oddsOcto}>
-                        <Octopus color={octopusColor} accessory={item.value} size={40} animated={false} />
+                  {tiers.map(({ rarity, chance, items }) => (
+                    <View
+                      key={rarity.id}
+                      style={[styles.tierCard, { borderColor: (RARITY_COLORS[rarity.id] ?? RARITY_COLORS.common).fg }]}
+                    >
+                      <View style={styles.tierHeader}>
+                        <RarityChip rarityId={rarity.id} label={rarity.label} />
+                        <Text style={styles.tierItems}>
+                          {items.length} {items.length === 1 ? 'item' : 'items'}
+                        </Text>
+                        <Text style={styles.tierChance}>{formatChance(chance)}</Text>
                       </View>
-                      <Text style={styles.oddsLabel} numberOfLines={1}>
-                        {item.label}
-                      </Text>
-                      <RarityChip rarityId={rarity.id} label={rarity.label} />
-                      <Text style={styles.oddsChance}>{formatChance(chance)}</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tierRow}>
+                        {items.map((item) => (
+                          <View key={item.id} style={styles.tierItem}>
+                            <View style={styles.tierArt}>
+                              <ItemPreview item={item} color={octopusColor} size={40} />
+                            </View>
+                            <Text style={styles.tierLabel} numberOfLines={1}>
+                              {item.label}
+                            </Text>
+                            {ownedIds.has(item.id) && (
+                              <View style={styles.ownedDot}>
+                                <Ionicons name="checkmark" size={9} color={colors.white} />
+                              </View>
+                            )}
+                          </View>
+                        ))}
+                      </ScrollView>
                     </View>
                   ))}
                 </View>
               ) : (
-                <Text style={styles.emptyText}>
-                  You{'’'}ve collected almost every accessory in this clam.
-                  {odds.length === 1 ? ` The last one, ${odds[0].item.label}, is in the Shop.` : ''} More are
-                  washing ashore soon.
-                </Text>
+                <Text style={styles.emptyText}>This clam is empty right now. Check back soon.</Text>
               )}
-              {canOpen && (
-                <Text style={styles.note}>
-                  Each percentage is the chance that accessory is one of your {ITEMS_PER_BOX}, out of the{' '}
-                  {odds.length} you don{'’'}t own yet. Rarer finds are on the way.
-                </Text>
-              )}
+              <Text style={styles.note}>
+                Each pull picks a rarity first, then an item in it at random. A check means you already own it,
+                so pulling it again gives a duplicate to sell.
+              </Text>
+            </>
+          )}
+
+          {phase !== 'opening' && leftovers.length > 0 && (
+            <>
+              <Text style={[styles.sectionLabel, { marginTop: 16 }]}>Duplicates to sell</Text>
+              <View style={styles.oddsList}>
+                {leftovers.map((d) => (
+                  <View key={d.id} style={styles.dupRow}>
+                    <View style={styles.tierArt}>
+                      <ItemPreview item={d.item} color={octopusColor} size={40} />
+                    </View>
+                    <Text style={styles.dupLabel} numberOfLines={1}>
+                      {d.item.label}
+                    </Text>
+                    <SellButton duplicateId={d.id} item={d.item} />
+                  </View>
+                ))}
+              </View>
             </>
           )}
         </ScrollView>
 
         {phase === 'revealed' ? (
           <View style={styles.buttonRow}>
-            <Pressable style={[styles.button, styles.secondaryButton]} onPress={onClose}>
-              <Text style={styles.secondaryText}>Done</Text>
+            <Pressable style={[styles.button, styles.secondaryButton]} onPress={() => setPhase('info')}>
+              <Text style={styles.secondaryText}>Open another</Text>
             </Pressable>
             <Pressable style={[styles.button, styles.primaryButton]} onPress={onCustomize}>
               <Ionicons name="color-wand-outline" size={16} color={colors.white} />
@@ -206,7 +388,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     paddingHorizontal: 16,
     paddingTop: 8,
-    maxHeight: '88%',
+    maxHeight: '90%',
   },
   handle: {
     alignSelf: 'center',
@@ -228,7 +410,13 @@ const styles = StyleSheet.create({
   kicker: { fontSize: 11, fontWeight: '700', letterSpacing: 1, color: colors.muted, textTransform: 'uppercase' },
   title: { ...bubbly, fontSize: 22 },
   content: { paddingBottom: 12 },
-  clamWrap: { alignSelf: 'center', marginVertical: 8 },
+
+  stage: { height: 150, alignItems: 'center', justifyContent: 'center', marginVertical: 4 },
+  flash: { position: 'absolute', width: 120, height: 120, borderRadius: 60, backgroundColor: '#FFF7D6' },
+  spark: { position: 'absolute', width: 12, height: 12, borderRadius: 6, backgroundColor: colors.seaDeep },
+  sparkGold: { backgroundColor: '#FBBF24' },
+  openingText: { textAlign: 'center', color: colors.muted, fontSize: 14, marginBottom: 8 },
+
   description: { fontSize: 14, color: colors.text, textAlign: 'center', lineHeight: 20, marginBottom: 14 },
   sectionLabel: {
     fontSize: 12,
@@ -238,8 +426,75 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 6,
   },
-  oddsList: { gap: 6 },
-  oddsRow: {
+  oddsList: { gap: 8 },
+  tierCard: { backgroundColor: colors.sand, borderRadius: 12, borderWidth: 1.5, padding: 10 },
+  tierHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+  tierItems: { flex: 1, fontSize: 12, color: colors.muted },
+  tierChance: { fontSize: 18, fontWeight: '700', color: colors.deep },
+  tierRow: { gap: 8 },
+  tierItem: { width: 62, alignItems: 'center' },
+  tierArt: { width: 44, height: 52, alignItems: 'center', justifyContent: 'center' },
+  tierLabel: { fontSize: 11, color: colors.text, textAlign: 'center' },
+  ownedDot: {
+    position: 'absolute',
+    top: 0,
+    right: 6,
+    width: 15,
+    height: 15,
+    borderRadius: 8,
+    backgroundColor: '#059669',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rarityChip: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
+  rarityText: { fontSize: 11, fontWeight: '700' },
+  note: { fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 12, lineHeight: 17 },
+  emptyText: { fontSize: 13, color: colors.muted, textAlign: 'center', paddingVertical: 12 },
+
+  revealTitle: { ...bubbly, fontSize: 24, textAlign: 'center', marginBottom: 12 },
+  foundRow: { flexDirection: 'row', gap: 10 },
+  foundCard: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.sand,
+    borderRadius: 14,
+    paddingTop: 14,
+    paddingBottom: 12,
+    paddingHorizontal: 6,
+    borderWidth: 2,
+    borderColor: colors.sandBorder,
+  },
+  foundCardLegendary: { backgroundColor: '#FDF1C7', borderColor: '#D4A017', borderWidth: 3 },
+  foundArt: { height: 105, justifyContent: 'center' },
+  foundLabel: { fontSize: 15, fontWeight: '600', color: colors.ink, textAlign: 'center' },
+  newTag: {
+    position: 'absolute',
+    top: -9,
+    backgroundColor: '#059669',
+    borderRadius: 10,
+    paddingHorizontal: 9,
+    paddingVertical: 2,
+  },
+  newTagText: { fontSize: 11, fontWeight: '700', color: colors.white },
+  dupTag: { backgroundColor: colors.sandDark },
+  dupTagText: { color: colors.ink },
+  addedText: { fontSize: 11, color: colors.muted, textAlign: 'center' },
+  sellButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    minWidth: 84,
+    height: 28,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    backgroundColor: colors.coral,
+  },
+  sellText: { fontSize: 12, fontWeight: '700', color: colors.white },
+  soldButton: { backgroundColor: '#ecfdf5' },
+  soldText: { fontSize: 12, fontWeight: '700', color: '#047857' },
+  dupRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -248,27 +503,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  oddsOcto: { width: 40, height: 50, alignItems: 'center', justifyContent: 'center' },
-  oddsLabel: { flex: 1, fontSize: 14, fontWeight: '500', color: colors.ink },
-  oddsChance: { width: 48, textAlign: 'right', fontSize: 14, fontWeight: '700', color: colors.deep },
-  rarityChip: { borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
-  rarityText: { fontSize: 11, fontWeight: '600' },
-  note: { fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 12, lineHeight: 17 },
-  emptyText: { fontSize: 13, color: colors.muted, textAlign: 'center', paddingVertical: 12 },
-
-  revealTitle: { ...bubbly, fontSize: 22, textAlign: 'center', marginBottom: 12 },
-  foundRow: { flexDirection: 'row', gap: 10 },
-  foundCard: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.sand,
-    borderRadius: 14,
-    paddingVertical: 12,
-    borderWidth: 2,
-    borderColor: colors.sandBorder,
-  },
-  foundLabel: { fontSize: 15, fontWeight: '600', color: colors.ink },
+  dupLabel: { flex: 1, fontSize: 14, fontWeight: '500', color: colors.ink },
 
   buttonRow: { flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 8 },
   button: {
