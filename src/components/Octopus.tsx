@@ -1,5 +1,21 @@
-import { ReactNode, useEffect, useRef } from 'react';
-import { Animated, Easing, View, StyleSheet } from 'react-native';
+import { useEffect } from 'react';
+import { Pressable, View, StyleSheet } from 'react-native';
+import Reanimated, {
+  cancelAnimation,
+  Easing,
+  interpolate,
+  useAnimatedProps,
+  useAnimatedStyle,
+  useDerivedValue,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+  type SharedValue,
+} from 'react-native-reanimated';
 import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
 import { Text } from './Themed';
 import Sidekick from './Sidekick';
@@ -29,6 +45,7 @@ type Props = {
   size?: number;
   animated?: boolean;
   pose?: OctopusPose;
+  tappable?: boolean; // tap to squish him and get a reaction
 };
 
 function Accessory({ kind }: { kind: string }) {
@@ -414,6 +431,8 @@ function HeldItem({ kind }: { kind: string }) {
   return <G transform="translate(146, 138)">{body}</G>;
 }
 
+// ---------------------------------------------------------------- still
+
 function Tentacles({ paths, color }: { paths: string[]; color: string }) {
   return (
     <G>
@@ -427,169 +446,278 @@ function Tentacles({ paths, color }: { paths: string[]; color: string }) {
   );
 }
 
-function Head({ color }: { color: string }) {
+// Body, shine and cheeks: the parts of the head that never move
+function HeadBase({ color }: { color: string }) {
   return (
     <G>
       <Ellipse cx={100} cy={82} rx={60} ry={52} fill={color} stroke={OUTLINE} strokeWidth={4} />
       <Ellipse cx={72} cy={54} rx={15} ry={9} fill={colors.white} opacity={0.35} rotation={-30} origin="72, 54" />
       <Ellipse cx={62} cy={108} rx={9} ry={5} fill="#fb7185" opacity={0.5} />
       <Ellipse cx={138} cy={108} rx={9} ry={5} fill="#fb7185" opacity={0.5} />
+    </G>
+  );
+}
+
+function StillFace() {
+  return (
+    <G>
       <Ellipse cx={78} cy={88} rx={13} ry={15} fill={colors.white} stroke={OUTLINE} strokeWidth={3} />
       <Ellipse cx={122} cy={88} rx={13} ry={15} fill={colors.white} stroke={OUTLINE} strokeWidth={3} />
+      <Circle cx={80} cy={91} r={7} fill={OUTLINE} />
+      <Circle cx={124} cy={91} r={7} fill={OUTLINE} />
+      <Circle cx={83} cy={87} r={2.5} fill={colors.white} />
+      <Circle cx={127} cy={87} r={2.5} fill={colors.white} />
       <Path d="M90,112 Q100,122 110,112" stroke={OUTLINE} strokeWidth={3.5} strokeLinecap="round" fill="none" />
     </G>
   );
 }
 
-function Pupils() {
+// ------------------------------------------------------------- animated
+
+const AnimatedPath = Reanimated.createAnimatedComponent(Path);
+const AnimatedCircle = Reanimated.createAnimatedComponent(Circle);
+const AnimatedEllipse = Reanimated.createAnimatedComponent(Ellipse);
+const AnimatedG = Reanimated.createAnimatedComponent(G);
+
+// Every tentacle and the mouth are "M p C p p p C p p p": 14 numbers that
+// can be blended point by point, so shapes can bend into each other
+const points = (d: string) => (d.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
+function pathFrom(p: number[]) {
+  'worklet';
+  return `M${p[0]},${p[1]} C${p[2]},${p[3]} ${p[4]},${p[5]} ${p[6]},${p[7]} C${p[8]},${p[9]} ${p[10]},${p[11]} ${p[12]},${p[13]}`;
+}
+
+const REST = TENTACLES.map(points);
+// Left arm raised to wave, swinging between these two
+const WAVE_IN = points('M60,112 C40,104 24,84 26,62 C27,48 42,46 40,58');
+const WAVE_OUT = points('M60,112 C38,108 21,94 17,72 C14,58 27,52 31,62');
+// Right arm curled up in front of the face, holding the camera to his eye
+const PEEK_UP = points('M132,132 C168,128 172,100 150,92 C142,89 138,92 140,98');
+// How much each point drifts in the idle ripple: none at the root, most at the tip
+const RIPPLE = [0, 0.25, 0.5, 0.7, 0.85, 1, 1];
+
+const SMILE = points('M90,112 C93,119 107,119 110,112 C107,119 93,119 90,112');
+const OH = points('M95,114 C95,107 105,107 105,114 C105,121 95,121 95,114');
+
+type Raise = { up: number[]; alt?: number[]; amount: SharedValue<number>; swing?: SharedValue<number> };
+
+// One tentacle: drifts gently on its own, and can bend into a raised pose
+function Tentacle({
+  rest,
+  phase,
+  ripple,
+  t,
+  raise,
+  color,
+  opacity,
+}: {
+  rest: number[];
+  phase: number;
+  ripple: number;
+  t: SharedValue<number>;
+  raise?: Raise;
+  color: string;
+  opacity?: SharedValue<number>;
+}) {
+  const d = useDerivedValue(() => {
+    const k = raise ? raise.amount.value : 0;
+    const s = raise?.swing ? raise.swing.value : 0;
+    const drift = Math.sin(t.value + phase) * ripple * (1 - k);
+    const out: number[] = [];
+    for (let i = 0; i < 14; i++) {
+      let up = rest[i];
+      if (raise) up = raise.up[i] + (raise.alt ? (raise.alt[i] - raise.up[i]) * s : 0);
+      let v = rest[i] + (up - rest[i]) * k;
+      if (i % 2 === 0) v += drift * RIPPLE[i / 2];
+      else v += drift * RIPPLE[(i - 1) / 2] * 0.3;
+      out.push(v);
+    }
+    return pathFrom(out);
+  });
+  const outline = useAnimatedProps(() => ({ d: d.value }));
+  const fill = useAnimatedProps(() => ({ d: d.value }));
+  const group = useAnimatedProps(() => ({ opacity: opacity ? opacity.value : 1 }));
+  return (
+    <AnimatedG animatedProps={group}>
+      <AnimatedPath animatedProps={outline} stroke={OUTLINE} strokeWidth={24} strokeLinecap="round" fill="none" />
+      <AnimatedPath animatedProps={fill} stroke={color} strokeWidth={17} strokeLinecap="round" fill="none" />
+    </AnimatedG>
+  );
+}
+
+// Eye that blinks (squashes flat) and whose pupil looks around
+function Eye({
+  cx,
+  look,
+  blink,
+}: {
+  cx: number;
+  look: { x: SharedValue<number>; y: SharedValue<number> };
+  blink: SharedValue<number>;
+}) {
+  const white = useAnimatedProps(() => ({ ry: 15 - 13 * blink.value }));
+  const pupils = useAnimatedProps(() => ({ opacity: blink.value > 0.6 ? 0 : 1 }));
+  const pupil = useAnimatedProps(() => ({
+    cx: cx + 2 + look.x.value * 5,
+    cy: 91 + look.y.value * 4,
+    r: 7 * (1 - blink.value * 0.6),
+  }));
+  const shine = useAnimatedProps(() => ({ cx: cx + 5 + look.x.value * 5, cy: 87 + look.y.value * 4 }));
   return (
     <G>
-      <Circle cx={80} cy={91} r={7} fill={OUTLINE} />
-      <Circle cx={124} cy={91} r={7} fill={OUTLINE} />
-      <Circle cx={83} cy={87} r={2.5} fill={colors.white} />
-      <Circle cx={127} cy={87} r={2.5} fill={colors.white} />
+      <AnimatedEllipse animatedProps={white} cx={cx} cy={88} rx={13} fill={colors.white} stroke={OUTLINE} strokeWidth={3} />
+      <AnimatedG animatedProps={pupils}>
+        <AnimatedCircle animatedProps={pupil} fill={OUTLINE} />
+        <AnimatedCircle animatedProps={shine} r={2.5} fill={colors.white} />
+      </AnimatedG>
     </G>
   );
 }
 
-// Closed eyes, faded in for a blink
-function Lids({ color }: { color: string }) {
+function Mouth({ open }: { open: SharedValue<number> }) {
+  const props = useAnimatedProps(() => {
+    const k = open.value;
+    return { d: pathFrom(SMILE.map((v, i) => v + (OH[i] - v) * k)) };
+  });
   return (
-    <G stroke={OUTLINE} strokeWidth={3} strokeLinecap="round">
-      <Ellipse cx={78} cy={88} rx={16} ry={18} fill={color} strokeWidth={0} />
-      <Ellipse cx={122} cy={88} rx={16} ry={18} fill={color} strokeWidth={0} />
-      <Path d="M67,90 Q78,98 89,90 M111,90 Q122,98 133,90" fill="none" strokeWidth={3.5} />
-    </G>
+    <AnimatedPath animatedProps={props} stroke={OUTLINE} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" fill={OUTLINE} />
   );
 }
-
-// The left arm waves, so it's drawn on its own layer behind the body
-const WAVE_ARM = TENTACLES[0];
-const HOLD_ARM = TENTACLES[5];
-const MIDDLE_ARMS = TENTACLES.slice(1, 5);
-
-// viewBox units -> points, for pivots and offsets
-const VB_W = 200;
-const VB_TOP = -30;
 
 const BUBBLES = [
-  { r: 7, dx: 55, delay: 0 },
-  { r: 5, dx: 80, delay: 260 },
-  { r: 9, dx: 40, delay: 520 },
+  { r: 7, dx: 55 },
+  { r: 5, dx: 80 },
+  { r: 9, dx: 40 },
 ];
 
-// While peeking, this tentacle reaches up in front to hold the camera
-const PEEK_ARM = 'M132,132 C170,128 170,96 146,92';
+function Bubble({ p, r, dx }: { p: SharedValue<number>; r: number; dx: number }) {
+  const props = useAnimatedProps(() => ({
+    cx: 110 + dx * p.value,
+    cy: 112 - 120 * p.value,
+    r: r * (0.3 + 0.7 * p.value),
+    opacity: p.value <= 0 ? 0 : interpolate(p.value, [0, 0.1, 0.7, 1], [0, 1, 0.9, 0]),
+  }));
+  return <AnimatedCircle animatedProps={props} fill="#FFFFFF" fillOpacity={0.55} stroke="#7CC6E8" strokeWidth={2.5} />;
+}
 
 // 'peek': lifts a camera to his eye and back down, waving in between
 export type OctopusPose = 'idle' | 'peek';
 
-export default function Octopus({ color, accessory, heldItem, pet, size = 140, animated = true, pose = 'idle' }: Props) {
-  const bob = useRef(new Animated.Value(0)).current;
-  const sway = useRef(new Animated.Value(0)).current;
-  const wave = useRef(new Animated.Value(0)).current; // degrees
-  const lookX = useRef(new Animated.Value(0)).current;
-  const lookY = useRef(new Animated.Value(0)).current;
-  const blink = useRef(new Animated.Value(0)).current;
-  const peek = useRef(new Animated.Value(0)).current;
-  const bubbles = useRef(BUBBLES.map(() => new Animated.Value(0))).current;
+function LivelyOctopus({
+  color,
+  accessory,
+  heldItem,
+  size,
+  pose,
+  tappable,
+}: {
+  color: string;
+  accessory?: string | null;
+  heldItem?: string | null;
+  size: number;
+  pose: OctopusPose;
+  tappable: boolean;
+}) {
+  const reduceMotion = useReducedMotion();
+  const t = useSharedValue(0);
+  const bob = useSharedValue(0);
+  const sway = useSharedValue(0);
+  const giggle = useSharedValue(0);
+  const squishX = useSharedValue(1);
+  const squishY = useSharedValue(1);
+  const raise = useSharedValue(0);
+  const swing = useSharedValue(0);
+  const peek = useSharedValue(0);
+  const lookX = useSharedValue(0);
+  const lookY = useSharedValue(0);
+  const blink = useSharedValue(0);
+  const mouth = useSharedValue(0);
+  const b0 = useSharedValue(0);
+  const b1 = useSharedValue(0);
+  const b2 = useSharedValue(0);
+  const bubbles = [b0, b1, b2];
+  const leftBlink = useDerivedValue(() => Math.max(blink.value, peek.value * 0.85));
 
-  useEffect(() => {
-    if (!animated) return;
-    const ease = Easing.inOut(Easing.sin);
-    const loops = [
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(bob, { toValue: 1, duration: 1400, easing: ease, useNativeDriver: true }),
-          Animated.timing(bob, { toValue: 0, duration: 1400, easing: ease, useNativeDriver: true }),
-        ])
-      ),
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(sway, { toValue: 1, duration: 2100, easing: ease, useNativeDriver: true }),
-          Animated.timing(sway, { toValue: -1, duration: 2100, easing: ease, useNativeDriver: true }),
-        ])
-      ),
-    ];
-    loops.forEach((l) => l.start());
+  const ease = Easing.inOut(Easing.sin);
+  const to = (toValue: number, duration: number, easing = ease) => withTiming(toValue, { duration, easing });
 
-    const t = (value: Animated.Value, toValue: number, duration: number) =>
-      Animated.timing(value, { toValue, duration, easing: ease, useNativeDriver: true });
-
-    const doWave = (swings = 3) =>
-      Animated.sequence([
-        t(wave, 120, 320),
-        ...Array.from({ length: swings }, () => [t(wave, 140, 200), t(wave, 105, 200)]).flat(),
-        t(wave, 0, 380),
-      ]);
-    const doBlink = () =>
-      Animated.sequence([
-        Animated.timing(blink, { toValue: 1, duration: 50, useNativeDriver: true }),
-        Animated.delay(90),
-        Animated.timing(blink, { toValue: 0, duration: 60, useNativeDriver: true }),
-      ]);
-    const doLook = () => {
+  // Each returns how long it runs, so the next one can wait its turn
+  const actions = {
+    wave: (swings = 3) => {
+      raise.value = withSequence(to(1, 380), withDelay(swings * 420, to(0, 420)));
+      swing.value = withDelay(
+        200,
+        withSequence(withRepeat(withSequence(to(1, 210), to(0, 210)), swings), to(0, 10))
+      );
+      return 380 + swings * 420 + 420;
+    },
+    look: () => {
       const x = Math.random() < 0.5 ? -1 : 1;
       const y = Math.random() * 1.2 - 0.6;
-      return Animated.sequence([
-        Animated.parallel([t(lookX, x, 260), t(lookY, y, 260)]),
-        Animated.delay(700),
-        Animated.parallel([t(lookX, -x, 380), t(lookY, -y * 0.5, 380)]),
-        Animated.delay(600),
-        Animated.parallel([t(lookX, 0, 260), t(lookY, 0, 260)]),
-      ]);
-    };
-    const doBubbles = () =>
-      Animated.parallel(
-        bubbles.map((b, i) =>
-          Animated.sequence([
-            Animated.delay(BUBBLES[i].delay),
-            Animated.timing(b, { toValue: 1, duration: 1500, easing: Easing.out(Easing.quad), useNativeDriver: true }),
-            Animated.timing(b, { toValue: 0, duration: 0, useNativeDriver: true }),
-          ])
-        )
-      );
-    const doPeek = () =>
-      Animated.sequence([
-        t(peek, 1, 500),
-        Animated.delay(1300),
-        doBlink(),
-        Animated.delay(300),
-        t(peek, 0, 500),
-        Animated.delay(250),
-        doWave(3),
-        Animated.delay(500),
-      ]);
+      lookX.value = withSequence(to(x, 260), withDelay(700, to(-x, 380)), withDelay(600, to(0, 260)));
+      lookY.value = withSequence(to(y, 260), withDelay(700, to(-y * 0.5, 380)), withDelay(600, to(0, 260)));
+      return 2300;
+    },
+    blink: () => {
+      blink.value = withSequence(to(1, 70), withDelay(70, to(0, 100)));
+      return 260;
+    },
+    bubbles: () => {
+      mouth.value = withSequence(to(1, 220), withDelay(1500, to(0, 260)));
+      bubbles.forEach((b, i) => {
+        b.value = withDelay(
+          260 + i * 280,
+          withSequence(withTiming(1, { duration: 1500, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: 0 }))
+        );
+      });
+      return 2400;
+    },
+    giggle: () => {
+      giggle.value = withSequence(to(-1, 70), to(1, 90), to(-1, 90), to(1, 90), to(0, 80));
+      mouth.value = withSequence(to(0.6, 120), withDelay(250, to(0, 160)));
+      return 520;
+    },
+    peek: () => {
+      peek.value = withSequence(to(1, 550), withDelay(1400, to(0, 550)));
+      blink.value = withDelay(1100, withSequence(to(1, 70), withDelay(70, to(0, 100))));
+      return 2600;
+    },
+  };
 
-    // Every few seconds he does something: waves, looks around, blinks or
-    // blows bubbles. Posed octopuses run their pose on repeat instead.
+  useEffect(() => {
+    if (reduceMotion) return;
+    t.value = withRepeat(withTiming(Math.PI * 2, { duration: 3600, easing: Easing.linear }), -1, false);
+    bob.value = withRepeat(to(1, 1400), -1, true);
+    sway.value = withSequence(to(-1, 1050), withRepeat(withSequence(to(1, 2100), to(-1, 2100)), -1));
+
+    // Every few seconds he does something; a posed octopus runs its pose
     let alive = true;
     let timer: ReturnType<typeof setTimeout>;
-    const next = () => {
+    const next = (wait: number) => {
       timer = setTimeout(() => {
         if (!alive) return;
-        const roll = Math.random();
-        const action =
-          pose === 'peek'
-            ? doPeek()
-            : roll < 0.25
-              ? doWave()
-              : roll < 0.5
-                ? doLook()
-                : roll < 0.75
-                  ? doBubbles()
-                  : doBlink();
-        action.start(() => alive && next());
-      }, pose === 'peek' ? 300 : 1600 + Math.random() * 2400);
+        let took: number;
+        if (pose === 'peek') {
+          took = actions.peek();
+          setTimeout(() => alive && actions.wave(3), took + 200);
+          took += 200 + 380 + 3 * 420 + 420 + 500;
+        } else {
+          const roll = Math.random();
+          took =
+            roll < 0.25 ? actions.wave() : roll < 0.5 ? actions.look() : roll < 0.72 ? actions.bubbles() : actions.blink();
+        }
+        next(took + (pose === 'peek' ? 300 : 1400 + Math.random() * 2400));
+      }, wait);
     };
-    next();
-    // Blinks also happen on their own now and then
+    next(pose === 'peek' ? 300 : 1200 + Math.random() * 1500);
+
     let blinkTimer: ReturnType<typeof setTimeout>;
     const blinkLater = () => {
       blinkTimer = setTimeout(() => {
         if (!alive) return;
-        doBlink().start(blinkLater);
-      }, 2500 + Math.random() * 3500);
+        actions.blink();
+        blinkLater();
+      }, 2600 + Math.random() * 3600);
     };
     blinkLater();
 
@@ -597,119 +725,112 @@ export default function Octopus({ color, accessory, heldItem, pet, size = 140, a
       alive = false;
       clearTimeout(timer);
       clearTimeout(blinkTimer);
-      loops.forEach((l) => l.stop());
-      [bob, sway, wave, lookX, lookY, blink, peek, ...bubbles].forEach((v) => v.stopAnimation());
+      [t, bob, sway, giggle, squishX, squishY, raise, swing, peek, lookX, lookY, blink, mouth, ...bubbles].forEach(
+        (v) => cancelAnimation(v)
+      );
     };
-  }, [animated, pose, bob, sway, wave, lookX, lookY, blink, peek, bubbles]);
+    // actions only touch shared values, which never change identity
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pose, reduceMotion]);
+
+  // Tapping squishes him like a water balloon, then he reacts
+  const onTap = () => {
+    squishX.value = withSequence(withTiming(1.14, { duration: 90 }), withSpring(1, { damping: 5, stiffness: 220 }));
+    squishY.value = withSequence(withTiming(0.86, { duration: 90 }), withSpring(1, { damping: 5, stiffness: 220 }));
+    if (pose === 'peek') return;
+    const pick = [actions.giggle, actions.bubbles, () => actions.wave(2), actions.giggle][Math.floor(Math.random() * 4)];
+    pick();
+  };
 
   const width = size;
   const height = size * 1.25;
-  const k = size / VB_W;
-  const viewBox = `0 ${VB_TOP} 200 250`;
-  const holding = pose === 'peek' ? 'camera' : heldItem;
+  const k = size / 200;
 
-  const still = (
-    <Svg width={width} height={height} viewBox={viewBox}>
-      {holding === 'skateboard' ? <Skateboard /> : null}
-      <Tentacles paths={TENTACLES} color={color} />
-      <Head color={color} />
-      <Pupils />
-      {accessory ? <Accessory kind={accessory} /> : null}
-      {holding && holding !== 'skateboard' ? <HeldItem kind={holding} /> : null}
-    </Svg>
-  );
+  const body = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: -size * 0.04 * bob.value },
+      { rotate: `${sway.value * 4 + giggle.value * 7}deg` },
+      { scaleX: squishX.value },
+      { scaleY: squishY.value },
+    ],
+  }));
+  const camera = useAnimatedStyle(() => ({
+    transform: [{ translateX: -45 * k * peek.value }, { translateY: -62 * k * peek.value }],
+  }));
+  const peekFront = useDerivedValue(() => (peek.value < 0.5 ? 0 : (peek.value - 0.5) * 2));
 
-  // Rotate a layer around a point given in viewBox units
-  const around = (x: number, y: number, rotate: Animated.AnimatedInterpolation<string>) => {
-    const dx = x * k - width / 2;
-    const dy = (y - VB_TOP) * k - height / 2;
-    return [{ translateX: dx }, { translateY: dy }, { rotate }, { translateX: -dx }, { translateY: -dy }];
-  };
-  const deg = (v: Animated.Value, range: [number, number]) =>
-    v.interpolate({ inputRange: range, outputRange: range.map((n) => `${n}deg`) });
+  const look = { x: lookX, y: lookY };
+  const holding = pose === 'peek' ? null : heldItem;
 
-  const layer = (children: ReactNode, style?: object) => (
-    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, style]}>
-      <Svg width={width} height={height} viewBox={viewBox}>
-        {children}
+  const drawing = (
+    <Reanimated.View style={[{ width, height, transformOrigin: 'bottom' }, body]}>
+      <Svg width={width} height={height} viewBox="0 -30 200 250">
+        {holding === 'skateboard' ? <Skateboard /> : null}
+        <Tentacle rest={REST[0]} phase={0} ripple={3} t={t} color={color} raise={{ up: WAVE_IN, alt: WAVE_OUT, amount: raise, swing }} />
+        {[1, 2, 3, 4].map((i) => (
+          <Tentacle key={i} rest={REST[i]} phase={i * 1.3} ripple={3.5} t={t} color={color} />
+        ))}
+        <Tentacle
+          rest={REST[5]}
+          phase={0}
+          ripple={0}
+          t={t}
+          color={color}
+          raise={pose === 'peek' ? { up: PEEK_UP, amount: peek } : undefined}
+        />
+        <HeadBase color={color} />
+        <Eye cx={78} look={look} blink={leftBlink} />
+        <Eye cx={122} look={look} blink={blink} />
+        <Mouth open={mouth} />
+        {BUBBLES.map((b, i) => (
+          <Bubble key={i} p={bubbles[i]} r={b.r} dx={b.dx} />
+        ))}
+        {/* while peeking, the raised arm comes round in front of his face */}
+        {pose === 'peek' && (
+          <Tentacle rest={REST[5]} phase={0} ripple={0} t={t} color={color} raise={{ up: PEEK_UP, amount: peek }} opacity={peekFront} />
+        )}
+        {accessory ? <Accessory kind={accessory} /> : null}
+        {holding && holding !== 'skateboard' ? <HeldItem kind={holding} /> : null}
       </Svg>
-    </Animated.View>
+      {pose === 'peek' && (
+        <Reanimated.View pointerEvents="none" style={[StyleSheet.absoluteFill, camera]}>
+          <Svg width={width} height={height} viewBox="0 -30 200 250">
+            <HeldItem kind="camera" />
+          </Svg>
+        </Reanimated.View>
+      )}
+    </Reanimated.View>
   );
 
-  const octopus = !animated ? still : (
-    <Animated.View
-      style={{
-        width,
-        height,
-        transform: [
-          { translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -size * 0.04] }) },
-          ...around(100, 200, sway.interpolate({ inputRange: [-1, 1], outputRange: ['-4deg', '4deg'] })),
-        ],
-      }}
-    >
-      {layer(<Tentacles paths={[WAVE_ARM]} color={color} />, { transform: around(66, 100, deg(wave, [0, 360])) })}
-      {pose === 'peek' &&
-        layer(<Tentacles paths={[HOLD_ARM]} color={color} />, {
-          transform: around(140, 108, peek.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '100deg'] })),
-        })}
-      {layer(
-        <G>
-          {holding === 'skateboard' ? <Skateboard /> : null}
-          <Tentacles paths={pose === 'peek' ? MIDDLE_ARMS : [...MIDDLE_ARMS, HOLD_ARM]} color={color} />
-          <Head color={color} />
-        </G>
-      )}
-      {layer(<Pupils />, {
-        transform: [
-          { translateX: lookX.interpolate({ inputRange: [-1, 1], outputRange: [-5 * k, 5 * k] }) },
-          { translateY: lookY.interpolate({ inputRange: [-1, 1], outputRange: [-4 * k, 4 * k] }) },
-        ],
-      })}
-      {layer(<Lids color={color} />, { opacity: blink })}
-      {layer(
-        <G>
-          {accessory ? <Accessory kind={accessory} /> : null}
-          {pose !== 'peek' && holding && holding !== 'skateboard' ? <HeldItem kind={holding} /> : null}
-        </G>
-      )}
-      {pose === 'peek' &&
-        layer(<Tentacles paths={[PEEK_ARM]} color={color} />, {
-          opacity: peek.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0, 0, 1] }),
-        })}
-      {pose === 'peek' &&
-        layer(<HeldItem kind="camera" />, {
-          transform: [
-            { translateX: peek.interpolate({ inputRange: [0, 1], outputRange: [0, -45 * k] }) },
-            { translateY: peek.interpolate({ inputRange: [0, 1], outputRange: [0, -62 * k] }) },
-          ],
-        })}
-      {bubbles.map((b, i) => {
-        const r = BUBBLES[i].r * k;
-        return (
-          <Animated.View
-            key={i}
-            pointerEvents="none"
-            style={[
-              styles.airBubble,
-              {
-                width: r * 2,
-                height: r * 2,
-                borderRadius: r,
-                borderWidth: Math.max(1, 2 * k),
-                left: 110 * k - r,
-                top: (116 - VB_TOP) * k - r,
-                opacity: b.interpolate({ inputRange: [0, 0.1, 0.7, 1], outputRange: [0, 1, 0.9, 0] }),
-                transform: [
-                  { translateX: b.interpolate({ inputRange: [0, 1], outputRange: [0, BUBBLES[i].dx * k] }) },
-                  { translateY: b.interpolate({ inputRange: [0, 1], outputRange: [0, -110 * k] }) },
-                  { scale: b.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) },
-                ],
-              },
-            ]}
-          />
-        );
-      })}
-    </Animated.View>
+  if (!tappable) return drawing;
+  return (
+    <Pressable onPress={onTap} hitSlop={6}>
+      {drawing}
+    </Pressable>
+  );
+}
+
+export default function Octopus({
+  color,
+  accessory,
+  heldItem,
+  pet,
+  size = 140,
+  animated = true,
+  pose = 'idle',
+  tappable = false,
+}: Props) {
+  const octopus = animated ? (
+    <LivelyOctopus color={color} accessory={accessory} heldItem={heldItem} size={size} pose={pose} tappable={tappable} />
+  ) : (
+    <Svg width={size} height={size * 1.25} viewBox="0 -30 200 250">
+      {heldItem === 'skateboard' ? <Skateboard /> : null}
+      <Tentacles paths={TENTACLES} color={color} />
+      <HeadBase color={color} />
+      <StillFace />
+      {accessory ? <Accessory kind={accessory} /> : null}
+      {heldItem && heldItem !== 'skateboard' ? <HeldItem kind={heldItem} /> : null}
+    </Svg>
   );
 
   if (!pet) return octopus;
@@ -752,7 +873,7 @@ export function OctopusCard({
         <Text style={styles.bubbleText}>{line.replace('{name}', name)}</Text>
         <View style={styles.bubbleTail} />
       </View>
-      <Octopus color={color} accessory={accessory} heldItem={heldItem} pet={pet} size={size} />
+      <Octopus color={color} accessory={accessory} heldItem={heldItem} pet={pet} size={size} tappable />
       <Text style={styles.name}>{name}</Text>
     </View>
   );
@@ -760,7 +881,6 @@ export function OctopusCard({
 
 const styles = StyleSheet.create({
   pet: { position: 'absolute', left: 0 },
-  airBubble: { position: 'absolute', borderColor: '#7CC6E8', backgroundColor: 'rgba(255,255,255,0.55)' },
   card: {
     alignItems: 'center',
     backgroundColor: colors.sand,

@@ -113,9 +113,9 @@ const SLIDES: Slide[] = [
 function SlideVisual({ visual, icon }: { visual?: Visual; icon: Slide['icon'] }) {
   switch (visual) {
     case 'mascot':
-      return <Octopus color="#a78bfa" accessory="beret" heldItem="camera" size={120} />;
+      return <Octopus color="#a78bfa" accessory="beret" heldItem="camera" size={120} tappable />;
     case 'peek':
-      return <Octopus color="#a78bfa" accessory="beret" pose="peek" size={150} />;
+      return <Octopus color="#a78bfa" accessory="beret" pose="peek" size={150} tappable />;
     case 'streak':
       return (
         <View style={styles.streakCard}>
