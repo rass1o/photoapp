@@ -25,6 +25,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ShopItem, isOwned, loadShop } from '../lib/shop';
 import FilmStamp from '../components/FilmStamp';
 import SectionHeader from '../components/SectionHeader';
+import StreakCalendar from '../components/StreakCalendar';
+import OchoCelebration from '../components/OchoCelebration';
 import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
 
@@ -65,6 +67,10 @@ export default function CameraScreen() {
   const [isUploadingDaily, setIsUploadingDaily] = useState(false);
 
   const [cheatSheetVisible, setCheatSheetVisible] = useState(false);
+  const [calendarKey, setCalendarKey] = useState(0);
+  const [celebration, setCelebration] = useState<
+    { kind: 'weekly'; themeName: string } | { kind: 'daily'; streak: number; reward: number } | null
+  >(null);
 
   const checkExistingSubmission = async (themeId: string) => {
     if (!user) return;
@@ -250,7 +256,7 @@ export default function CameraScreen() {
       setImageUri(null);
       setCaption('');
       setFilmStamp(null);
-      Alert.alert('Shell yeah!', 'Your photo is live for this week\u2019s theme.');
+      setCelebration({ kind: 'weekly', themeName: theme.name });
     } catch (err) {
       console.log('Submission failed:', err);
       Alert.alert('Something went wrong', err instanceof Error ? err.message : 'Please try again.');
@@ -303,7 +309,8 @@ export default function CameraScreen() {
 
       setDailyAlreadySubmitted(true);
       setDailyImageUri(null);
-      Alert.alert('Fin-tastic!', `+${reward.reward} shutter, ${reward.streak} day streak.`);
+      setCalendarKey((k) => k + 1);
+      setCelebration({ kind: 'daily', streak: reward.streak, reward: reward.reward });
     } catch (err) {
       console.log('Daily submission failed:', err);
       Alert.alert('Something went wrong', err instanceof Error ? err.message : 'Please try again.');
@@ -438,6 +445,7 @@ export default function CameraScreen() {
             {/* ---------- Daily freelance photo (secondary) ---------- */}
             <View style={styles.dailySection}>
               <SectionHeader icon="sunny-outline" label="Daily photo" />
+              {user && <StreakCalendar userId={user.id} refreshKey={calendarKey} />}
 
               {isCheckingDaily ? (
                 <ActivityIndicator color={colors.deep} style={{ marginTop: 10 }} />
@@ -474,6 +482,15 @@ export default function CameraScreen() {
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
+
+        <OchoCelebration
+          visible={!!celebration}
+          kind={celebration?.kind ?? 'daily'}
+          themeName={celebration?.kind === 'weekly' ? celebration.themeName : undefined}
+          streak={celebration?.kind === 'daily' ? celebration.streak : undefined}
+          reward={celebration?.kind === 'daily' ? celebration.reward : undefined}
+          onClose={() => setCelebration(null)}
+        />
 
         <Modal
           visible={cheatSheetVisible}
