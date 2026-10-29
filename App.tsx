@@ -32,11 +32,13 @@ const NAV_THEME: Theme = {
   },
 };
 
-const ONBOARDING_STORAGE_KEY = 'hasSeenOnboarding';
+// Onboarding is shown once per account, the first time it signs in here
+const onboardingKey = (userId: string) => `hasSeenOnboarding:${userId}`;
 
 function Root() {
   const { user, isLoading } = useAuth();
-  const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
+  // Which account the check below is for, so a fresh sign-in waits on its own
+  const [onboarding, setOnboarding] = useState<{ userId: string; seen: boolean } | null>(null);
   const [fontsLoaded, fontError] = useFonts({
     Fredoka_400Regular,
     Fredoka_500Medium,
@@ -45,18 +47,23 @@ function Root() {
   });
 
   useEffect(() => {
-    AsyncStorage.getItem(ONBOARDING_STORAGE_KEY).then((value) => {
-      setHasSeenOnboarding(value === 'true');
-    });
-  }, []);
+    if (!user) return;
+    const userId = user.id;
+    AsyncStorage.getItem(onboardingKey(userId))
+      .then((value) => setOnboarding({ userId, seen: value === 'true' }))
+      .catch(() => setOnboarding({ userId, seen: true }));
+  }, [user?.id]);
 
   const finishOnboarding = () => {
-    setHasSeenOnboarding(true);
-    AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+    if (!user) return;
+    setOnboarding({ userId: user.id, seen: true });
+    AsyncStorage.setItem(onboardingKey(user.id), 'true');
   };
 
+  const checkingOnboarding = !!user && onboarding?.userId !== user.id;
+
   // If the font fails to load, carry on with the system font rather than hang
-  if (isLoading || hasSeenOnboarding === null || (!fontsLoaded && !fontError)) {
+  if (isLoading || checkingOnboarding || (!fontsLoaded && !fontError)) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator size="large" color={colors.deep} />
@@ -64,7 +71,7 @@ function Root() {
     );
   }
 
-  if (!user && !hasSeenOnboarding) {
+  if (user && !onboarding?.seen) {
     return <OnboardingScreen onDone={finishOnboarding} />;
   }
 
