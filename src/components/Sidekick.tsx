@@ -105,11 +105,19 @@ function Cat({ c, paws = 'both' }: { c: CatLook; paws?: 'both' | 'left' | 'none'
   );
 }
 
-function CatFace({ eyes }: { eyes: string }) {
+function CatEyes({ eyes }: { eyes: string }) {
   return (
     <G>
       <Ellipse cx={42} cy={39} rx={5} ry={6} fill={eyes} />
       <Ellipse cx={58} cy={39} rx={5} ry={6} fill={eyes} />
+    </G>
+  );
+}
+
+// Nose, mouth and whiskers
+function CatFace() {
+  return (
+    <G>
       <Path d="M47.5,46 L52.5,46 L50,49 Z" fill="#F9A8D4" />
       <Path d="M50,49 Q47,52 45,50 M50,49 Q53,52 55,50" stroke="#9CA3AF" strokeWidth={1.2} fill="none" />
       <Path d="M30,45 L40,47 M30,50 L40,49 M70,45 L60,47 M70,50 L60,49" stroke="#9CA3AF" strokeWidth={1} />
@@ -272,11 +280,19 @@ function Basset({ c, ears = true }: { c: BassetColors; ears?: boolean }) {
   );
 }
 
-function BassetFace() {
+function BassetEyes() {
   return (
     <G>
       <Circle cx={51} cy={43} r={3} fill="#111" />
       <Circle cx={65} cy={43} r={3} fill="#111" />
+    </G>
+  );
+}
+
+// Lids, nose and mouth
+function BassetFace() {
+  return (
+    <G>
       {/* droopy lids */}
       <Path d="M47,40 Q51,38 55,41 M61,41 Q65,38 69,40" stroke="#111" strokeWidth={1.5} fill="none" />
       <Ellipse cx={58} cy={51} rx={5} ry={3.5} fill="#2B1D16" />
@@ -356,7 +372,6 @@ function MangoHead() {
       {/* beak bends down, black tip */}
       <Path d="M45,23 C52,23 56,27 55,34 C53,30 50,29 45,30 Z" fill="#FFF1E6" />
       <Path d="M55,34 C53,30 52,29.5 51,29.5 C53,27 55,29 55,34 Z" fill="#1F1D24" strokeWidth={1.5} />
-      <Circle cx={37} cy={24} r={2} fill="#111" stroke="none" />
       {/* cowboy hat */}
       <Path d="M18,14 Q20,22 38,21 Q56,22 58,14 Q48,18 38,18 Q28,18 18,14 Z" fill={deep} />
       <Path d="M27,18 C26,6 30,2 38,6 C46,2 50,6 49,18 Z" fill={pink} />
@@ -364,6 +379,10 @@ function MangoHead() {
       <Star x={38} y={10.5} r={4} />
     </G>
   );
+}
+
+function MangoEye() {
+  return <Circle cx={37} cy={24} r={2} fill="#111" />;
 }
 
 // Sticking out the side of Mango's beak
@@ -404,13 +423,27 @@ function Leila() {
       <Circle cx={50} cy={60} r={8.5} fill="#1E293B" />
       <Circle cx={46.5} cy={56.5} r={2.5} fill="#FFFFFF" opacity={0.75} stroke="none" />
       {/* face on the top half */}
-      <Ellipse cx={39} cy={36} rx={4.5} ry={5.5} fill="#FFFFFF" strokeWidth={1.8} />
-      <Ellipse cx={61} cy={36} rx={4.5} ry={5.5} fill="#FFFFFF" strokeWidth={1.8} />
-      <Circle cx={40} cy={37} r={2.4} fill="#111" stroke="none" />
-      <Circle cx={62} cy={37} r={2.4} fill="#111" stroke="none" />
       <Path d="M46,42 Q50,45 54,42" strokeWidth={2} fill="none" />
       <Ellipse cx={31} cy={42} rx={3.5} ry={2} fill="#FB7185" opacity={0.6} stroke="none" />
       <Ellipse cx={69} cy={42} rx={3.5} ry={2} fill="#FB7185" opacity={0.6} stroke="none" />
+    </G>
+  );
+}
+
+function LeilaEyeWhites() {
+  return (
+    <G stroke={OUTLINE} strokeWidth={1.8}>
+      <Ellipse cx={39} cy={36} rx={4.5} ry={5.5} fill="#FFFFFF" />
+      <Ellipse cx={61} cy={36} rx={4.5} ry={5.5} fill="#FFFFFF" />
+    </G>
+  );
+}
+
+function LeilaPupils() {
+  return (
+    <G>
+      <Circle cx={40} cy={37} r={2.4} fill="#111" />
+      <Circle cx={62} cy={37} r={2.4} fill="#111" />
     </G>
   );
 }
@@ -511,7 +544,8 @@ function Still({ kind }: { kind: string }) {
       <G>
         <CatTail c={c} />
         <Cat c={c} />
-        <CatFace eyes={c.eyes} />
+        <CatFace />
+        <CatEyes eyes={c.eyes} />
         <CatPupils />
         {kind === 'merlin' && <MerlinExtras />}
         {kind === 'merlin' && <MerlinFish />}
@@ -527,6 +561,7 @@ function Still({ kind }: { kind: string }) {
         <BassetTail c={BASSETS[kind]} />
         <Basset c={BASSETS[kind]} />
         <BassetFace />
+        <BassetEyes />
         {kind === 'susie' ? (
           <G>
             <SusieFlower x={40} />
@@ -544,6 +579,7 @@ function Still({ kind }: { kind: string }) {
         <MangoBody />
         <MangoNeck />
         <MangoHead />
+        <MangoEye />
         <MangoWheat />
       </G>
     );
@@ -552,6 +588,8 @@ function Still({ kind }: { kind: string }) {
     return (
       <G>
         <Leila />
+        <LeilaEyeWhites />
+        <LeilaPupils />
         <LeilaArm />
       </G>
     );
@@ -560,6 +598,8 @@ function Still({ kind }: { kind: string }) {
     return (
       <G>
         <Gibson />
+        <GibsonEye x={39} />
+        <GibsonEye x={61} />
         <GibsonGlasses />
       </G>
     );
@@ -605,17 +645,45 @@ function Layer({
   );
 }
 
-// Breathing and the tail/flower sway every pet shares; resets the pet's
-// own values to rest when it stops
+// What every pet shares: breathing, the tail/flower sway, blinking and
+// glancing around. Resets everything (the pet's own values too) to rest
+// when it stops.
 function useBase(active: boolean, own: SharedValue<number>[]) {
   const breathe = useSharedValue(0);
   const sway = useSharedValue(0);
+  const blink = useSharedValue(0);
+  const lookX = useSharedValue(0);
+  const lookY = useSharedValue(0);
   useEffect(() => {
     if (!active) return;
     breathe.value = withRepeat(to(1, 1500), -1, true);
     sway.value = withSequence(to(1, 550), withRepeat(withSequence(to(-1, 1100), to(1, 1100)), -1));
+
+    let blinkTimer: ReturnType<typeof setTimeout>;
+    const blinkLater = () => {
+      blinkTimer = setTimeout(() => {
+        blink.value = withSequence(to(1, 70), withDelay(70, to(0, 100)));
+        blinkLater();
+      }, 2200 + Math.random() * 3800);
+    };
+    blinkLater();
+
+    let lookTimer: ReturnType<typeof setTimeout>;
+    const lookLater = () => {
+      lookTimer = setTimeout(() => {
+        const x = Math.random() < 0.5 ? -1 : 1;
+        const y = Math.random() * 1.2 - 0.6;
+        lookX.value = withSequence(to(x, 240), withDelay(900, to(-x * 0.6, 320)), withDelay(500, to(0, 260)));
+        lookY.value = withSequence(to(y, 240), withDelay(900, to(0, 320)));
+        lookLater();
+      }, 3000 + Math.random() * 4000);
+    };
+    lookLater();
+
     return () => {
-      [breathe, sway, ...own].forEach((v) => {
+      clearTimeout(blinkTimer);
+      clearTimeout(lookTimer);
+      [breathe, sway, blink, lookX, lookY, ...own].forEach((v) => {
         cancelAnimation(v);
         v.value = 0;
       });
@@ -623,7 +691,24 @@ function useBase(active: boolean, own: SharedValue<number>[]) {
     // shared values never change identity
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
-  return { breathe, sway };
+  return { breathe, sway, blink, lookX, lookY };
+}
+
+type Base = ReturnType<typeof useBase>;
+
+// Eyes blink by squashing flat; pupils glance up to reach[x, y] drawing units
+function useEyes(base: Base, frame: Frame, reach: [number, number]) {
+  const { s } = frame;
+  const { blink, lookX, lookY } = base;
+  const lids = useAnimatedStyle(() => ({ transform: [{ scaleY: 1 - 0.9 * blink.value }] }));
+  const pupils = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: lookX.value * reach[0] * s },
+      { translateY: lookY.value * reach[1] * s },
+      { scaleY: 1 - 0.9 * blink.value },
+    ],
+  }));
+  return { lids, pupils };
 }
 
 // Every few seconds, run the pet's next move (it returns how long it takes)
@@ -702,7 +787,9 @@ function MerlinLive({ frame, active }: LiveProps) {
   const drop = useSharedValue(0);
   const grab = useSharedValue(0);
   const lift = useSharedValue(0);
-  const { breathe, sway } = useBase(active, [drop, grab, lift]);
+  const base = useBase(active, [drop, grab, lift]);
+  const { breathe, sway } = base;
+  const eyes = useEyes(base, frame, [2.2, 1.5]);
   const { s } = frame;
 
   useEvery(active, () => {
@@ -730,9 +817,14 @@ function MerlinLive({ frame, active }: LiveProps) {
       </Layer>
       <Layer frame={frame}>
         <Cat c={c} paws="none" />
-        <CatFace eyes={c.eyes} />
-        <CatPupils />
+        <CatFace />
         <MerlinExtras />
+      </Layer>
+      <Layer frame={frame} origin={[50, 39]} style={eyes.lids}>
+        <CatEyes eyes={c.eyes} />
+      </Layer>
+      <Layer frame={frame} origin={[50, 39.5]} style={eyes.pupils}>
+        <CatPupils />
       </Layer>
       <Layer frame={frame} origin={[50, 51]} style={fish}>
         <MerlinFish />
@@ -753,7 +845,9 @@ function TuxieLive({ frame, active }: LiveProps) {
   const glare = useSharedValue(0);
   const leg = useSharedValue(0);
   const push = useSharedValue(0);
-  const { breathe, sway } = useBase(active, [glare, leg, push]);
+  const base = useBase(active, [glare, leg, push]);
+  const { breathe, sway } = base;
+  const eyes = useEyes(base, frame, [2.2, 1.5]);
   const { s } = frame;
 
   useEvery(active, () => {
@@ -778,9 +872,14 @@ function TuxieLive({ frame, active }: LiveProps) {
       </Layer>
       <Layer frame={frame}>
         <Cat c={c} paws="left" />
-        <CatFace eyes={c.eyes} />
-        <CatPupils />
+        <CatFace />
         <TuxieBowtie />
+      </Layer>
+      <Layer frame={frame} origin={[50, 39]} style={eyes.lids}>
+        <CatEyes eyes={c.eyes} />
+      </Layer>
+      <Layer frame={frame} origin={[50, 39.5]} style={eyes.pupils}>
+        <CatPupils />
       </Layer>
       <Layer frame={frame} style={restingPaw}>
         <CatPaw x={59} c={c} />
@@ -802,7 +901,9 @@ function GingerLive({ frame, active }: LiveProps) {
   const spin = useSharedValue(0);
   const bounce = useSharedValue(0);
   const look = useSharedValue(0);
-  const { breathe, sway } = useBase(active, [spin, bounce, look]);
+  const base = useBase(active, [spin, bounce, look]);
+  const { breathe, sway, blink, lookX, lookY } = base;
+  const eyes = useEyes(base, frame, [2.2, 1.5]);
   const { s } = frame;
 
   useEvery(active, () => {
@@ -820,8 +921,13 @@ function GingerLive({ frame, active }: LiveProps) {
   const flower = useAnimatedStyle(() => ({
     transform: [{ rotate: `${sway.value * 22 + spin.value * 360}deg` }, { scale: 1 + 0.25 * bounce.value }],
   }));
+  // looking up at her flower, on top of the usual glancing around
   const pupils = useAnimatedStyle(() => ({
-    transform: [{ translateX: 1.5 * look.value * s }, { translateY: -3.5 * look.value * s }],
+    transform: [
+      { translateX: (1.5 * look.value + 2.2 * lookX.value) * s },
+      { translateY: (-3.5 * look.value + 1.5 * lookY.value) * s },
+      { scaleY: 1 - 0.9 * blink.value },
+    ],
   }));
 
   return (
@@ -831,9 +937,12 @@ function GingerLive({ frame, active }: LiveProps) {
       </Layer>
       <Layer frame={frame}>
         <Cat c={c} />
-        <CatFace eyes={c.eyes} />
+        <CatFace />
       </Layer>
-      <Layer frame={frame} style={pupils}>
+      <Layer frame={frame} origin={[50, 39]} style={eyes.lids}>
+        <CatEyes eyes={c.eyes} />
+      </Layer>
+      <Layer frame={frame} origin={[50, 39.5]} style={pupils}>
         <CatPupils />
       </Layer>
       <Layer frame={frame} origin={[57, 25]} style={flower}>
@@ -860,7 +969,9 @@ function SusieLive({ frame, active }: LiveProps) {
   const c = BASSETS.susie;
   const tongue = useSharedValue(0);
   const ears = useSharedValue(0);
-  const { breathe, sway } = useBase(active, [tongue, ears]);
+  const base = useBase(active, [tongue, ears]);
+  const { breathe, sway } = base;
+  const eyes = useEyes(base, frame, [1.6, 1]);
 
   useEvery(active, () => {
     if (Math.random() < 0.5) return tongueOut(tongue);
@@ -886,6 +997,9 @@ function SusieLive({ frame, active }: LiveProps) {
         <Basset c={c} ears={false} />
         <BassetFace />
       </Layer>
+      <Layer frame={frame} origin={[58, 43]} style={eyes.pupils}>
+        <BassetEyes />
+      </Layer>
       <Layer frame={frame} origin={[44, 32]} style={earL}>
         <BassetEar side="left" c={c} />
         <SusieFlower x={40} />
@@ -907,7 +1021,9 @@ function ScarletLive({ frame, active }: LiveProps) {
   const tongue = useSharedValue(0);
   const hat = useSharedValue(0);
   const land = useSharedValue(0);
-  const { breathe, sway } = useBase(active, [tongue, hat, land]);
+  const base = useBase(active, [tongue, hat, land]);
+  const { breathe, sway } = base;
+  const eyes = useEyes(base, frame, [1.6, 1]);
   const { s } = frame;
 
   useEvery(active, () => {
@@ -935,6 +1051,9 @@ function ScarletLive({ frame, active }: LiveProps) {
       <Layer frame={frame}>
         <Basset c={c} />
         <BassetFace />
+      </Layer>
+      <Layer frame={frame} origin={[58, 43]} style={eyes.pupils}>
+        <BassetEyes />
       </Layer>
       <Layer frame={frame} origin={[58, 57]} style={tongueStyle}>
         <Tongue />
@@ -977,7 +1096,7 @@ function MangoLive({ frame, active }: LiveProps) {
   const dip = useSharedValue(0);
   const drop = useSharedValue(0);
   const loose = useSharedValue(0); // 1 while the wheat is out of her beak
-  const { breathe } = useBase(active, [dip, drop, loose]);
+  const { breathe, blink, lookX, lookY } = useBase(active, [dip, drop, loose]);
   const { s } = frame;
 
   useEvery(active, () => {
@@ -989,6 +1108,20 @@ function MangoLive({ frame, active }: LiveProps) {
 
   const head = useAnimatedStyle(() => ({
     transform: [{ translateX: -8 * dip.value * s }, { translateY: 52 * dip.value * s }, { rotate: `${70 * dip.value}deg` }],
+  }));
+  // moves with her head, then blinks and glances around its own middle
+  // (the eye sits 1 left and 2 up from where the head turns)
+  const eye = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: -8 * dip.value * s },
+      { translateY: 52 * dip.value * s },
+      { rotate: `${70 * dip.value}deg` },
+      { translateX: (-1 + 0.8 * lookX.value) * s },
+      { translateY: (-2 + 0.6 * lookY.value) * s },
+      { scaleY: 1 - 0.9 * blink.value },
+      { translateX: 1 * s },
+      { translateY: 2 * s },
+    ],
   }));
   const heldWheat = useAnimatedStyle(() => ({
     opacity: 1 - loose.value,
@@ -1011,6 +1144,9 @@ function MangoLive({ frame, active }: LiveProps) {
       <Layer frame={frame} origin={[38, 26]} style={head}>
         <MangoHead />
       </Layer>
+      <Layer frame={frame} origin={[38, 26]} style={eye}>
+        <MangoEye />
+      </Layer>
       <Layer frame={frame} origin={[64, 25]} style={fallingWheat}>
         <MangoWheat />
       </Layer>
@@ -1021,7 +1157,9 @@ function MangoLive({ frame, active }: LiveProps) {
 // Leila waves and pops her flash
 function LeilaLive({ frame, active }: LiveProps) {
   const flash = useSharedValue(0);
-  const { breathe, sway } = useBase(active, [flash]);
+  const base = useBase(active, [flash]);
+  const { breathe, sway } = base;
+  const eyes = useEyes(base, frame, [1.6, 1.2]);
 
   useEvery(active, () => {
     flash.value = withSequence(to(1, 450), snap(0));
@@ -1042,6 +1180,12 @@ function LeilaLive({ frame, active }: LiveProps) {
       <Layer frame={frame}>
         <Leila />
       </Layer>
+      <Layer frame={frame} origin={[50, 36]} style={eyes.lids}>
+        <LeilaEyeWhites />
+      </Layer>
+      <Layer frame={frame} origin={[50, 36.5]} style={eyes.pupils}>
+        <LeilaPupils />
+      </Layer>
       <Layer frame={frame} origin={[71, 31]} style={burst}>
         <LeilaFlash />
       </Layer>
@@ -1054,7 +1198,9 @@ function GibsonLive({ frame, active }: LiveProps) {
   const glare = useSharedValue(0);
   const raise = useSharedValue(0);
   const wink = useSharedValue(0);
-  const { breathe } = useBase(active, [glare, raise, wink]);
+  const base = useBase(active, [glare, raise, wink]);
+  const { breathe, blink, lookX, lookY } = base;
+  const eyes = useEyes(base, frame, [1.4, 1]);
   const { s } = frame;
 
   useEvery(active, () => {
@@ -1065,12 +1211,20 @@ function GibsonLive({ frame, active }: LiveProps) {
   });
 
   const glasses = useAnimatedStyle(() => ({ transform: [{ translateY: -16 * raise.value * s }] }));
-  const winking = useAnimatedStyle(() => ({ transform: [{ scaleY: 1 - 0.9 * wink.value }] }));
+  const winking = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: lookX.value * 1.4 * s },
+      { translateY: lookY.value * s },
+      { scaleY: 1 - 0.9 * Math.max(wink.value, blink.value) },
+    ],
+  }));
 
   return (
     <Body frame={frame} breathe={breathe}>
       <Layer frame={frame}>
         <Gibson />
+      </Layer>
+      <Layer frame={frame} origin={[39, 54]} style={eyes.pupils}>
         <GibsonEye x={39} />
       </Layer>
       <Layer frame={frame} origin={[61, 54]} style={winking}>

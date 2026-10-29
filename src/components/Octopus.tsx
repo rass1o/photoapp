@@ -1,4 +1,4 @@
-import { ReactNode, useContext, useEffect, useState } from 'react';
+import { ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { NavigationContext } from '@react-navigation/native';
 import { Pressable, View, StyleSheet } from 'react-native';
 import {
@@ -511,6 +511,8 @@ const RIPPLE = [0, 0.25, 0.5, 0.7, 0.85, 1, 1];
 
 const SMILE = points('M90,112 C93,119 107,119 110,112 C107,119 93,119 90,112');
 const OH = points('M95,114 C95,107 105,107 105,114 C105,121 95,121 95,114');
+const LAUGH = points('M88,111 C94,111 106,111 112,111 C110,125 90,125 88,111');
+const FROWN = points('M90,117 C93,110 107,110 110,117 C107,110 93,110 90,117');
 
 type Raise = { up: number[]; alt?: number[]; amount: SharedValue<number>; swing?: SharedValue<number> };
 
@@ -602,15 +604,59 @@ function Eye({
   );
 }
 
-function Mouth({ open }: { open: SharedValue<number> }) {
+// Smile, turned down into a frown by anger, opened into an "O" by open,
+// or into a big laughing "D" by laugh
+function Mouth({ open, anger, laugh }: { open: SharedValue<number>; anger: SharedValue<number>; laugh: SharedValue<number> }) {
   const path = useDerivedValue(() => {
     const k = open.value;
-    return pathFrom(SMILE.map((v, i) => v + (OH[i] - v) * k));
+    const a = anger.value;
+    const l = laugh.value;
+    return pathFrom(SMILE.map((v, i) => {
+      const base = v + (FROWN[i] - v) * a;
+      const rounded = base + (OH[i] - base) * k;
+      return rounded + (LAUGH[i] - rounded) * l;
+    }));
   });
   return (
     <SkGroup>
       <SkPath path={path} color={OUTLINE} />
       <SkPath path={path} style="stroke" strokeWidth={3.5} strokeCap="round" strokeJoin="round" color={OUTLINE} />
+    </SkGroup>
+  );
+}
+
+// Happy squeezed-shut eyes for giggling: ^ ^
+function HappyEyes({ happy }: { happy: SharedValue<number> }) {
+  return (
+    <SkGroup opacity={happy}>
+      <SkPath path="M67,92 Q78,80 89,92" style="stroke" strokeWidth={4} strokeCap="round" color={OUTLINE} />
+      <SkPath path="M111,92 Q122,80 133,92" style="stroke" strokeWidth={4} strokeCap="round" color={OUTLINE} />
+    </SkGroup>
+  );
+}
+
+// Angry brows, flushed cheeks and steam puffing off his head
+function AngryFace({ anger, steam }: { anger: SharedValue<number>; steam: SharedValue<number> }) {
+  const puffY = useDerivedValue(() => 30 - 22 * steam.value);
+  const puffR = useDerivedValue(() => 5 + 6 * steam.value);
+  const puffOpacity = useDerivedValue(() => anger.value * interpolate(steam.value, [0, 0.2, 1], [0, 0.9, 0]));
+  const blush = useDerivedValue(() => anger.value * 0.6);
+  return (
+    <SkGroup>
+      <SkGroup opacity={blush}>
+        <SkOval x={49} y={101} width={26} height={14} color="#ef4444" />
+        <SkOval x={125} y={101} width={26} height={14} color="#ef4444" />
+      </SkGroup>
+      <SkGroup opacity={anger}>
+        <SkPath path="M62,66 L91,77" style="stroke" strokeWidth={6} strokeCap="round" color={OUTLINE} />
+        <SkPath path="M138,66 L109,77" style="stroke" strokeWidth={6} strokeCap="round" color={OUTLINE} />
+      </SkGroup>
+      <SkGroup opacity={puffOpacity}>
+        <SkCircle cx={58} cy={puffY} r={puffR} color="#E5E7EB" />
+        <SkCircle cx={142} cy={puffY} r={puffR} color="#E5E7EB" />
+        <SkCircle cx={58} cy={puffY} r={puffR} color="#9CA3AF" style="stroke" strokeWidth={2} />
+        <SkCircle cx={142} cy={puffY} r={puffR} color="#9CA3AF" style="stroke" strokeWidth={2} />
+      </SkGroup>
     </SkGroup>
   );
 }
@@ -681,6 +727,11 @@ function LivelyOctopus({
   const bob = useSharedValue(0);
   const sway = useSharedValue(0);
   const giggle = useSharedValue(0);
+  const hop = useSharedValue(0);
+  const happy = useSharedValue(0);
+  const laugh = useSharedValue(0);
+  const anger = useSharedValue(0);
+  const steam = useSharedValue(0);
   const squishX = useSharedValue(1);
   const squishY = useSharedValue(1);
   const raise = useSharedValue(0);
@@ -730,10 +781,25 @@ function LivelyOctopus({
       });
       return 2400;
     },
+    // Eyes squeezed shut, a couple of hops and a "ha-ha" mouth
     giggle: () => {
-      giggle.value = withSequence(to(-1, 70), to(1, 90), to(-1, 90), to(1, 90), to(0, 80));
-      mouth.value = withSequence(to(0.6, 120), withDelay(250, to(0, 160)));
-      return 520;
+      giggle.value = withSequence(to(-1, 70), to(1, 90), to(-1, 90), to(1, 90), to(-0.6, 90), to(0, 80));
+      hop.value = withSequence(to(1, 110), to(0, 130), to(0.6, 100), to(0, 130));
+      blink.value = withSequence(to(1, 70), withDelay(440, to(0, 110)));
+      happy.value = withSequence(to(1, 70), withDelay(440, to(0, 110)));
+      laugh.value = withSequence(to(1, 90), to(0.45, 90), to(1, 90), to(0.45, 90), to(0, 140));
+      return 640;
+    },
+    // Fed up: brows down, red cheeks, a frown, steam and a shake. Then he
+    // closes his eyes, lets out a sigh (and a bubble) and he's fine again.
+    angry: () => {
+      anger.value = withSequence(to(1, 180), withDelay(1820, to(0, 700)));
+      steam.value = withRepeat(withSequence(withTiming(1, { duration: 650, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: 0 })), 3);
+      giggle.value = withSequence(withRepeat(withSequence(to(-0.45, 55), to(0.45, 55)), 16), to(0, 80));
+      blink.value = withSequence(to(0.35, 180), withDelay(1820, to(1, 300)), withDelay(500, to(0, 300)));
+      mouth.value = withDelay(2350, withSequence(to(0.45, 300), withDelay(250, to(0, 400))));
+      b2.value = withDelay(2450, withSequence(withTiming(1, { duration: 1500, easing: Easing.out(Easing.quad) }), withTiming(0, { duration: 0 })));
+      return 3900;
     },
     // Redrawing tentacle shapes is the costly part, so they only ripple
     // now and then instead of on every frame
@@ -760,6 +826,7 @@ function LivelyOctopus({
     const next = (wait: number) => {
       timer = setTimeout(() => {
         if (!alive) return;
+        if (Date.now() < busyUntil.current) return next(500);
         let took: number;
         if (pose === 'peek') {
           took = actions.peek();
@@ -787,7 +854,7 @@ function LivelyOctopus({
     const blinkLater = () => {
       blinkTimer = setTimeout(() => {
         if (!alive) return;
-        actions.blink();
+        if (Date.now() >= busyUntil.current) actions.blink();
         blinkLater();
       }, 2600 + Math.random() * 3600);
     };
@@ -798,7 +865,7 @@ function LivelyOctopus({
       clearTimeout(timer);
       clearTimeout(blinkTimer);
       // Settle back to rest so he's tidy when the screen comes back
-      [t, amp, bob, sway, giggle, raise, swing, peek, lookX, lookY, blink, mouth, ...bubbles].forEach((v) => {
+      [t, amp, bob, sway, giggle, hop, happy, laugh, anger, steam, raise, swing, peek, lookX, lookY, blink, mouth, ...bubbles].forEach((v) => {
         cancelAnimation(v);
         v.value = 0;
       });
@@ -807,13 +874,25 @@ function LivelyOctopus({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pose, active]);
 
-  // Tapping squishes him like a water balloon, then he reacts
+  // Tapping squishes him like a water balloon and he giggles. Poke him
+  // five times in a row and he gets angry, then calms back down.
+  const taps = useRef({ count: 0, last: 0 });
+  const busyUntil = useRef(0);
   const onTap = () => {
     squishX.value = withSequence(withTiming(1.14, { duration: 90 }), withSpring(1, { damping: 5, stiffness: 220 }));
     squishY.value = withSequence(withTiming(0.86, { duration: 90 }), withSpring(1, { damping: 5, stiffness: 220 }));
-    if (pose === 'peek') return;
-    const pick = [actions.giggle, actions.bubbles, () => actions.wave(2), actions.giggle][Math.floor(Math.random() * 4)];
-    pick();
+    if (pose === 'peek' || reduceMotion) return;
+    const now = Date.now();
+    if (now < busyUntil.current && anger.value > 0) return; // still fuming
+    if (now - taps.current.last > 4000) taps.current.count = 0;
+    taps.current.last = now;
+    taps.current.count += 1;
+    if (taps.current.count >= 5) {
+      taps.current.count = 0;
+      busyUntil.current = now + actions.angry();
+    } else {
+      busyUntil.current = now + actions.giggle();
+    }
   };
 
   const width = size;
@@ -822,7 +901,7 @@ function LivelyOctopus({
 
   const body = useAnimatedStyle(() => ({
     transform: [
-      { translateY: -size * 0.04 * bob.value },
+      { translateY: -size * 0.04 * bob.value - size * 0.07 * hop.value },
       { rotate: `${sway.value * 4 + giggle.value * 7}deg` },
       { scaleX: squishX.value },
       { scaleY: squishY.value },
@@ -871,7 +950,9 @@ function LivelyOctopus({
               <SkHead color={color} />
               <Eye cx={78} look={look} blink={leftBlink} />
               <Eye cx={122} look={look} blink={blink} />
-              <Mouth open={mouth} />
+              <HappyEyes happy={happy} />
+              <AngryFace anger={anger} steam={steam} />
+              <Mouth open={mouth} anger={anger} laugh={laugh} />
               {BUBBLES.map((b, i) => (
                 <Bubble key={i} p={bubbles[i]} r={b.r} dx={b.dx} />
               ))}
