@@ -28,6 +28,8 @@ import SectionHeader from '../components/SectionHeader';
 import SandGrain from '../components/SandGrain';
 import StreakCalendar from '../components/StreakCalendar';
 import OchoCelebration from '../components/OchoCelebration';
+import StreakBanner from '../components/StreakBanner';
+import { STREAK_BONUS, STREAK_BONUS_EVERY, liveDailyStreak } from '../lib/streaks';
 import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
 
@@ -70,8 +72,26 @@ export default function CameraScreen() {
   const [cheatSheetVisible, setCheatSheetVisible] = useState(false);
   const [calendarKey, setCalendarKey] = useState(0);
   const [celebration, setCelebration] = useState<
-    { kind: 'weekly'; themeName: string } | { kind: 'daily'; streak: number; reward: number } | null
+    | { kind: 'weekly'; themeName: string; streak: number }
+    | { kind: 'daily'; streak: number; reward: number; bonus: number }
+    | null
   >(null);
+  const [streaks, setStreaks] = useState({ daily: 0, weekly: 0 });
+
+  const loadStreaks = async () => {
+    if (!user) return { daily: 0, weekly: 0 };
+    const { data } = await supabase
+      .from('profiles')
+      .select('streak_count, daily_streak_count, last_daily_submission_date')
+      .eq('id', user.id)
+      .single();
+    const next = {
+      daily: liveDailyStreak(data?.daily_streak_count, data?.last_daily_submission_date),
+      weekly: data?.streak_count ?? 0,
+    };
+    setStreaks(next);
+    return next;
+  };
 
   const checkExistingSubmission = async (themeId: string) => {
     if (!user) return;
@@ -123,6 +143,7 @@ export default function CameraScreen() {
     useCallback(() => {
       if (!user) return;
       checkExistingDailySubmission();
+      loadStreaks();
       loadShop(user.id).then(({ items, ownedIds }) =>
         setOwnedStamps(items.filter((i) => i.category === 'stamp' && isOwned(i, ownedIds)))
       );
@@ -257,7 +278,9 @@ export default function CameraScreen() {
       setImageUri(null);
       setCaption('');
       setFilmStamp(null);
-      setCelebration({ kind: 'weekly', themeName: theme.name });
+      // The weekly streak is bumped by a trigger when the submission lands
+      const { weekly } = await loadStreaks();
+      setCelebration({ kind: 'weekly', themeName: theme.name, streak: weekly });
     } catch (err) {
       console.log('Submission failed:', err);
       Alert.alert('Something went wrong', err instanceof Error ? err.message : 'Please try again.');
@@ -311,7 +334,8 @@ export default function CameraScreen() {
       setDailyAlreadySubmitted(true);
       setDailyImageUri(null);
       setCalendarKey((k) => k + 1);
-      setCelebration({ kind: 'daily', streak: reward.streak, reward: reward.reward });
+      loadStreaks();
+      setCelebration({ kind: 'daily', streak: reward.streak, reward: reward.reward, bonus: reward.bonus ?? 0 });
     } catch (err) {
       console.log('Daily submission failed:', err);
       Alert.alert('Something went wrong', err instanceof Error ? err.message : 'Please try again.');
@@ -340,6 +364,10 @@ export default function CameraScreen() {
                 <Ionicons name="book-outline" size={14} color={colors.reef} />
                 <Text style={styles.cheatSheetButtonText}>Cheat sheet</Text>
               </Pressable>
+            </View>
+
+            <View style={styles.streaks}>
+              <StreakBanner daily={streaks.daily} weekly={streaks.weekly} showBonusHint />
             </View>
 
             {/* ---------- Weekly submission (main) ---------- */}
@@ -460,7 +488,8 @@ export default function CameraScreen() {
                 <>
                   <Text style={styles.dailySubtitle}>
                     No theme, no pressure — just a photo of whatever you're up to, visible to
-                    everyone. +{DAILY_SUBMISSION_REWARD} shutter and keeps your daily streak going.
+                    everyone. +{DAILY_SUBMISSION_REWARD} shutter and keeps your daily streak going, with a
+                    +{STREAK_BONUS} bonus every {STREAK_BONUS_EVERY} days in a row.
                   </Text>
 
                   {renderCapture('daily', dailyImageUri, styles.dailyCaptureButton)}
@@ -489,8 +518,9 @@ export default function CameraScreen() {
           visible={!!celebration}
           kind={celebration?.kind ?? 'daily'}
           themeName={celebration?.kind === 'weekly' ? celebration.themeName : undefined}
-          streak={celebration?.kind === 'daily' ? celebration.streak : undefined}
+          streak={celebration?.streak}
           reward={celebration?.kind === 'daily' ? celebration.reward : undefined}
+          bonus={celebration?.kind === 'daily' ? celebration.bonus : undefined}
           onClose={() => setCelebration(null)}
         />
 
@@ -557,6 +587,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   cheatSheetButtonText: { fontSize: 12, fontWeight: '600', color: colors.reef },
+  streaks: { marginBottom: 18 },
   section: {},
   title: { ...bubbly, fontSize: 24 },
   subtitle: { fontSize: 13, color: colors.muted, marginBottom: 20 },

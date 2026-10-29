@@ -32,7 +32,7 @@ const SLIDES: Slide[] = [
     bullets: [
       'A theme is announced at the start of the week',
       'Submit one photo for it, tagged as Digital or Film',
-      'Post a daily photo too: one shot a day, any subject, no theme. It keeps your streak alive',
+      'Post a daily photo too: one shot a day, any subject, no theme. It keeps your streak alive, and every 5 days in a row pays a +20 shutter bonus',
       'Everyone votes on their favorites all week',
     ],
   },
@@ -42,7 +42,7 @@ const SLIDES: Slide[] = [
     body: 'Shutters are ShuttInk\u2019s currency. Here\u2019s how they work:',
     bullets: [
       'Double-tap or hit the heart to vote. Vote for as many photos as you like',
-      'Each week\u2019s top 5, film or digital, win 50, 40, 30, 20 and 15 shutters. Ties share the spot',
+      'Each week\u2019s top 5, film or digital, win 200, 175, 150, 75 and 50 shutters. Ties share the spot',
       'Every daily photo earns you 1 shutter',
     ],
   },

@@ -30,7 +30,7 @@ type RankedSubmission = {
 type Feed = 'friends' | 'global';
 
 // Weekly prizes for 1st -> 5th, paid by process_due_payouts on the server
-const REWARDS = [50, 40, 30, 20, 15];
+const REWARDS = [200, 175, 150, 75, 50];
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 

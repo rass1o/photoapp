@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Svg, { Ellipse, Path } from 'react-native-svg';
+import { Ionicons } from '@expo/vector-icons';
 import Octopus from './Octopus';
 import { Text } from './Themed';
 import { useAuth } from '../context/AuthContext';
@@ -15,6 +16,8 @@ type Props = {
   themeName?: string;
   streak?: number;
   reward?: number;
+  // Extra shutters from hitting a streak milestone
+  bonus?: number;
   onClose: () => void;
 };
 
@@ -59,7 +62,7 @@ function Balloon() {
 }
 
 // Ocho swims up holding a balloon and a camera to cheer on a fresh submission
-export default function OchoCelebration({ visible, kind, themeName, streak, reward, onClose }: Props) {
+export default function OchoCelebration({ visible, kind, themeName, streak, reward, bonus, onClose }: Props) {
   const { user } = useAuth();
   const { height } = useWindowDimensions();
   const [octopus, setOctopus] = useState<OctopusData | null>(null);
@@ -163,7 +166,20 @@ export default function OchoCelebration({ visible, kind, themeName, streak, rewa
         <Animated.View style={[styles.speech, { opacity: pop, transform: [{ scale: pop }] }]}>
           <Text style={styles.speechTitle}>{kind === 'weekly' ? 'Submitted!' : 'Posted!'}</Text>
           <Text style={styles.speechText}>{phrase}</Text>
-          {reward ? <Text style={styles.reward}>+{reward} shutter</Text> : null}
+          {kind === 'weekly' && streak ? (
+            <View style={styles.streakChip}>
+              <Ionicons name="trophy" size={14} color="#92400E" />
+              <Text style={styles.streakChipText}>{streak} week streak</Text>
+            </View>
+          ) : null}
+          {kind === 'daily' && streak ? (
+            <View style={[styles.streakChip, styles.dailyChip]}>
+              <Ionicons name="flame" size={14} color={colors.coral} />
+              <Text style={[styles.streakChipText, styles.dailyChipText]}>{streak} day streak</Text>
+            </View>
+          ) : null}
+          {bonus ? <Text style={styles.bonus}>Streak bonus! +{bonus} shutters</Text> : null}
+          {reward ? <Text style={styles.reward}>{bonus ? `+${reward} shutters total` : `+${reward} shutter`}</Text> : null}
           <View style={styles.speechTail} />
         </Animated.View>
 
@@ -230,6 +246,22 @@ const styles = StyleSheet.create({
   },
   speechTitle: { ...bubbly, fontSize: 24, marginBottom: 4 },
   speechText: { fontSize: 15, color: colors.ink, textAlign: 'center', lineHeight: 21 },
+  streakChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 10,
+    backgroundColor: '#FEF3C7',
+    borderColor: '#D97706',
+    borderWidth: 1.5,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  streakChipText: { fontSize: 14, fontWeight: '700', color: '#92400E' },
+  dailyChip: { backgroundColor: '#FFE9DF', borderColor: colors.coral },
+  dailyChipText: { color: '#B5391E' },
+  bonus: { ...bubbly, fontSize: 18, color: colors.coral, textShadowColor: '#FFD2C2', marginTop: 8 },
   reward: { fontSize: 13, fontWeight: '700', color: colors.coral, marginTop: 8 },
   speechTail: {
     position: 'absolute',

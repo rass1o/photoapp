@@ -23,6 +23,8 @@ import { Text } from '../components/Themed';
 import { colors, bubbly } from '../theme';
 import Wave, { WAVE_HEIGHT } from '../components/Wave';
 import SandGrain from '../components/SandGrain';
+import StreakBanner from '../components/StreakBanner';
+import { liveDailyStreak } from '../lib/streaks';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 
@@ -35,6 +37,8 @@ type Profile = {
   banner_color: string;
   badge: string;
   streak_count: number;
+  daily_streak_count: number | null;
+  last_daily_submission_date: string | null;
   currency_balance: number;
   showcase_url_1: string | null;
   showcase_url_2: string | null;
@@ -72,7 +76,7 @@ export default function UserProfileScreen({ route, navigation }: Props) {
       const { data: profileData } = await supabase
         .from('profiles')
         .select(
-          'id, username, bio, avatar_url, avatar_frame_color, banner_color, badge, streak_count, currency_balance, showcase_url_1, showcase_url_2, showcase_url_3'
+          'id, username, bio, avatar_url, avatar_frame_color, banner_color, badge, streak_count, daily_streak_count, last_daily_submission_date, currency_balance, showcase_url_1, showcase_url_2, showcase_url_3'
         )
         .eq('id', userId)
         .single();
@@ -245,10 +249,6 @@ export default function UserProfileScreen({ route, navigation }: Props) {
 
           <View style={styles.statsRow}>
             <View style={styles.stat}>
-              <Text style={styles.statValue}>{profile.streak_count}</Text>
-              <Text style={styles.statLabel}>streak</Text>
-            </View>
-            <View style={styles.stat}>
               <Text style={styles.statValue}>{gallery.length}</Text>
               <Text style={styles.statLabel}>submissions</Text>
             </View>
@@ -265,8 +265,15 @@ export default function UserProfileScreen({ route, navigation }: Props) {
           <View style={styles.streakPill}>
             <Ionicons name={(profile.badge as any) ?? 'flame-outline'} size={13} color="#92400e" />
             <Text style={styles.streakText}>
-              {profile.streak_count} week streak · {badgeLabel}
+              {badgeLabel}
             </Text>
+          </View>
+
+          <View style={styles.streakBanner}>
+            <StreakBanner
+              daily={liveDailyStreak(profile.daily_streak_count, profile.last_daily_submission_date)}
+              weekly={profile.streak_count}
+            />
           </View>
         </View>
 
@@ -386,6 +393,7 @@ const styles = StyleSheet.create({
   avatarInitials: { fontSize: 18, fontWeight: '600', color: colors.coral },
   username: { ...bubbly, fontSize: 24 },
   bio: { fontSize: 13, color: colors.muted, marginTop: 2, marginBottom: 8, textAlign: 'center', paddingHorizontal: 30 },
+  streakBanner: { alignSelf: 'stretch', paddingHorizontal: 16, marginTop: 12 },
   statsRow: { flexDirection: 'row', gap: 24, marginBottom: 10 },
   friendButtonRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   friendButton: {

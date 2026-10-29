@@ -28,6 +28,8 @@ import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
 import Wave, { WAVE_HEIGHT } from '../components/Wave';
 import SandGrain from '../components/SandGrain';
+import StreakBanner from '../components/StreakBanner';
+import { liveDailyStreak } from '../lib/streaks';
 
 type Profile = {
   id: string;
@@ -38,6 +40,8 @@ type Profile = {
   banner_color: string;
   badge: string;
   streak_count: number;
+  daily_streak_count: number | null;
+  last_daily_submission_date: string | null;
   currency_balance: number;
   showcase_url_1: string | null;
   showcase_url_2: string | null;
@@ -404,9 +408,17 @@ export default function ProfileScreen() {
         <Pressable style={styles.streakPill} onPress={() => setLockerCategory('badge')}>
           <Ionicons name={profile.badge as keyof typeof Ionicons.glyphMap} size={13} color="#92400e" />
           <Text style={styles.streakText}>
-            {profile.streak_count} week streak · {badgeLabel}
+            {badgeLabel}
           </Text>
         </Pressable>
+
+        <View style={styles.streakBanner}>
+          <StreakBanner
+            daily={liveDailyStreak(profile.daily_streak_count, profile.last_daily_submission_date)}
+            weekly={profile.streak_count}
+            showBonusHint
+          />
+        </View>
       </View>
 
       <View style={styles.sheet}>
@@ -421,10 +433,6 @@ export default function ProfileScreen() {
           ListHeaderComponent={
             <View>
               <View style={styles.statsRow}>
-                <View style={styles.stat}>
-                  <Text style={styles.statValue}>{profile.streak_count}</Text>
-                  <Text style={styles.statLabel}>streak</Text>
-                </View>
                 <View style={styles.stat}>
                   <Text style={styles.statValue}>{gallery.length}</Text>
                   <Text style={styles.statLabel}>submissions</Text>
@@ -682,6 +690,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
+  streakBanner: { alignSelf: 'stretch', paddingHorizontal: 16, marginTop: 12 },
   streakText: { fontSize: 11, color: '#92400e', fontWeight: '500' },
 
   sheet: {

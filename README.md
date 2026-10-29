@@ -21,14 +21,18 @@ stocks and digital shooters can see what film looks like.
 - Tag the photo as **Film** or **Digital**. Film shooters can add a **film
   stamp** for the stock they used (Portra 400, HP5 and so on).
 - Other people like photos during the week. When the theme ends, the **global
-  top 5** earn shutters: 50, 40, 30, 20 and 15 for 1st through 5th.
+  top 5** earn shutters: 200, 175, 150, 75 and 50 for 1st through 5th.
 - Submitting to back-to-back themes builds your **weekly streak**.
 
 ### Daily photo
 - Snap or upload one photo a day of whatever you're up to. It has no theme
   and no pressure.
-- Each daily photo earns **+1 shutter** and grows your **daily streak**. The
-  day resets at your local midnight.
+- Each daily photo earns **+1 shutter** and grows your **daily streak**. Every
+  5 days in a row pays a **+20 shutter bonus**. The day resets at your local
+  midnight.
+- Both streaks are shown front and center on your profile, so you and
+  everyone visiting can see them, with a calendar of your daily posts on the
+  Submit tab.
 
 ### Learning built in
 - The submit screen has an **exposure cheat sheet** that explains aperture,
