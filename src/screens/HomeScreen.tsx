@@ -13,6 +13,10 @@ import {
   Platform,
   Alert,
   ScrollView,
+  Animated,
+  Easing,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -119,6 +123,50 @@ export default function HomeScreen() {
   const currentThemeIdRef = useRef<string | null>(null);
   // Whose posts the current feed shows: you plus your friends, or null for everyone
   const feedUserIdsRef = useRef<string[] | null>(null);
+
+  // The theme banner and feed toggle fold away while you scroll through
+  // photos, leaving just the title and daily strip on the water
+  const listRef = useRef<FlatList<Submission>>(null);
+  const headerProgress = useRef(new Animated.Value(1)).current; // 1 = open
+  const [headerHeight, setHeaderHeight] = useState(0);
+  const headerOpenRef = useRef(true);
+  const lastOffsetRef = useRef(0);
+  // Only the user's own scrolling moves the header. When the header folds,
+  // the list grows and can nudge its offset, which mustn't reopen it.
+  const userScrollingRef = useRef(false);
+
+  const setHeaderOpen = useCallback(
+    (open: boolean) => {
+      if (headerOpenRef.current === open) return;
+      headerOpenRef.current = open;
+      Animated.timing(headerProgress, {
+        toValue: open ? 1 : 0,
+        duration: 260,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false, // animates height
+      }).start();
+    },
+    [headerProgress]
+  );
+
+  const onFeedScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const dy = y - lastOffsetRef.current;
+    lastOffsetRef.current = y;
+    if (!userScrollingRef.current) return;
+    if (dy > 2 && y > 40) setHeaderOpen(false);
+    else if (y < 30 && dy < 0) setHeaderOpen(true);
+  };
+
+  // A fresh feed starts at the top, so show the banner and toggle again
+  useEffect(() => {
+    setHeaderOpen(true);
+  }, [feed, setHeaderOpen]);
+
+  const scrollToTop = () => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: true });
+    setHeaderOpen(true);
+  };
 
   // Daily freelance photos strip (BeReal-style, no theme, just today's posts)
   const [dailyPhotos, setDailyPhotos] = useState<
@@ -620,7 +668,9 @@ export default function HomeScreen() {
     <SafeAreaView style={styles.screen} edges={['top']}>
       <SeaLife />
       <View style={styles.topBar}>
-        <Text style={styles.appName}>ShuttInk</Text>
+        <Pressable onPress={scrollToTop} hitSlop={6}>
+          <Text style={styles.appName}>ShuttInk</Text>
+        </Pressable>
         <View style={styles.topBarIcons}>
           <Pressable onPress={() => setSearchVisible((v) => !v)}>
             <Ionicons name="search-outline" size={20} color={colors.ink} />
@@ -696,36 +746,56 @@ export default function HomeScreen() {
         </View>
       )}
 
-      <View style={styles.themeBanner}>
-        <Text style={styles.themeLabel}>THIS WEEK'S THEME</Text>
-        <Text style={styles.themeName}>{theme?.name ?? 'No active theme'}</Text>
-        {theme && <Text style={styles.themeCountdown}>{formatCountdown(theme.end_date)}</Text>}
-        {hasSubmittedThisTheme && (
-          <View style={styles.submittedPill}>
-            <Ionicons name="checkmark-circle" size={13} color="#166534" />
-            <Text style={styles.submittedText}>Your submission is in</Text>
+      <Animated.View
+        style={{
+          overflow: 'hidden',
+          height: headerHeight ? headerProgress.interpolate({ inputRange: [0, 1], outputRange: [0, headerHeight] }) : undefined,
+          opacity: headerProgress,
+        }}
+      >
+        <Animated.View
+          onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
+          style={{
+            transform: [
+              { translateY: headerProgress.interpolate({ inputRange: [0, 1], outputRange: [-headerHeight / 2, 0] }) },
+            ],
+          }}
+        >
+          <View style={styles.themeBanner}>
+            <Text style={styles.themeLabel}>THIS WEEK'S THEME</Text>
+            <Text style={styles.themeName}>{theme?.name ?? 'No active theme'}</Text>
+            {theme && <Text style={styles.themeCountdown}>{formatCountdown(theme.end_date)}</Text>}
+            {hasSubmittedThisTheme && (
+              <View style={styles.submittedPill}>
+                <Ionicons name="checkmark-circle" size={13} color="#166534" />
+                <Text style={styles.submittedText}>Your submission is in</Text>
+              </View>
+            )}
           </View>
-        )}
-      </View>
 
-      <View style={styles.toggleRow}>
-        <Pressable
-          style={[styles.toggle, feed === 'friends' && styles.toggleActive]}
-          onPress={() => setFeed('friends')}
-        >
-          <Text style={feed === 'friends' ? styles.toggleTextActive : styles.toggleText}>
-            Friends
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.toggle, feed === 'global' && styles.toggleActive]}
-          onPress={() => setFeed('global')}
-        >
-          <Text style={feed === 'global' ? styles.toggleTextActive : styles.toggleText}>
-            Global
-          </Text>
-        </Pressable>
-      </View>
+          <View style={styles.toggleRow}>
+            <Pressable
+              style={[styles.toggle, feed === 'friends' && styles.toggleActive]}
+              onPress={() => setFeed('friends')}
+            >
+              <Text style={feed === 'friends' ? styles.toggleTextActive : styles.toggleText}>
+                Friends
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.toggle, feed === 'global' && styles.toggleActive]}
+              onPress={() => setFeed('global')}
+            >
+              <Text style={feed === 'global' ? styles.toggleTextActive : styles.toggleText}>
+                Global
+              </Text>
+            </Pressable>
+          </View>
+
+        </Animated.View>
+      </Animated.View>
+      {/* room for the wave below */}
+      <View style={styles.waveGap} />
 
       <View style={styles.feedWrap}>
         <SandGrain />
@@ -740,8 +810,15 @@ export default function HomeScreen() {
           </View>
         ) : (
           <FlatList
+            ref={listRef}
             style={styles.feedSheet}
             data={submissions}
+            onScroll={onFeedScroll}
+            scrollEventThrottle={16}
+            onScrollBeginDrag={() => (userScrollingRef.current = true)}
+            onMomentumScrollBegin={() => (userScrollingRef.current = true)}
+            onScrollEndDrag={() => (userScrollingRef.current = false)}
+            onMomentumScrollEnd={() => (userScrollingRef.current = false)}
             keyExtractor={(item) => item.id}
             refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
             onEndReachedThreshold={0.6}
@@ -1021,11 +1098,12 @@ const styles = StyleSheet.create({
   toggleRow: {
     flexDirection: 'row',
     marginHorizontal: 16,
-    marginBottom: 24, // room for the wave below
+    marginBottom: 4,
     backgroundColor: colors.sandTrack,
     borderRadius: 20,
     padding: 3,
   },
+  waveGap: { height: 20 },
   toggle: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 18 },
   toggleActive: { backgroundColor: colors.shell },
   toggleText: { fontSize: 13, color: colors.muted },
