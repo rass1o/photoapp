@@ -206,6 +206,207 @@ function HeldItem({ kind }: { kind: string }) {
         </G>
       );
       break;
+    // Everyday stuff from the clam
+    case 'book':
+      body = (
+        <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round" rotation={-8} origin="18, 18">
+          <Rect x={4} y={2} width={30} height={36} rx={2} fill="#FFFBEB" />
+          <Rect x={0} y={0} width={30} height={36} rx={3} fill="#2563EB" />
+          <Rect x={0} y={0} width={6} height={36} fill="#1E40AF" />
+          <Rect x={10} y={8} width={15} height={7} rx={1} fill="#FDE68A" strokeWidth={1.5} />
+        </G>
+      );
+      break;
+    case 'donut':
+      body = (
+        <G stroke={OUTLINE} strokeWidth={3}>
+          <Circle cx={18} cy={16} r={17} fill="#E9B872" />
+          <Path d="M3,14 C4,2 32,2 33,14 C33,22 28,22 26,26 C22,30 14,30 10,26 C6,22 3,22 3,14 Z" fill="#F9A8D4" strokeWidth={0} />
+          <Circle cx={18} cy={16} r={6} fill={colors.sand} />
+          <Path d="M9,10 L12,8 M24,8 L27,10 M27,18 L28,21 M10,20 L8,22 M18,4 L21,5" stroke="#3B82F6" strokeWidth={2} strokeLinecap="round" />
+          <Path d="M14,26 L17,27 M26,13 L28,14 M7,14 L8,17" stroke="#FACC15" strokeWidth={2} strokeLinecap="round" />
+        </G>
+      );
+      break;
+    case 'banana':
+      body = (
+        <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round" strokeLinecap="round">
+          <Path d="M4,6 C2,28 22,38 40,30 C30,30 14,24 10,4 Z" fill="#FDE047" />
+          <Path d="M10,6 C12,20 22,28 34,30" stroke="#EAB308" strokeWidth={2} fill="none" />
+          <Path d="M4,6 L5,0 L10,1 L10,4" fill="#78350F" />
+        </G>
+      );
+      break;
+    case 'rubber_duck':
+      body = (
+        <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round">
+          <Path d="M2,22 C2,10 14,12 18,16 L36,16 C42,16 42,34 30,36 L12,36 C4,36 2,30 2,22 Z" fill="#FACC15" />
+          <Circle cx={12} cy={8} r={9} fill="#FACC15" />
+          <Path d="M2,8 L-6,10 L2,13 Z" fill="#F97316" />
+          <Circle cx={10} cy={6} r={1.8} fill={OUTLINE} strokeWidth={0} />
+          <Path d="M20,24 Q28,30 34,22" fill="none" stroke="#EAB308" strokeWidth={2.5} />
+        </G>
+      );
+      break;
+    case 'pizza':
+      body = (
+        <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round">
+          <Path d="M0,0 Q20,-6 40,0 L20,40 Z" fill="#FCD34D" />
+          <Path d="M0,0 Q20,-6 40,0 L38,5 Q20,-1 2,5 Z" fill="#D97706" />
+          <Circle cx={14} cy={10} r={4} fill="#DC2626" strokeWidth={2} />
+          <Circle cx={26} cy={13} r={4} fill="#DC2626" strokeWidth={2} />
+          <Circle cx={20} cy={24} r={3.5} fill="#DC2626" strokeWidth={2} />
+          <Path d="M9,18 Q9,24 13,26" fill="none" stroke="#FCD34D" strokeWidth={4} strokeLinecap="round" />
+        </G>
+      );
+      break;
+    case 'boba':
+      body = (
+        <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round">
+          <Path d="M22,-14 L18,4" stroke="#EC4899" strokeWidth={4} strokeLinecap="round" />
+          <Path d="M4,6 L32,6 L28,40 L8,40 Z" fill="#E7C6A5" />
+          <Path d="M4,4 Q18,-6 32,4 Z" fill="#FFFFFF" fillOpacity={0.8} />
+          <Rect x={2} y={4} width={32} height={4} rx={2} fill="#FFFFFF" />
+          <G fill="#3B2314" strokeWidth={0}>
+            <Circle cx={12} cy={35} r={2.6} />
+            <Circle cx={18} cy={33} r={2.6} />
+            <Circle cx={24} cy={35} r={2.6} />
+            <Circle cx={15} cy={29} r={2.6} />
+            <Circle cx={21} cy={28} r={2.6} />
+          </G>
+        </G>
+      );
+      break;
+    case 'ice_cream':
+      body = (
+        <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round">
+          <Path d="M4,14 L28,14 L16,44 Z" fill="#E9B872" />
+          <Path d="M9,20 L21,32 M15,16 L25,24 M20,16 L10,30" stroke="#C88A3A" strokeWidth={1.5} />
+          <Circle cx={16} cy={10} r={11} fill="#F9A8D4" />
+          <Circle cx={16} cy={-6} r={9} fill="#A7F3D0" />
+          <Circle cx={18} cy={-16} r={3.5} fill="#DC2626" />
+        </G>
+      );
+      break;
+    case 'game_controller':
+      body = (
+        <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round">
+          <Path d="M8,0 L36,0 C46,0 48,30 40,30 C34,30 32,22 28,22 L16,22 C12,22 10,30 4,30 C-4,30 -2,0 8,0 Z" fill="#7C3AED" />
+          <Path d="M10,7 L10,17 M5,12 L15,12" stroke={colors.white} strokeWidth={3} strokeLinecap="round" />
+          <Circle cx={31} cy={8} r={2.6} fill="#FACC15" strokeWidth={1.5} />
+          <Circle cx={36} cy={14} r={2.6} fill="#22C55E" strokeWidth={1.5} />
+        </G>
+      );
+      break;
+    case 'burger':
+      body = (
+        <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round">
+          <Rect x={2} y={28} width={36} height={8} rx={4} fill="#E9A15A" />
+          <Rect x={0} y={20} width={40} height={8} rx={4} fill="#7C2D12" />
+          <Path d="M0,20 L40,20 L36,24 L30,19 L24,24 L18,19 L12,24 L6,19 Z" fill="#FACC15" strokeWidth={2} />
+          <Path d="M-2,16 Q4,12 8,16 Q14,12 20,16 Q26,12 32,16 Q38,12 42,16 L40,20 L0,20 Z" fill="#4ADE80" strokeWidth={2} />
+          <Path d="M2,16 C2,-4 38,-4 38,16 Z" fill="#E9A15A" />
+          <Path d="M12,5 L14,6 M20,3 L22,4 M27,6 L29,7" stroke="#FFF7ED" strokeWidth={2} strokeLinecap="round" />
+        </G>
+      );
+      break;
+    case 'cactus':
+      body = (
+        <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round" strokeLinecap="round">
+          <Path d="M8,12 Q2,12 2,2 M30,8 Q36,8 36,-2" stroke={OUTLINE} strokeWidth={11} fill="none" />
+          <Path d="M8,12 Q2,12 2,2 M30,8 Q36,8 36,-2" stroke="#22A355" strokeWidth={6} fill="none" />
+          <Rect x={10} y={-10} width={18} height={36} rx={9} fill="#22A355" />
+          <Path d="M19,-4 L19,20" stroke="#15803D" strokeWidth={2} />
+          <Circle cx={19} cy={-11} r={3.5} fill="#F472B6" strokeWidth={2} />
+          <Path d="M4,24 L34,24 L30,42 L8,42 Z" fill="#E8664A" />
+          <Rect x={2} y={22} width={34} height={6} rx={2} fill="#C2410C" />
+        </G>
+      );
+      break;
+    case 'popcorn':
+      body = (
+        <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round">
+          <G fill="#FFF7D6">
+            <Circle cx={8} cy={4} r={6} />
+            <Circle cx={18} cy={0} r={7} />
+            <Circle cx={28} cy={4} r={6} />
+            <Circle cx={13} cy={-6} r={5} />
+            <Circle cx={24} cy={-6} r={5} />
+          </G>
+          <Path d="M2,6 L34,6 L30,42 L6,42 Z" fill={colors.white} />
+          <Path d="M10,6 L11,42 M18,6 L18,42 M26,6 L25,42" stroke="#DC2626" strokeWidth={4} />
+          <Path d="M2,6 L34,6 L30,42 L6,42 Z" fill="none" />
+        </G>
+      );
+      break;
+    case 'umbrella':
+      body = (
+        <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round" strokeLinecap="round">
+          <Path d="M18,-14 L18,30 Q18,38 12,38 Q6,38 6,32" fill="none" />
+          <Path d="M-8,-12 C-8,-44 44,-44 44,-12 Q38,-18 31,-12 Q24,-18 18,-12 Q12,-18 5,-12 Q-2,-18 -8,-12 Z" fill="#0EA5E9" />
+          <Path d="M18,-38 C10,-34 5,-24 5,-12 M18,-38 C26,-34 31,-24 31,-12" fill="none" stroke="#0369A1" strokeWidth={2} />
+          <Path d="M18,-38 L18,-43" />
+        </G>
+      );
+      break;
+    case 'guitar':
+      body = (
+        <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round" rotation={20} origin="16, 10">
+          <Rect x={13} y={-44} width={7} height={40} fill="#7C4A21" />
+          <Rect x={10} y={-56} width={13} height={14} rx={3} fill="#3F2A1A" />
+          <Path d="M16,-4 C2,-4 0,8 6,14 C-2,20 0,40 16,40 C32,40 34,20 26,14 C32,8 30,-4 16,-4 Z" fill="#E8664A" />
+          <Circle cx={16} cy={16} r={5} fill="#3F2A1A" strokeWidth={2} />
+          <Rect x={10} y={28} width={13} height={4} rx={1} fill="#3F2A1A" strokeWidth={1.5} />
+          <Path d="M15,-42 L15,30 M18,-42 L18,30" stroke="#F5F5F4" strokeWidth={0.8} />
+        </G>
+      );
+      break;
+    case 'birthday_cake':
+      body = (
+        <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round">
+          <Path d="M18,-10 C14,-14 16,-18 18,-20 C20,-18 22,-14 18,-10 Z" fill="#F97316" strokeWidth={1.5} />
+          <Rect x={16} y={-10} width={4} height={12} fill="#60A5FA" strokeWidth={1.5} />
+          <Rect x={0} y={2} width={36} height={32} rx={4} fill="#FDF2F8" />
+          <Path d="M0,8 L36,8 L36,13 Q30,18 27,12 Q22,18 18,12 Q14,18 9,12 Q4,18 0,13 Z" fill="#F472B6" strokeWidth={2} />
+          <Path d="M0,24 L36,24" stroke="#F472B6" strokeWidth={3} />
+          <Rect x={-4} y={34} width={44} height={5} rx={2} fill="#D9DEE5" />
+        </G>
+      );
+      break;
+    case 'boombox':
+      body = (
+        <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round">
+          <Path d="M8,0 Q8,-10 22,-10 Q36,-10 36,0" fill="none" stroke="#9CA3AF" strokeWidth={3.5} />
+          <Rect x={-4} y={0} width={48} height={32} rx={5} fill="#E8664A" />
+          <Rect x={12} y={4} width={20} height={8} rx={2} fill="#1E293B" strokeWidth={2} />
+          <Path d="M15,8 L29,8" stroke="#4ADE80" strokeWidth={1.5} />
+          <Circle cx={6} cy={20} r={8} fill="#1E293B" />
+          <Circle cx={6} cy={20} r={3} fill="#9CA3AF" strokeWidth={1.5} />
+          <Circle cx={34} cy={20} r={8} fill="#1E293B" />
+          <Circle cx={34} cy={20} r={3} fill="#9CA3AF" strokeWidth={1.5} />
+          <Path d="M48,-6 L48,-14 L54,-16 L54,-8 M48,-14 L54,-16" fill="none" stroke={OUTLINE} strokeWidth={2} />
+          <Circle cx={46.5} cy={-6} r={2.2} fill={OUTLINE} strokeWidth={0} />
+          <Circle cx={52.5} cy={-8} r={2.2} fill={OUTLINE} strokeWidth={0} />
+        </G>
+      );
+      break;
+    case 'disco_ball':
+      body = (
+        <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round">
+          <Path d="M20,-16 L20,0" strokeWidth={2} />
+          <Circle cx={20} cy={18} r={18} fill="#CBD5E1" />
+          <G stroke="#94A3B8" strokeWidth={1.2} fill="none">
+            <Path d="M3,12 L37,12 M2,18 L38,18 M3,24 L37,24 M7,30 L33,30 M7,6 L33,6" />
+            <Path d="M20,0 L20,36 M13,1 Q9,18 13,35 M27,1 Q31,18 27,35" />
+          </G>
+          <Rect x={13.5} y={6.5} width={6} height={5} fill="#F0ABFC" strokeWidth={0} />
+          <Rect x={20.5} y={12.5} width={6} height={5} fill="#7DD3FC" strokeWidth={0} />
+          <Rect x={8} y={18.5} width={5} height={5} fill={colors.white} strokeWidth={0} />
+          <Circle cx={20} cy={18} r={18} fill="none" />
+          <Path d="M42,2 L44,-2 L46,2 L50,4 L46,6 L44,10 L42,6 L38,4 Z" fill="#FDE047" strokeWidth={1.2} />
+        </G>
+      );
+      break;
     default:
       return null;
   }
