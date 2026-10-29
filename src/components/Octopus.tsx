@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { ReactNode, useContext, useEffect, useState } from 'react';
+import { NavigationContext } from '@react-navigation/native';
 import { Pressable, View, StyleSheet } from 'react-native';
 import Reanimated, {
   cancelAnimation,
@@ -507,6 +508,7 @@ function Tentacle({
   phase,
   ripple,
   t,
+  amp,
   raise,
   color,
   opacity,
@@ -515,6 +517,8 @@ function Tentacle({
   phase: number;
   ripple: number;
   t: SharedValue<number>;
+  amp: SharedValue<number>; // 0 = still, 1 = full ripple
+
   raise?: Raise;
   color: string;
   opacity?: SharedValue<number>;
@@ -522,7 +526,7 @@ function Tentacle({
   const d = useDerivedValue(() => {
     const k = raise ? raise.amount.value : 0;
     const s = raise?.swing ? raise.swing.value : 0;
-    const drift = Math.sin(t.value + phase) * ripple * (1 - k);
+    const drift = Math.sin(t.value + phase) * ripple * amp.value * (1 - k);
     const out: number[] = [];
     for (let i = 0; i < 14; i++) {
       let up = rest[i];
@@ -600,6 +604,25 @@ function Bubble({ p, r, dx }: { p: SharedValue<number>; r: number; dx: number })
   return <AnimatedCircle animatedProps={props} fill="#FFFFFF" fillOpacity={0.55} stroke="#7CC6E8" strokeWidth={2.5} />;
 }
 
+// Tab screens stay mounted in the background; pause there so a hidden Ocho
+// doesn't eat frames from the screen you're on. Outside navigation
+// (onboarding) there's no screen to track, so he's always on.
+function useScreenFocused() {
+  const navigation = useContext(NavigationContext);
+  const [focused, setFocused] = useState(() => navigation?.isFocused() ?? true);
+  useEffect(() => {
+    if (!navigation) return;
+    setFocused(navigation.isFocused());
+    const offFocus = navigation.addListener('focus', () => setFocused(true));
+    const offBlur = navigation.addListener('blur', () => setFocused(false));
+    return () => {
+      offFocus();
+      offBlur();
+    };
+  }, [navigation]);
+  return focused;
+}
+
 // 'peek': lifts a camera to his eye and back down, waving in between
 export type OctopusPose = 'idle' | 'peek';
 
@@ -619,7 +642,10 @@ function LivelyOctopus({
   tappable: boolean;
 }) {
   const reduceMotion = useReducedMotion();
+  const focused = useScreenFocused();
+  const active = focused && !reduceMotion;
   const t = useSharedValue(0);
+  const amp = useSharedValue(0);
   const bob = useSharedValue(0);
   const sway = useSharedValue(0);
   const giggle = useSharedValue(0);
@@ -677,6 +703,13 @@ function LivelyOctopus({
       mouth.value = withSequence(to(0.6, 120), withDelay(250, to(0, 160)));
       return 520;
     },
+    // Redrawing tentacle shapes is the costly part, so they only ripple
+    // now and then instead of on every frame
+    ripple: () => {
+      t.value = withTiming(t.value + Math.PI * 3, { duration: 2800, easing: Easing.linear });
+      amp.value = withSequence(to(1, 500), withDelay(1600, to(0, 700)));
+      return 2800;
+    },
     peek: () => {
       peek.value = withSequence(to(1, 550), withDelay(1400, to(0, 550)));
       blink.value = withDelay(1100, withSequence(to(1, 70), withDelay(70, to(0, 100))));
@@ -685,8 +718,7 @@ function LivelyOctopus({
   };
 
   useEffect(() => {
-    if (reduceMotion) return;
-    t.value = withRepeat(withTiming(Math.PI * 2, { duration: 3600, easing: Easing.linear }), -1, false);
+    if (!active) return;
     bob.value = withRepeat(to(1, 1400), -1, true);
     sway.value = withSequence(to(-1, 1050), withRepeat(withSequence(to(1, 2100), to(-1, 2100)), -1));
 
@@ -704,7 +736,15 @@ function LivelyOctopus({
         } else {
           const roll = Math.random();
           took =
-            roll < 0.25 ? actions.wave() : roll < 0.5 ? actions.look() : roll < 0.72 ? actions.bubbles() : actions.blink();
+            roll < 0.2
+              ? actions.wave()
+              : roll < 0.4
+                ? actions.look()
+                : roll < 0.6
+                  ? actions.bubbles()
+                  : roll < 0.8
+                    ? actions.ripple()
+                    : actions.blink();
         }
         next(took + (pose === 'peek' ? 300 : 1400 + Math.random() * 2400));
       }, wait);
@@ -725,13 +765,15 @@ function LivelyOctopus({
       alive = false;
       clearTimeout(timer);
       clearTimeout(blinkTimer);
-      [t, bob, sway, giggle, squishX, squishY, raise, swing, peek, lookX, lookY, blink, mouth, ...bubbles].forEach(
-        (v) => cancelAnimation(v)
-      );
+      // Settle back to rest so he's tidy when the screen comes back
+      [t, amp, bob, sway, giggle, raise, swing, peek, lookX, lookY, blink, mouth, ...bubbles].forEach((v) => {
+        cancelAnimation(v);
+        v.value = 0;
+      });
     };
     // actions only touch shared values, which never change identity
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pose, reduceMotion]);
+  }, [pose, active]);
 
   // Tapping squishes him like a water balloon, then he reacts
   const onTap = () => {
@@ -762,39 +804,64 @@ function LivelyOctopus({
   const look = { x: lookX, y: lookY };
   const holding = pose === 'peek' ? null : heldItem;
 
+  // Each layer is its own drawing, and a drawing is redrawn whole whenever
+  // any part of it moves. So the tentacles (which bend), the face (which
+  // blinks now and then) and the gear (which never changes) are kept apart.
+  const viewBox = '0 -30 200 250';
+  const still = (children: ReactNode) => (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <Svg width={width} height={height} viewBox={viewBox}>
+        {children}
+      </Svg>
+    </View>
+  );
+
   const drawing = (
     <Reanimated.View style={[{ width, height, transformOrigin: 'bottom' }, body]}>
-      <Svg width={width} height={height} viewBox="0 -30 200 250">
-        {holding === 'skateboard' ? <Skateboard /> : null}
-        <Tentacle rest={REST[0]} phase={0} ripple={3} t={t} color={color} raise={{ up: WAVE_IN, alt: WAVE_OUT, amount: raise, swing }} />
-        {[1, 2, 3, 4].map((i) => (
-          <Tentacle key={i} rest={REST[i]} phase={i * 1.3} ripple={3.5} t={t} color={color} />
-        ))}
-        <Tentacle
-          rest={REST[5]}
-          phase={0}
-          ripple={0}
-          t={t}
-          color={color}
-          raise={pose === 'peek' ? { up: PEEK_UP, amount: peek } : undefined}
-        />
-        <HeadBase color={color} />
-        <Eye cx={78} look={look} blink={leftBlink} />
-        <Eye cx={122} look={look} blink={blink} />
-        <Mouth open={mouth} />
-        {BUBBLES.map((b, i) => (
-          <Bubble key={i} p={bubbles[i]} r={b.r} dx={b.dx} />
-        ))}
-        {/* while peeking, the raised arm comes round in front of his face */}
-        {pose === 'peek' && (
-          <Tentacle rest={REST[5]} phase={0} ripple={0} t={t} color={color} raise={{ up: PEEK_UP, amount: peek }} opacity={peekFront} />
+      {holding === 'skateboard' && still(<Skateboard />)}
+      {still(
+        <G>
+          <Tentacle rest={REST[0]} phase={0} ripple={3} t={t} amp={amp} color={color} raise={{ up: WAVE_IN, alt: WAVE_OUT, amount: raise, swing }} />
+          {[1, 2, 3, 4].map((i) => (
+            <Tentacle key={i} rest={REST[i]} phase={i * 1.3} ripple={3.5} t={t} amp={amp} color={color} />
+          ))}
+          <Tentacle
+            rest={REST[5]}
+            phase={0}
+            ripple={0}
+            t={t}
+            amp={amp}
+            color={color}
+            raise={pose === 'peek' ? { up: PEEK_UP, amount: peek } : undefined}
+          />
+        </G>
+      )}
+      {still(
+        <G>
+          <HeadBase color={color} />
+          <Eye cx={78} look={look} blink={leftBlink} />
+          <Eye cx={122} look={look} blink={blink} />
+          <Mouth open={mouth} />
+          {BUBBLES.map((b, i) => (
+            <Bubble key={i} p={bubbles[i]} r={b.r} dx={b.dx} />
+          ))}
+        </G>
+      )}
+      {/* while peeking, the raised arm comes round in front of his face */}
+      {pose === 'peek' &&
+        still(
+          <Tentacle rest={REST[5]} phase={0} ripple={0} t={t} amp={amp} color={color} raise={{ up: PEEK_UP, amount: peek }} opacity={peekFront} />
         )}
-        {accessory ? <Accessory kind={accessory} /> : null}
-        {holding && holding !== 'skateboard' ? <HeldItem kind={holding} /> : null}
-      </Svg>
+      {(accessory || (holding && holding !== 'skateboard')) &&
+        still(
+          <G>
+            {accessory ? <Accessory kind={accessory} /> : null}
+            {holding && holding !== 'skateboard' ? <HeldItem kind={holding} /> : null}
+          </G>
+        )}
       {pose === 'peek' && (
         <Reanimated.View pointerEvents="none" style={[StyleSheet.absoluteFill, camera]}>
-          <Svg width={width} height={height} viewBox="0 -30 200 250">
+          <Svg width={width} height={height} viewBox={viewBox}>
             <HeldItem kind="camera" />
           </Svg>
         </Reanimated.View>
@@ -820,6 +887,7 @@ export default function Octopus({
   pose = 'idle',
   tappable = false,
 }: Props) {
+  const focused = useScreenFocused();
   const octopus = animated ? (
     <LivelyOctopus color={color} accessory={accessory} heldItem={heldItem} size={size} pose={pose} tappable={tappable} />
   ) : (
@@ -839,7 +907,7 @@ export default function Octopus({
   return (
     <View style={{ paddingLeft: size * PET_SPACE, flexDirection: 'row', alignItems: 'flex-end' }}>
       <View style={[styles.pet, { bottom: size * 0.1, width: size * PET_SIZE }]}>
-        <Sidekick kind={pet} size={size * PET_SIZE} animated={animated} />
+        <Sidekick kind={pet} size={size * PET_SIZE} animated={animated && focused} />
       </View>
       {octopus}
     </View>
