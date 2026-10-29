@@ -7,9 +7,18 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
+
+// New passwords must pass all of these; shown as a checklist under the field
+const PASSWORD_RULES: { label: string; test: (p: string) => boolean }[] = [
+  { label: 'More than 6 characters', test: (p) => p.length > 6 },
+  { label: 'A number', test: (p) => /\d/.test(p) },
+  { label: 'An uppercase letter', test: (p) => /[A-Z]/.test(p) },
+  { label: 'A special character (like ! @ # $)', test: (p) => /[^A-Za-z0-9]/.test(p) },
+];
 
 export default function AuthScreen() {
   const { signIn, signUp, resendConfirmation, authError } = useAuth();
@@ -29,8 +38,12 @@ export default function AuthScreen() {
       setError('Enter a valid email');
       return;
     }
-    if (password.length < 6) {
-      setError('Password needs at least 6 characters');
+    if (mode === 'signIn' && password.length === 0) {
+      setError('Enter your password');
+      return;
+    }
+    if (mode === 'signUp' && !PASSWORD_RULES.every((r) => r.test(password))) {
+      setError('Your password needs everything on the list above');
       return;
     }
     if (mode === 'signUp' && username.trim().length < 2) {
@@ -141,6 +154,24 @@ export default function AuthScreen() {
                 onChangeText={setPassword}
               />
 
+              {mode === 'signUp' && (
+                <View style={styles.rules}>
+                  {PASSWORD_RULES.map((rule) => {
+                    const met = rule.test(password);
+                    return (
+                      <View key={rule.label} style={styles.ruleRow}>
+                        <Ionicons
+                          name={met ? 'checkmark-circle' : 'ellipse-outline'}
+                          size={14}
+                          color={met ? '#047857' : colors.faint}
+                        />
+                        <Text style={[styles.ruleText, met && styles.ruleTextMet]}>{rule.label}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
               {displayError ? <Text style={styles.error}>{displayError}</Text> : null}
               {mode === 'signIn' && displayError?.startsWith('Confirm your email') && (
                 <Pressable onPress={() => resend(email.trim())} style={styles.linkButton}>
@@ -198,6 +229,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.sandBorder,
   },
+  rules: { marginTop: -2, marginBottom: 12, gap: 4, paddingHorizontal: 2 },
+  ruleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  ruleText: { fontSize: 12, color: colors.muted },
+  ruleTextMet: { color: '#047857' },
   error: { color: '#b91c1c', fontSize: 12, marginBottom: 10 },
   submitButton: {
     backgroundColor: colors.deep,

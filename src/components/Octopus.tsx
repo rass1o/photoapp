@@ -718,7 +718,7 @@ export default function Octopus({ color, accessory, heldItem, pet, size = 140, a
   return (
     <View style={{ paddingLeft: size * PET_SPACE, flexDirection: 'row', alignItems: 'flex-end' }}>
       <View style={[styles.pet, { bottom: size * 0.1, width: size * PET_SIZE }]}>
-        <Sidekick kind={pet} size={size * PET_SIZE} />
+        <Sidekick kind={pet} size={size * PET_SIZE} animated={animated} />
       </View>
       {octopus}
     </View>

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Animated, Easing, View, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { Animated, Easing, View, StyleSheet, Pressable, ScrollView, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Octopus from '../components/Octopus';
@@ -172,41 +172,77 @@ function SlideVisual({ visual, icon }: { visual?: Visual; icon: Slide['icon'] })
   }
 }
 
+function SlidePage({ slide, title, kicker, pop }: { slide: Slide; title: string; kicker?: string; pop: Animated.AnimatedInterpolation<number> | number }) {
+  return (
+    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <Animated.View style={[styles.visual, { transform: [{ scale: pop }] }]}>
+        <SlideVisual visual={slide.visual} icon={slide.icon} />
+      </Animated.View>
+
+      <Text style={styles.title}>{title}</Text>
+      {kicker ? <Text style={styles.kicker}>{kicker}</Text> : null}
+      <Text style={styles.body}>{slide.body}</Text>
+
+      {slide.bullets && (
+        <View style={styles.bulletList}>
+          {slide.bullets.map((b, i) => (
+            <View key={i} style={styles.bulletRow}>
+              <View style={styles.bulletDot} />
+              <Text style={styles.bulletText}>{b}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+const DOT = 6;
+const DOT_GAP = 6;
+const DOT_ACTIVE = 18;
+
 export default function OnboardingScreen({ onDone }: Props) {
   const { user } = useAuth();
+  const { width } = useWindowDimensions();
   const [index, setIndex] = useState(0);
-  const slide = SLIDES[index];
+  // The page being turned away from, kept on screen while it slides out
+  const [leaving, setLeaving] = useState<{ index: number; dir: number } | null>(null);
   const isLast = index === SLIDES.length - 1;
 
-  const slideX = useRef(new Animated.Value(0)).current;
-  const fade = useRef(new Animated.Value(1)).current;
-  const pop = useRef(new Animated.Value(1)).current;
-  const turning = useRef(false);
+  const progress = useRef(new Animated.Value(1)).current; // 0 -> 1 over a page turn
+  const dotPos = useRef(new Animated.Value(0)).current;
 
-  // The page slides out toward where you're heading, the next one slides in
-  // from the other side and its picture pops in
+  // Both pages move together: the old one slides off and fades while the
+  // new one slides in from the other side, so there's no gap between them
   const goTo = (next: number) => {
-    if (turning.current || next < 0 || next >= SLIDES.length) return;
-    turning.current = true;
+    if (leaving || next < 0 || next >= SLIDES.length) return;
     const dir = next > index ? 1 : -1;
-    Animated.parallel([
-      Animated.timing(slideX, { toValue: -dir * 50, duration: 160, easing: Easing.in(Easing.quad), useNativeDriver: true }),
-      Animated.timing(fade, { toValue: 0, duration: 160, useNativeDriver: true }),
-    ]).start(() => {
-      setIndex(next);
-      slideX.setValue(dir * 70);
-      pop.setValue(0.5);
-      Animated.parallel([
-        Animated.spring(slideX, { toValue: 0, friction: 8, tension: 70, useNativeDriver: true }),
-        Animated.timing(fade, { toValue: 1, duration: 220, useNativeDriver: true }),
-        Animated.spring(pop, { toValue: 1, friction: 4, tension: 90, useNativeDriver: true }),
-      ]).start(() => {
-        turning.current = false;
-      });
-    });
+    progress.setValue(0);
+    setLeaving({ index, dir });
+    setIndex(next);
+    Animated.spring(dotPos, { toValue: next, friction: 7, tension: 80, useNativeDriver: true }).start();
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: 480,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(() => setLeaving(null));
   };
 
-  const title = index === 0 && user?.username ? `Welcome, ${user.username}!` : slide.title;
+  const dir = leaving?.dir ?? 1;
+  const shift = width * 0.45;
+  const incoming = {
+    opacity: progress.interpolate({ inputRange: [0, 0.25, 1], outputRange: [0, 0.35, 1] }),
+    transform: [{ translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [dir * shift, 0] }) }],
+  };
+  const outgoing = {
+    opacity: progress.interpolate({ inputRange: [0, 0.6], outputRange: [1, 0], extrapolate: 'clamp' as const }),
+    transform: [{ translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [0, -dir * shift] }) }],
+  };
+  const pop = progress.interpolate({ inputRange: [0, 0.55, 1], outputRange: [0.6, 1.06, 1] });
+
+  const pages = leaving ? [leaving.index, index] : [index];
+  const greet = !!user?.username;
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -218,34 +254,44 @@ export default function OnboardingScreen({ onDone }: Props) {
         )}
       </View>
 
-      <Animated.View style={[styles.page, { opacity: fade, transform: [{ translateX: slideX }] }]}>
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <Animated.View style={[styles.visual, { transform: [{ scale: pop }] }]}>
-            <SlideVisual visual={slide.visual} icon={slide.icon} />
+      <View style={styles.page}>
+        {pages.map((i) => (
+          <Animated.View
+            key={i}
+            pointerEvents={i === index ? 'auto' : 'none'}
+            style={[StyleSheet.absoluteFill, i === index ? incoming : outgoing]}
+          >
+            <SlidePage
+              slide={SLIDES[i]}
+              title={i === 0 && greet ? `Welcome, ${user!.username}!` : SLIDES[i].title}
+              kicker={i === 0 && greet ? 'Welcome to ShuttInk' : undefined}
+              pop={i === index ? pop : 1}
+            />
           </Animated.View>
-
-          <Text style={styles.title}>{title}</Text>
-          {index === 0 && user?.username ? <Text style={styles.kicker}>Welcome to ShuttInk</Text> : null}
-          <Text style={styles.body}>{slide.body}</Text>
-
-          {slide.bullets && (
-            <View style={styles.bulletList}>
-              {slide.bullets.map((b, i) => (
-                <View key={i} style={styles.bulletRow}>
-                  <View style={styles.bulletDot} />
-                  <Text style={styles.bulletText}>{b}</Text>
-                </View>
-              ))}
-            </View>
-          )}
-        </ScrollView>
-      </Animated.View>
+        ))}
+      </View>
 
       <View style={styles.footer}>
         <View style={styles.dots}>
           {SLIDES.map((_, i) => (
-            <View key={i} style={[styles.dot, i === index && styles.dotActive, i < index && styles.dotDone]} />
+            <View key={i} style={[styles.dot, i < index && styles.dotDone]} />
           ))}
+          {/* the active pill glides between dots */}
+          <Animated.View
+            style={[
+              styles.dotActive,
+              {
+                transform: [
+                  {
+                    translateX: dotPos.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [(DOT - DOT_ACTIVE) / 2, (DOT - DOT_ACTIVE) / 2 + DOT + DOT_GAP],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          />
         </View>
 
         <View style={styles.buttons}>
@@ -255,7 +301,7 @@ export default function OnboardingScreen({ onDone }: Props) {
             </Pressable>
           )}
           <Pressable style={styles.continueButton} onPress={() => (isLast ? onDone() : goTo(index + 1))}>
-            <Text style={styles.continueText}>{isLast ? 'Let’s Ride' : 'Continue'}</Text>
+            <Text style={styles.continueText}>{isLast ? 'Let\u2019s Ride' : 'Continue'}</Text>
           </Pressable>
         </View>
       </View>
@@ -268,7 +314,7 @@ const styles = StyleSheet.create({
   skipRow: { alignItems: 'flex-end', paddingHorizontal: 20, paddingTop: 8, minHeight: 32 },
   skipText: { fontSize: 13, color: colors.muted },
 
-  page: { flex: 1 },
+  page: { flex: 1, overflow: 'hidden' },
   content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 32, paddingVertical: 12 },
   visual: { alignSelf: 'center', alignItems: 'center', marginBottom: 20 },
   iconCircle: {
@@ -327,10 +373,10 @@ const styles = StyleSheet.create({
   rarityPrice: { fontSize: 12, fontWeight: '600' },
 
   footer: { paddingHorizontal: 24, paddingBottom: 20 },
-  dots: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: 20 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.sandDark },
+  dots: { flexDirection: 'row', alignSelf: 'center', gap: DOT_GAP, marginBottom: 20 },
+  dot: { width: DOT, height: DOT, borderRadius: DOT / 2, backgroundColor: colors.sandDark },
   dotDone: { backgroundColor: colors.reef },
-  dotActive: { backgroundColor: colors.deep, width: 18 },
+  dotActive: { position: 'absolute', left: 0, top: 0, width: DOT_ACTIVE, height: DOT, borderRadius: DOT / 2, backgroundColor: colors.deep },
 
   buttons: { flexDirection: 'row', gap: 10 },
   backButton: {
