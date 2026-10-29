@@ -1,5 +1,21 @@
 import { ReactNode, useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Canvas, Group as SkGroup, Path as SkPath, Skia } from '@shopify/react-native-skia';
+import Reanimated, {
+  cancelAnimation,
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useDerivedValue,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming,
+  type SharedValue,
+} from 'react-native-reanimated';
 import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
 import { colors } from '../theme';
 
@@ -55,7 +71,12 @@ function CatTail({ c }: { c: CatLook }) {
   );
 }
 
-function Cat({ c }: { c: CatLook }) {
+function CatPaw({ x, c }: { x: number; c: CatLook }) {
+  return <Ellipse cx={x} cy={92} rx={7} ry={4.5} fill={c.chest ?? c.fur} stroke={OUTLINE} strokeWidth={2.5} />;
+}
+
+// paws: which front paws are drawn here ('none'/'left' when they move on their own)
+function Cat({ c, paws = 'both' }: { c: CatLook; paws?: 'both' | 'left' | 'none' }) {
   return (
     <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
       <Ellipse cx={50} cy={72} rx={24} ry={22} fill={c.fur} />
@@ -66,8 +87,8 @@ function Cat({ c }: { c: CatLook }) {
           <Path d="M58,84 C60,76 70,74 72,80 C72,88 64,92 58,90 Z" fill={c.patches.black} />
         </G>
       )}
-      <Ellipse cx={41} cy={92} rx={7} ry={4.5} fill={c.chest ?? c.fur} />
-      <Ellipse cx={59} cy={92} rx={7} ry={4.5} fill={c.chest ?? c.fur} />
+      {paws !== 'none' && <Ellipse cx={41} cy={92} rx={7} ry={4.5} fill={c.chest ?? c.fur} />}
+      {paws === 'both' && <Ellipse cx={59} cy={92} rx={7} ry={4.5} fill={c.chest ?? c.fur} />}
       <Path d="M32,32 L29,8 L47,22 Z" fill={c.patches ? c.patches.orange : c.fur} />
       <Path d="M68,32 L71,8 L53,22 Z" fill={c.patches ? c.patches.black : c.fur} />
       <Path d="M33,26 L32,15 L40,22 Z" fill={c.earInner} strokeWidth={0} />
@@ -89,11 +110,19 @@ function CatFace({ eyes }: { eyes: string }) {
     <G>
       <Ellipse cx={42} cy={39} rx={5} ry={6} fill={eyes} />
       <Ellipse cx={58} cy={39} rx={5} ry={6} fill={eyes} />
-      <Ellipse cx={42} cy={39.5} rx={1.6} ry={4.5} fill="#111" />
-      <Ellipse cx={58} cy={39.5} rx={1.6} ry={4.5} fill="#111" />
       <Path d="M47.5,46 L52.5,46 L50,49 Z" fill="#F9A8D4" />
       <Path d="M50,49 Q47,52 45,50 M50,49 Q53,52 55,50" stroke="#9CA3AF" strokeWidth={1.2} fill="none" />
       <Path d="M30,45 L40,47 M30,50 L40,49 M70,45 L60,47 M70,50 L60,49" stroke="#9CA3AF" strokeWidth={1} />
+    </G>
+  );
+}
+
+// Slit pupils, apart from the face so they can glance around
+function CatPupils() {
+  return (
+    <G>
+      <Ellipse cx={42} cy={39.5} rx={1.6} ry={4.5} fill="#111" />
+      <Ellipse cx={58} cy={39.5} rx={1.6} ry={4.5} fill="#111" />
     </G>
   );
 }
@@ -120,16 +149,33 @@ function MerlinFish() {
   );
 }
 
-// Tuxie: thick nerd glasses with tape on the bridge, and a bowtie
-function TuxieExtras() {
+// Tuxie: a bowtie, and thick nerd glasses with tape on the bridge
+function TuxieBowtie() {
   return (
     <G stroke={OUTLINE} strokeLinejoin="round">
       <Path d="M44,58 L36,53 L36,63 Z M56,58 L64,53 L64,63 Z" fill="#DC2626" strokeWidth={1.8} />
       <Circle cx={50} cy={58} r={3} fill="#B91C1C" strokeWidth={1.5} />
+    </G>
+  );
+}
+
+function TuxieGlasses() {
+  return (
+    <G stroke={OUTLINE} strokeLinejoin="round">
       <Rect x={34.5} y={32.5} width={15} height={13} rx={3} fill="#FFFFFF" fillOpacity={0.15} stroke="#111" strokeWidth={3} />
       <Rect x={50.5} y={32.5} width={15} height={13} rx={3} fill="#FFFFFF" fillOpacity={0.15} stroke="#111" strokeWidth={3} />
       <Rect x={48} y={35.5} width={4} height={4} fill="#F5F5F4" strokeWidth={1} />
       <Path d="M34.5,36 L28,34 M65.5,36 L72,34" stroke="#111" strokeWidth={3} strokeLinecap="round" />
+    </G>
+  );
+}
+
+// His foreleg, raised in front of his chest to push his glasses up
+function TuxieLeg() {
+  return (
+    <G stroke={OUTLINE} strokeWidth={2.5}>
+      <Rect x={54} y={66} width={10} height={40} rx={5} fill={colors.white} />
+      <Path d="M56.5,69 L56.5,71.5 M59,68 L59,70.5 M61.5,69 L61.5,71.5" strokeWidth={1.2} strokeLinecap="round" />
     </G>
   );
 }
@@ -200,7 +246,16 @@ function BassetTail({ c }: { c: BassetColors }) {
   );
 }
 
-function Basset({ c }: { c: BassetColors }) {
+function BassetEar({ side, c }: { side: 'left' | 'right'; c: BassetColors }) {
+  return side === 'left' ? (
+    <Path d="M44,30 C28,33 22,74 32,88 C42,92 47,58 46,40 Z" fill={c.ears} stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" />
+  ) : (
+    <Path d="M72,30 C88,33 94,74 84,88 C74,92 69,58 70,40 Z" fill={c.ears} stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" />
+  );
+}
+
+// ears: false when they're drawn on their own layers so they can flare
+function Basset({ c, ears = true }: { c: BassetColors; ears?: boolean }) {
   return (
     <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
       <Ellipse cx={58} cy={74} rx={30} ry={20} fill={c.body} />
@@ -209,8 +264,8 @@ function Basset({ c }: { c: BassetColors }) {
       <Ellipse cx={71} cy={93} rx={8} ry={4.5} fill={c.paws} />
       <Ellipse cx={58} cy={42} rx={18} ry={20} fill={c.head} />
       {/* long droopy ears */}
-      <Path d="M44,30 C28,33 22,74 32,88 C42,92 47,58 46,40 Z" fill={c.ears} />
-      <Path d="M72,30 C88,33 94,74 84,88 C74,92 69,58 70,40 Z" fill={c.ears} />
+      {ears && <BassetEar side="left" c={c} />}
+      {ears && <BassetEar side="right" c={c} />}
       {c.blaze && <Path d="M58,24 C55,32 55,42 58,48 C61,42 61,32 58,24 Z" fill={c.blaze} strokeWidth={0} />}
       <Ellipse cx={58} cy={55} rx={12} ry={9} fill={c.muzzle} />
     </G>
@@ -226,6 +281,16 @@ function BassetFace() {
       <Path d="M47,40 Q51,38 55,41 M61,41 Q65,38 69,40" stroke="#111" strokeWidth={1.5} fill="none" />
       <Ellipse cx={58} cy={51} rx={5} ry={3.5} fill="#2B1D16" />
       <Path d="M58,54 L58,57 Q55,60 52,58 M58,57 Q61,60 64,58" stroke="#2B1D16" strokeWidth={1.5} fill="none" />
+    </G>
+  );
+}
+
+// Stuck out now and then
+function Tongue() {
+  return (
+    <G stroke={OUTLINE} strokeWidth={1.5} strokeLinejoin="round">
+      <Path d="M53,57 Q52,69 58,69 Q64,69 63,57 Z" fill="#F472B6" />
+      <Path d="M58,59 L58,65" stroke="#DB2777" strokeWidth={1.2} strokeLinecap="round" />
     </G>
   );
 }
@@ -251,10 +316,16 @@ function ScarletExtras() {
 
 // ------------------------------------------------------------- the rest
 
-// Mango: a flamingo on one leg in a pink cowboy hat, chewing on wheat
-function Mango() {
-  const pink = '#F9A8C9';
-  const deep = '#EC6FA6';
+// Mango: a flamingo on one leg in a pink cowboy hat, chewing on wheat.
+// Body, neck and head are apart so she can bend down.
+const MANGO_PINK = '#F9A8C9';
+const MANGO_DEEP = '#EC6FA6';
+const NECK_UP = 'M40,58 C26,52 30,40 40,38 C48,36 46,30 40,30';
+const NECK_DOWN = 'M40,58 C30,60 22,68 24,74 C25,78 28,80 30,80';
+
+function MangoBody() {
+  const pink = MANGO_PINK;
+  const deep = MANGO_DEEP;
   return (
     <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
       {/* legs: one straight, one tucked */}
@@ -263,9 +334,24 @@ function Mango() {
       <Path d="M76,56 L92,52 L86,62 Z" fill={deep} />
       <Ellipse cx={58} cy={60} rx={23} ry={14} fill={pink} />
       <Path d="M52,58 C60,52 72,54 76,60 C68,66 58,66 52,58 Z" fill={deep} strokeWidth={2} />
-      {/* S-shaped neck */}
-      <Path d="M40,58 C26,52 30,40 40,38 C48,36 46,30 40,30" stroke={OUTLINE} strokeWidth={10} fill="none" />
-      <Path d="M40,58 C26,52 30,40 40,38 C48,36 46,30 40,30" stroke={pink} strokeWidth={5} fill="none" />
+    </G>
+  );
+}
+
+function MangoNeck() {
+  return (
+    <G strokeLinecap="round">
+      <Path d={NECK_UP} stroke={OUTLINE} strokeWidth={10} fill="none" />
+      <Path d={NECK_UP} stroke={MANGO_PINK} strokeWidth={5} fill="none" />
+    </G>
+  );
+}
+
+function MangoHead() {
+  const pink = MANGO_PINK;
+  const deep = MANGO_DEEP;
+  return (
+    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
       <Circle cx={38} cy={26} r={10} fill={pink} />
       {/* beak bends down, black tip */}
       <Path d="M45,23 C52,23 56,27 55,34 C53,30 50,29 45,30 Z" fill="#FFF1E6" />
@@ -374,7 +460,23 @@ function Gibson() {
       <Path d="M47,62 L53,62 L50,65 Z" fill="#F472B6" strokeWidth={1.5} />
       <Path d="M50,65 Q47,69 44,67 M50,65 Q53,69 56,67" strokeWidth={1.5} fill="none" />
       <Rect x={47.5} y={67.5} width={5} height={4} rx={1} fill="#FFFFFF" strokeWidth={1.2} />
-      {/* sunglasses */}
+    </G>
+  );
+}
+
+// Under the sunglasses, seen when he lifts them to wink
+function GibsonEye({ x }: { x: number }) {
+  return (
+    <G>
+      <Circle cx={x} cy={54} r={3.6} fill="#111" />
+      <Circle cx={x + 1.2} cy={52.8} r={1.1} fill={colors.white} />
+    </G>
+  );
+}
+
+function GibsonGlasses() {
+  return (
+    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
       <Path d="M28,50 L72,50" strokeWidth={3} />
       <Path d="M30,49 L48,49 Q48,60 39,60 Q30,60 30,49 Z" fill="#111827" />
       <Path d="M52,49 L70,49 Q70,60 61,60 Q52,60 52,49 Z" fill="#111827" />
@@ -404,14 +506,17 @@ const isBasset = (k: string): k is BassetKind => (BASSET_KINDS as readonly strin
 // The whole pet in one drawing, for previews and tiles
 function Still({ kind }: { kind: string }) {
   if (isCat(kind)) {
+    const c = CATS[kind];
     return (
       <G>
-        <CatTail c={CATS[kind]} />
-        <Cat c={CATS[kind]} />
-        <CatFace eyes={CATS[kind].eyes} />
+        <CatTail c={c} />
+        <Cat c={c} />
+        <CatFace eyes={c.eyes} />
+        <CatPupils />
         {kind === 'merlin' && <MerlinExtras />}
         {kind === 'merlin' && <MerlinFish />}
-        {kind === 'tuxie' && <TuxieExtras />}
+        {kind === 'tuxie' && <TuxieBowtie />}
+        {kind === 'tuxie' && <TuxieGlasses />}
         {kind === 'ginger' && <GingerExtras />}
       </G>
     );
@@ -436,7 +541,9 @@ function Still({ kind }: { kind: string }) {
   if (kind === 'mango') {
     return (
       <G>
-        <Mango />
+        <MangoBody />
+        <MangoNeck />
+        <MangoHead />
         <MangoWheat />
       </G>
     );
@@ -449,213 +556,563 @@ function Still({ kind }: { kind: string }) {
       </G>
     );
   }
-  if (kind === 'gibson') return <Gibson />;
+  if (kind === 'gibson') {
+    return (
+      <G>
+        <Gibson />
+        <GibsonGlasses />
+      </G>
+    );
+  }
   return null;
 }
+
+// ------------------------------------------------------------- animated
+//
+// Each moving part is its own still drawing on a layer, and the layers move
+// with Reanimated transforms on the UI thread. Mango's neck is the one part
+// that has to bend, so it's drawn with Skia.
+
+type Frame = { size: number; vbW: number; s: number; offY: number };
+type LiveProps = { frame: Frame; active: boolean };
+
+const ease = Easing.inOut(Easing.sin);
+const to = (toValue: number, duration: number, easing = ease) => withTiming(toValue, { duration, easing });
+const snap = (toValue: number) => withTiming(toValue, { duration: 0 });
+
+// A part on its own layer; origin (in drawing units) is what it turns around
+function Layer({
+  frame,
+  origin,
+  style,
+  children,
+}: {
+  frame: Frame;
+  origin?: [number, number];
+  style?: object;
+  children: ReactNode;
+}) {
+  const { size, vbW, s, offY } = frame;
+  return (
+    <Reanimated.View
+      pointerEvents="none"
+      style={[StyleSheet.absoluteFill, origin && { transformOrigin: [origin[0] * s, origin[1] * s + offY, 0] }, style]}
+    >
+      <Svg width={size} height={size} viewBox={`0 0 ${vbW} 100`}>
+        {children}
+      </Svg>
+    </Reanimated.View>
+  );
+}
+
+// Breathing and the tail/flower sway every pet shares; resets the pet's
+// own values to rest when it stops
+function useBase(active: boolean, own: SharedValue<number>[]) {
+  const breathe = useSharedValue(0);
+  const sway = useSharedValue(0);
+  useEffect(() => {
+    if (!active) return;
+    breathe.value = withRepeat(to(1, 1500), -1, true);
+    sway.value = withSequence(to(1, 550), withRepeat(withSequence(to(-1, 1100), to(1, 1100)), -1));
+    return () => {
+      [breathe, sway, ...own].forEach((v) => {
+        cancelAnimation(v);
+        v.value = 0;
+      });
+    };
+    // shared values never change identity
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+  return { breathe, sway };
+}
+
+// Every few seconds, run the pet's next move (it returns how long it takes)
+function useEvery(active: boolean, run: () => number) {
+  const runRef = useRef(run);
+  runRef.current = run;
+  useEffect(() => {
+    if (!active) return;
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const next = (wait: number) => {
+      timer = setTimeout(() => {
+        if (!alive) return;
+        next(runRef.current() + 1800 + Math.random() * 3200);
+      }, wait);
+    };
+    next(1200 + Math.random() * 2500);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [active]);
+}
+
+// The whole pet: breathes from the feet, and can tilt its head back
+function Body({
+  frame,
+  breathe,
+  tilt,
+  children,
+}: {
+  frame: Frame;
+  breathe: SharedValue<number>;
+  tilt?: SharedValue<number>;
+  children: ReactNode;
+}) {
+  const { size, s, offY } = frame;
+  const style = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${(tilt ? tilt.value : 0) * -4}deg` }, { scaleY: 1 + 0.035 * breathe.value }],
+  }));
+  return (
+    <Reanimated.View style={[{ width: size, height: size, transformOrigin: [size / 2, 96 * s + offY, 0] }, style]}>
+      {children}
+    </Reanimated.View>
+  );
+}
+
+function useTail(sway: SharedValue<number>, deg: number) {
+  return useAnimatedStyle(() => ({ transform: [{ rotate: `${sway.value * deg}deg` }] }));
+}
+
+// A glint across glasses: three streaks lit one after another as p goes 0 -> 1
+function GlareLayers({ frame, p, streaks, right }: { frame: Frame; p: SharedValue<number>; streaks: string[]; right: number }) {
+  const a = useAnimatedStyle(() => ({ opacity: interpolate(p.value, [0, 0.2, 0.4], [0, 1, 0], 'clamp') }));
+  const b = useAnimatedStyle(() => ({ opacity: interpolate(p.value, [0.25, 0.45, 0.65], [0, 1, 0], 'clamp') }));
+  const c = useAnimatedStyle(() => ({ opacity: interpolate(p.value, [0.5, 0.7, 0.9], [0, 1, 0], 'clamp') }));
+  return (
+    <>
+      {[a, b, c].map((style, i) => (
+        <Layer key={i} frame={frame} style={style}>
+          <Glare streak={streaks[i]} right={right} />
+        </Layer>
+      ))}
+    </>
+  );
+}
+
+const sweep = (p: SharedValue<number>) => {
+  p.value = withSequence(to(1, 650, Easing.linear), snap(0));
+  return 700;
+};
+
+// Merlin drops his fish, scoops it up in both paws and pops it back in
+function MerlinLive({ frame, active }: LiveProps) {
+  const c = CATS.merlin;
+  const drop = useSharedValue(0);
+  const grab = useSharedValue(0);
+  const lift = useSharedValue(0);
+  const { breathe, sway } = useBase(active, [drop, grab, lift]);
+  const { s } = frame;
+
+  useEvery(active, () => {
+    drop.value = withSequence(withTiming(1, { duration: 650, easing: Easing.bounce }), withDelay(500, to(0, 500)));
+    grab.value = withSequence(withDelay(950, to(1, 200)), withDelay(600, to(0, 150)));
+    lift.value = withSequence(withDelay(1150, to(1, 500)), withDelay(350, to(0, 450)));
+    return 2500;
+  });
+
+  const tail = useTail(sway, 9);
+  const fish = useAnimatedStyle(() => ({
+    transform: [{ translateY: drop.value * 37 * s }, { rotate: `${drop.value * 12}deg` }],
+  }));
+  const pawL = useAnimatedStyle(() => ({
+    transform: [{ translateX: grab.value * 5 * s }, { translateY: -lift.value * 36 * s }],
+  }));
+  const pawR = useAnimatedStyle(() => ({
+    transform: [{ translateX: -grab.value * 5 * s }, { translateY: -lift.value * 36 * s }],
+  }));
+
+  return (
+    <Body frame={frame} breathe={breathe}>
+      <Layer frame={frame} origin={[70, 88]} style={tail}>
+        <CatTail c={c} />
+      </Layer>
+      <Layer frame={frame}>
+        <Cat c={c} paws="none" />
+        <CatFace eyes={c.eyes} />
+        <CatPupils />
+        <MerlinExtras />
+      </Layer>
+      <Layer frame={frame} origin={[50, 51]} style={fish}>
+        <MerlinFish />
+      </Layer>
+      <Layer frame={frame} style={pawL}>
+        <CatPaw x={41} c={c} />
+      </Layer>
+      <Layer frame={frame} style={pawR}>
+        <CatPaw x={59} c={c} />
+      </Layer>
+    </Body>
+  );
+}
+
+// Tuxie's glasses glint, and now and then he pushes them up with a paw
+function TuxieLive({ frame, active }: LiveProps) {
+  const c = CATS.tuxie;
+  const glare = useSharedValue(0);
+  const leg = useSharedValue(0);
+  const push = useSharedValue(0);
+  const { breathe, sway } = useBase(active, [glare, leg, push]);
+  const { s } = frame;
+
+  useEvery(active, () => {
+    if (Math.random() < 0.45) return sweep(glare);
+    leg.value = withSequence(to(1, 450), withDelay(700, to(0, 400)));
+    push.value = withDelay(450, withSequence(to(1, 120), to(0, 160), to(1, 120), to(0, 160)));
+    return 1600;
+  });
+
+  const tail = useTail(sway, 9);
+  const glasses = useAnimatedStyle(() => ({ transform: [{ translateY: -push.value * 3 * s }] }));
+  const restingPaw = useAnimatedStyle(() => ({ opacity: leg.value > 0.01 ? 0 : 1 }));
+  const raisedLeg = useAnimatedStyle(() => ({
+    opacity: leg.value > 0.01 ? 1 : 0,
+    transform: [{ translateX: -5 * leg.value * s }, { translateY: -28 * leg.value * s }, { rotate: `${-16 * leg.value}deg` }],
+  }));
+
+  return (
+    <Body frame={frame} breathe={breathe}>
+      <Layer frame={frame} origin={[70, 88]} style={tail}>
+        <CatTail c={c} />
+      </Layer>
+      <Layer frame={frame}>
+        <Cat c={c} paws="left" />
+        <CatFace eyes={c.eyes} />
+        <CatPupils />
+        <TuxieBowtie />
+      </Layer>
+      <Layer frame={frame} style={restingPaw}>
+        <CatPaw x={59} c={c} />
+      </Layer>
+      <Layer frame={frame} style={glasses}>
+        <TuxieGlasses />
+      </Layer>
+      <GlareLayers frame={frame} p={glare} streaks={TUXIE_GLARE} right={16} />
+      <Layer frame={frame} origin={[59, 100]} style={raisedLeg}>
+        <TuxieLeg />
+      </Layer>
+    </Body>
+  );
+}
+
+// Ginger's flower bobs, sways and twirls, and she looks up at it
+function GingerLive({ frame, active }: LiveProps) {
+  const c = CATS.ginger;
+  const spin = useSharedValue(0);
+  const bounce = useSharedValue(0);
+  const look = useSharedValue(0);
+  const { breathe, sway } = useBase(active, [spin, bounce, look]);
+  const { s } = frame;
+
+  useEvery(active, () => {
+    if (Math.random() < 0.5) {
+      look.value = withSequence(to(1, 350), withDelay(1000, to(0, 400)));
+      bounce.value = withDelay(350, withSequence(to(1, 200), to(0, 300), to(1, 200), to(0, 300)));
+      return 1800;
+    }
+    spin.value = withSequence(to(1, 900, Easing.inOut(Easing.cubic)), snap(0));
+    bounce.value = withSequence(to(1, 250), to(0, 350));
+    return 1000;
+  });
+
+  const tail = useTail(sway, 9);
+  const flower = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${sway.value * 22 + spin.value * 360}deg` }, { scale: 1 + 0.25 * bounce.value }],
+  }));
+  const pupils = useAnimatedStyle(() => ({
+    transform: [{ translateX: 1.5 * look.value * s }, { translateY: -3.5 * look.value * s }],
+  }));
+
+  return (
+    <Body frame={frame} breathe={breathe} tilt={look}>
+      <Layer frame={frame} origin={[70, 88]} style={tail}>
+        <CatTail c={c} />
+      </Layer>
+      <Layer frame={frame}>
+        <Cat c={c} />
+        <CatFace eyes={c.eyes} />
+      </Layer>
+      <Layer frame={frame} style={pupils}>
+        <CatPupils />
+      </Layer>
+      <Layer frame={frame} origin={[57, 25]} style={flower}>
+        <GingerExtras />
+      </Layer>
+    </Body>
+  );
+}
+
+// Tongue out for a moment, wiggling
+function useTongue(tongue: SharedValue<number>, sway: SharedValue<number>) {
+  return useAnimatedStyle(() => ({
+    opacity: tongue.value > 0.02 ? 1 : 0,
+    transform: [{ rotate: `${sway.value * 6}deg` }, { scaleY: tongue.value }],
+  }));
+}
+const tongueOut = (tongue: SharedValue<number>) => {
+  tongue.value = withSequence(to(1, 250), withDelay(1000, to(0, 250)));
+  return 1600;
+};
+
+// Susie sticks her tongue out, and her ears flare up and out
+function SusieLive({ frame, active }: LiveProps) {
+  const c = BASSETS.susie;
+  const tongue = useSharedValue(0);
+  const ears = useSharedValue(0);
+  const { breathe, sway } = useBase(active, [tongue, ears]);
+
+  useEvery(active, () => {
+    if (Math.random() < 0.5) return tongueOut(tongue);
+    ears.value = withSequence(withSpring(1, { damping: 6, stiffness: 140 }), withDelay(700, to(0, 450)));
+    return 1900;
+  });
+
+  const tail = useTail(sway, 12);
+  const earL = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${ears.value * 20}deg` }, { scale: 1 + 0.2 * ears.value }],
+  }));
+  const earR = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${ears.value * -20}deg` }, { scale: 1 + 0.2 * ears.value }],
+  }));
+  const tongueStyle = useTongue(tongue, sway);
+
+  return (
+    <Body frame={frame} breathe={breathe}>
+      <Layer frame={frame} origin={[84, 74]} style={tail}>
+        <BassetTail c={c} />
+      </Layer>
+      <Layer frame={frame}>
+        <Basset c={c} ears={false} />
+        <BassetFace />
+      </Layer>
+      <Layer frame={frame} origin={[44, 32]} style={earL}>
+        <BassetEar side="left" c={c} />
+        <SusieFlower x={40} />
+      </Layer>
+      <Layer frame={frame} origin={[72, 32]} style={earR}>
+        <BassetEar side="right" c={c} />
+        <SusieFlower x={76} />
+      </Layer>
+      <Layer frame={frame} origin={[58, 57]} style={tongueStyle}>
+        <Tongue />
+      </Layer>
+    </Body>
+  );
+}
+
+// Scarlet flips her cap into the air and catches it on her head
+function ScarletLive({ frame, active }: LiveProps) {
+  const c = BASSETS.scarlet;
+  const tongue = useSharedValue(0);
+  const hat = useSharedValue(0);
+  const land = useSharedValue(0);
+  const { breathe, sway } = useBase(active, [tongue, hat, land]);
+  const { s } = frame;
+
+  useEvery(active, () => {
+    if (Math.random() < 0.5) return tongueOut(tongue);
+    hat.value = withSequence(to(1, 900, Easing.inOut(Easing.quad)), snap(0));
+    land.value = withDelay(900, withSequence(to(1, 90), withSpring(0, { damping: 5, stiffness: 200 })));
+    return 1500;
+  });
+
+  const tail = useTail(sway, 12);
+  const hatStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: interpolate(hat.value, [0, 0.5, 1], [0, -26, 0]) * s },
+      { rotate: `${hat.value * 360}deg` },
+      { scaleY: 1 - 0.2 * land.value },
+    ],
+  }));
+  const tongueStyle = useTongue(tongue, sway);
+
+  return (
+    <Body frame={frame} breathe={breathe}>
+      <Layer frame={frame} origin={[84, 74]} style={tail}>
+        <BassetTail c={c} />
+      </Layer>
+      <Layer frame={frame}>
+        <Basset c={c} />
+        <BassetFace />
+      </Layer>
+      <Layer frame={frame} origin={[58, 57]} style={tongueStyle}>
+        <Tongue />
+      </Layer>
+      <Layer frame={frame} origin={[58, 22]} style={hatStyle}>
+        <ScarletExtras />
+      </Layer>
+    </Body>
+  );
+}
+
+const NECK_UP_POINTS = (NECK_UP.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
+const NECK_DOWN_POINTS = (NECK_DOWN.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
+
+// Mango's neck, bending from upright down to the ground as dip goes 0 -> 1
+function BendingNeck({ frame, dip }: { frame: Frame; dip: SharedValue<number> }) {
+  const path = useDerivedValue(() => {
+    const k = dip.value;
+    const p = NECK_UP_POINTS.map((v, i) => v + (NECK_DOWN_POINTS[i] - v) * k);
+    return Skia.PathBuilder.Make()
+      .moveTo(p[0], p[1])
+      .cubicTo(p[2], p[3], p[4], p[5], p[6], p[7])
+      .cubicTo(p[8], p[9], p[10], p[11], p[12], p[13])
+      .build();
+  });
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <Canvas style={{ width: frame.size, height: frame.size }}>
+        <SkGroup transform={[{ translateY: frame.offY }, { scale: frame.s }]}>
+          <SkPath path={path} style="stroke" strokeWidth={10} strokeCap="round" color={OUTLINE} />
+          <SkPath path={path} style="stroke" strokeWidth={5} strokeCap="round" color={MANGO_PINK} />
+        </SkGroup>
+      </Canvas>
+    </View>
+  );
+}
+
+// Mango drops her wheat, bends her neck all the way down and picks it up
+function MangoLive({ frame, active }: LiveProps) {
+  const dip = useSharedValue(0);
+  const drop = useSharedValue(0);
+  const loose = useSharedValue(0); // 1 while the wheat is out of her beak
+  const { breathe } = useBase(active, [dip, drop, loose]);
+  const { s } = frame;
+
+  useEvery(active, () => {
+    loose.value = withSequence(snap(1), withDelay(1550, snap(0)));
+    drop.value = withSequence(withTiming(1, { duration: 700, easing: Easing.bounce }), withDelay(850, snap(0)));
+    dip.value = withSequence(withDelay(1000, to(1, 550)), withDelay(200, to(0, 600)));
+    return 2400;
+  });
+
+  const head = useAnimatedStyle(() => ({
+    transform: [{ translateX: -8 * dip.value * s }, { translateY: 52 * dip.value * s }, { rotate: `${70 * dip.value}deg` }],
+  }));
+  const heldWheat = useAnimatedStyle(() => ({
+    opacity: 1 - loose.value,
+    transform: [{ translateX: -8 * dip.value * s }, { translateY: 52 * dip.value * s }, { rotate: `${70 * dip.value}deg` }],
+  }));
+  const fallingWheat = useAnimatedStyle(() => ({
+    opacity: loose.value,
+    transform: [{ translateX: -28 * drop.value * s }, { translateY: 66 * drop.value * s }, { rotate: `${-20 * drop.value}deg` }],
+  }));
+
+  return (
+    <Body frame={frame} breathe={breathe}>
+      <Layer frame={frame}>
+        <MangoBody />
+      </Layer>
+      <BendingNeck frame={frame} dip={dip} />
+      <Layer frame={frame} origin={[38, 26]} style={heldWheat}>
+        <MangoWheat />
+      </Layer>
+      <Layer frame={frame} origin={[38, 26]} style={head}>
+        <MangoHead />
+      </Layer>
+      <Layer frame={frame} origin={[64, 25]} style={fallingWheat}>
+        <MangoWheat />
+      </Layer>
+    </Body>
+  );
+}
+
+// Leila waves and pops her flash
+function LeilaLive({ frame, active }: LiveProps) {
+  const flash = useSharedValue(0);
+  const { breathe, sway } = useBase(active, [flash]);
+
+  useEvery(active, () => {
+    flash.value = withSequence(to(1, 450), snap(0));
+    return 500;
+  });
+
+  const arm = useAnimatedStyle(() => ({ transform: [{ rotate: `${sway.value * 22}deg` }] }));
+  const burst = useAnimatedStyle(() => ({
+    opacity: interpolate(flash.value, [0, 0.15, 1], [0, 1, 0]),
+    transform: [{ scale: 0.3 + 1.5 * flash.value }],
+  }));
+
+  return (
+    <Body frame={frame} breathe={breathe}>
+      <Layer frame={frame} origin={[80, 58]} style={arm}>
+        <LeilaArm />
+      </Layer>
+      <Layer frame={frame}>
+        <Leila />
+      </Layer>
+      <Layer frame={frame} origin={[71, 31]} style={burst}>
+        <LeilaFlash />
+      </Layer>
+    </Body>
+  );
+}
+
+// Gibson's shades glint, then he lifts them and winks
+function GibsonLive({ frame, active }: LiveProps) {
+  const glare = useSharedValue(0);
+  const raise = useSharedValue(0);
+  const wink = useSharedValue(0);
+  const { breathe } = useBase(active, [glare, raise, wink]);
+  const { s } = frame;
+
+  useEvery(active, () => {
+    sweep(glare);
+    raise.value = withDelay(700, withSequence(to(1, 300), withDelay(1000, to(0, 300))));
+    wink.value = withDelay(1150, withSequence(to(1, 110), withDelay(220, to(0, 150))));
+    return 2400;
+  });
+
+  const glasses = useAnimatedStyle(() => ({ transform: [{ translateY: -16 * raise.value * s }] }));
+  const winking = useAnimatedStyle(() => ({ transform: [{ scaleY: 1 - 0.9 * wink.value }] }));
+
+  return (
+    <Body frame={frame} breathe={breathe}>
+      <Layer frame={frame}>
+        <Gibson />
+        <GibsonEye x={39} />
+      </Layer>
+      <Layer frame={frame} origin={[61, 54]} style={winking}>
+        <GibsonEye x={61} />
+      </Layer>
+      <Layer frame={frame} style={glasses}>
+        <GibsonGlasses />
+      </Layer>
+      <GlareLayers frame={frame} p={glare} streaks={GIBSON_GLARE} right={22} />
+    </Body>
+  );
+}
+
+const LIVE: Record<string, (props: LiveProps) => ReactNode> = {
+  merlin: MerlinLive,
+  tuxie: TuxieLive,
+  ginger: GingerLive,
+  susie: SusieLive,
+  scarlet: ScarletLive,
+  mango: MangoLive,
+  leila: LeilaLive,
+  gibson: GibsonLive,
+};
 
 type Props = { kind: string; size?: number; animated?: boolean };
 
 export default function Sidekick({ kind, size = 60, animated = false }: Props) {
-  const v = useRef({
-    breathe: new Animated.Value(0),
-    sway: new Animated.Value(0), // -1..1, tails, flowers and Leila's arm
-    drop: new Animated.Value(0), // 0 in the mouth, 1 on the ground
-    crouch: new Animated.Value(0),
-    spin: new Animated.Value(0),
-    flash: new Animated.Value(0),
-    glare: new Animated.Value(0),
-  }).current;
-
-  useEffect(() => {
-    if (!animated) return;
-    const ease = Easing.inOut(Easing.sin);
-    const t = (value: Animated.Value, toValue: number, duration: number, easing = ease) =>
-      Animated.timing(value, { toValue, duration, easing, useNativeDriver: true });
-
-    const loops = [
-      Animated.loop(Animated.sequence([t(v.breathe, 1, 1500), t(v.breathe, 0, 1500)])),
-      Animated.loop(Animated.sequence([t(v.sway, 1, 1100), t(v.sway, -1, 1100)])),
-    ];
-    loops.forEach((l) => l.start());
-
-    // Drops what's in its mouth, then crouches down and grabs it again
-    const dropAndGrab = () =>
-      Animated.sequence([
-        t(v.drop, 1, 650, Easing.bounce),
-        Animated.delay(450),
-        t(v.crouch, 1, 320),
-        t(v.drop, 0, 200, Easing.out(Easing.quad)),
-        Animated.delay(120),
-        t(v.crouch, 0, 380),
-      ]);
-    const oneShot = (value: Animated.Value, duration: number) =>
-      Animated.sequence([t(value, 1, duration), Animated.timing(value, { toValue: 0, duration: 0, useNativeDriver: true })]);
-    const hop = () => Animated.sequence([t(v.crouch, 0.6, 160), t(v.crouch, 0, 260, Easing.out(Easing.back(3)))]);
-
-    const action = () => {
-      switch (kind) {
-        case 'merlin':
-        case 'mango':
-          return dropAndGrab();
-        case 'scarlet':
-          return oneShot(v.spin, 1000);
-        case 'leila':
-          return oneShot(v.flash, 450);
-        case 'tuxie':
-        case 'gibson':
-          return oneShot(v.glare, 650);
-        default:
-          return hop();
-      }
-    };
-
-    let alive = true;
-    let timer: ReturnType<typeof setTimeout>;
-    const next = () => {
-      timer = setTimeout(() => {
-        if (alive) action().start(() => alive && next());
-      }, 2500 + Math.random() * 3500);
-    };
-    next();
-
-    return () => {
-      alive = false;
-      clearTimeout(timer);
-      loops.forEach((l) => l.stop());
-      Object.values(v).forEach((value) => value.stopAnimation());
-    };
-  }, [animated, kind, v]);
-
+  const reduceMotion = useReducedMotion();
   const vbW = isBasset(kind) ? 116 : 100;
-  const viewBox = `0 0 ${vbW} 100`;
+  const Live = LIVE[kind];
+  if (!Live) return null;
 
   if (!animated) {
     return (
-      <Svg width={size} height={size} viewBox={viewBox}>
+      <Svg width={size} height={size} viewBox={`0 0 ${vbW} 100`}>
         <Still kind={kind} />
       </Svg>
     );
   }
 
-  // viewBox units -> points; the drawing is fit to the width and centered
+  // The drawing is fit to the width and centered top to bottom
   const s = size / vbW;
-  const offY = (size - 100 * s) / 2;
-  type Step = { [key: string]: Animated.AnimatedInterpolation<string | number> | number };
-  const around = (x: number, y: number, steps: Step[]) => {
-    const dx = x * s - size / 2;
-    const dy = y * s + offY - size / 2;
-    return [{ translateX: dx }, { translateY: dy }, ...steps, { translateX: -dx }, { translateY: -dy }];
-  };
-  const lerp = (value: Animated.Value, inputRange: number[], outputRange: number[] | string[]) =>
-    value.interpolate({ inputRange, outputRange: outputRange as number[] });
-  const sway = (deg: number, flip = false) => ({
-    rotate: lerp(v.sway, [-1, 1], flip ? [`${deg}deg`, `${-deg}deg`] : [`${-deg}deg`, `${deg}deg`]),
-  });
-
-  const layer = (key: string, children: ReactNode, style?: object) => (
-    <Animated.View key={key} pointerEvents="none" style={[StyleSheet.absoluteFill, style]}>
-      <Svg width={size} height={size} viewBox={viewBox}>
-        {children}
-      </Svg>
-    </Animated.View>
-  );
-
-  // Falling item: drops about to the ground, tipping over as it goes
-  const falling = (x: number, y: number, fall: number, tip: number) => ({
-    transform: around(x, y, [
-      { translateY: lerp(v.drop, [0, 1], [0, fall * s]) },
-      { rotate: lerp(v.drop, [0, 1], ['0deg', `${tip}deg`]) },
-    ]),
-  });
-  const glare = (streaks: string[], right: number) =>
-    streaks.map((streak, i) =>
-      layer(`glare${i}`, <Glare streak={streak} right={right} />, {
-        opacity: lerp(v.glare, [i * 0.25, i * 0.25 + 0.2, i * 0.25 + 0.4], [0, 1, 0]),
-      })
-    );
-
-  let layers: ReactNode[] = [];
-  if (isCat(kind)) {
-    const c = CATS[kind];
-    layers = [
-      layer('tail', <CatTail c={c} />, { transform: around(70, 88, [sway(9)]) }),
-      layer(
-        'body',
-        <G>
-          <Cat c={c} />
-          <CatFace eyes={c.eyes} />
-          {kind === 'merlin' && <MerlinExtras />}
-          {kind === 'tuxie' && <TuxieExtras />}
-        </G>
-      ),
-      kind === 'merlin' && layer('fish', <MerlinFish />, falling(50, 51, 38, 28)),
-      kind === 'ginger' && layer('flower', <GingerExtras />, { transform: around(57, 25, [sway(14)]) }),
-      ...(kind === 'tuxie' ? glare(TUXIE_GLARE, 16) : []),
-    ];
-  } else if (isBasset(kind)) {
-    const c = BASSETS[kind];
-    layers = [
-      layer('tail', <BassetTail c={c} />, { transform: around(84, 74, [sway(12)]) }),
-      layer(
-        'body',
-        <G>
-          <Basset c={c} />
-          <BassetFace />
-        </G>
-      ),
-      ...(kind === 'susie'
-        ? [
-            layer('flowerL', <SusieFlower x={40} />, { transform: around(40, 35, [sway(14)]) }),
-            layer('flowerR', <SusieFlower x={76} />, { transform: around(76, 35, [sway(14, true)]) }),
-          ]
-        : [
-            // the cap spins round on her head: squeeze to nothing, flip, back
-            layer('hat', <ScarletExtras />, {
-              transform: around(58, 22, [
-                { translateY: lerp(v.spin, [0, 0.5, 1], [0, -7 * s, 0]) },
-                { scaleX: lerp(v.spin, [0, 0.25, 0.5, 0.75, 1], [1, 0.05, -1, -0.05, 1]) },
-              ]),
-            }),
-          ]),
-    ];
-  } else if (kind === 'mango') {
-    layers = [layer('body', <Mango />), layer('wheat', <MangoWheat />, falling(64, 25, 64, 70))];
-  } else if (kind === 'leila') {
-    layers = [
-      layer('arm', <LeilaArm />, { transform: around(80, 58, [sway(22)]) }),
-      layer('body', <Leila />),
-      layer('flash', <LeilaFlash />, {
-        opacity: lerp(v.flash, [0, 0.15, 1], [0, 1, 0]),
-        transform: around(71, 31, [{ scale: lerp(v.flash, [0, 1], [0.3, 1.8]) }]),
-      }),
-    ];
-  } else if (kind === 'gibson') {
-    layers = [layer('body', <Gibson />), ...glare(GIBSON_GLARE, 22)];
-  } else {
-    return null;
-  }
-
-  return (
-    <Animated.View
-      style={{
-        width: size,
-        height: size,
-        // breathing, plus a crouch to pick things up
-        // (Mango leans forward on her one leg instead of squashing down)
-        transform:
-          kind === 'mango'
-            ? around(50, 96, [
-                { scaleY: lerp(v.breathe, [0, 1], [1, 1.035]) },
-                { rotate: lerp(v.crouch, [0, 1], ['0deg', '26deg']) },
-                { scaleY: lerp(v.crouch, [0, 1], [1, 0.86]) },
-              ])
-            : around(vbW / 2, 96, [
-                { scaleY: lerp(v.breathe, [0, 1], [1, 1.035]) },
-                { scaleY: lerp(v.crouch, [0, 1], [1, 0.8]) },
-              ]),
-      }}
-    >
-      {layers}
-    </Animated.View>
-  );
+  const frame: Frame = { size, vbW, s, offY: (size - 100 * s) / 2 };
+  return <Live frame={frame} active={!reduceMotion} />;
 }
