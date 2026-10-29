@@ -1,11 +1,19 @@
 import { ReactNode, useContext, useEffect, useState } from 'react';
 import { NavigationContext } from '@react-navigation/native';
 import { Pressable, View, StyleSheet } from 'react-native';
+import {
+  Canvas,
+  Circle as SkCircle,
+  Group as SkGroup,
+  Oval as SkOval,
+  Path as SkPath,
+  Skia,
+  vec,
+} from '@shopify/react-native-skia';
 import Reanimated, {
   cancelAnimation,
   Easing,
   interpolate,
-  useAnimatedProps,
   useAnimatedStyle,
   useDerivedValue,
   useReducedMotion,
@@ -474,18 +482,22 @@ function StillFace() {
 }
 
 // ------------------------------------------------------------- animated
-
-const AnimatedPath = Reanimated.createAnimatedComponent(Path);
-const AnimatedCircle = Reanimated.createAnimatedComponent(Circle);
-const AnimatedEllipse = Reanimated.createAnimatedComponent(Ellipse);
-const AnimatedG = Reanimated.createAnimatedComponent(G);
+//
+// The moving parts (tentacles, body, face, bubbles) are drawn with Skia, which
+// paints straight on the GPU and takes Reanimated values directly, so a frame
+// never goes back through React or react-native-svg. His gear stays in SVG,
+// on still layers above and below.
 
 // Every tentacle and the mouth are "M p C p p p C p p p": 14 numbers that
 // can be blended point by point, so shapes can bend into each other
 const points = (d: string) => (d.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
 function pathFrom(p: number[]) {
   'worklet';
-  return `M${p[0]},${p[1]} C${p[2]},${p[3]} ${p[4]},${p[5]} ${p[6]},${p[7]} C${p[8]},${p[9]} ${p[10]},${p[11]} ${p[12]},${p[13]}`;
+  return Skia.PathBuilder.Make()
+    .moveTo(p[0], p[1])
+    .cubicTo(p[2], p[3], p[4], p[5], p[6], p[7])
+    .cubicTo(p[8], p[9], p[10], p[11], p[12], p[13])
+    .build();
 }
 
 const REST = TENTACLES.map(points);
@@ -518,12 +530,11 @@ function Tentacle({
   ripple: number;
   t: SharedValue<number>;
   amp: SharedValue<number>; // 0 = still, 1 = full ripple
-
   raise?: Raise;
   color: string;
   opacity?: SharedValue<number>;
 }) {
-  const d = useDerivedValue(() => {
+  const path = useDerivedValue(() => {
     const k = raise ? raise.amount.value : 0;
     const s = raise?.swing ? raise.swing.value : 0;
     const drift = Math.sin(t.value + phase) * ripple * amp.value * (1 - k);
@@ -538,14 +549,26 @@ function Tentacle({
     }
     return pathFrom(out);
   });
-  const outline = useAnimatedProps(() => ({ d: d.value }));
-  const fill = useAnimatedProps(() => ({ d: d.value }));
-  const group = useAnimatedProps(() => ({ opacity: opacity ? opacity.value : 1 }));
   return (
-    <AnimatedG animatedProps={group}>
-      <AnimatedPath animatedProps={outline} stroke={OUTLINE} strokeWidth={24} strokeLinecap="round" fill="none" />
-      <AnimatedPath animatedProps={fill} stroke={color} strokeWidth={17} strokeLinecap="round" fill="none" />
-    </AnimatedG>
+    <SkGroup opacity={opacity ?? 1}>
+      <SkPath path={path} style="stroke" strokeWidth={24} strokeCap="round" color={OUTLINE} />
+      <SkPath path={path} style="stroke" strokeWidth={17} strokeCap="round" color={color} />
+    </SkGroup>
+  );
+}
+
+// Body, shine and cheeks
+function SkHead({ color }: { color: string }) {
+  return (
+    <SkGroup>
+      <SkOval x={40} y={30} width={120} height={104} color={color} />
+      <SkOval x={40} y={30} width={120} height={104} color={OUTLINE} style="stroke" strokeWidth={4} />
+      <SkGroup transform={[{ rotate: -Math.PI / 6 }]} origin={vec(72, 54)}>
+        <SkOval x={57} y={45} width={30} height={18} color={colors.white} opacity={0.35} />
+      </SkGroup>
+      <SkOval x={53} y={103} width={18} height={10} color="#fb7185" opacity={0.5} />
+      <SkOval x={129} y={103} width={18} height={10} color="#fb7185" opacity={0.5} />
+    </SkGroup>
   );
 }
 
@@ -559,32 +582,36 @@ function Eye({
   look: { x: SharedValue<number>; y: SharedValue<number> };
   blink: SharedValue<number>;
 }) {
-  const white = useAnimatedProps(() => ({ ry: 15 - 13 * blink.value }));
-  const pupils = useAnimatedProps(() => ({ opacity: blink.value > 0.6 ? 0 : 1 }));
-  const pupil = useAnimatedProps(() => ({
-    cx: cx + 2 + look.x.value * 5,
-    cy: 91 + look.y.value * 4,
-    r: 7 * (1 - blink.value * 0.6),
-  }));
-  const shine = useAnimatedProps(() => ({ cx: cx + 5 + look.x.value * 5, cy: 87 + look.y.value * 4 }));
+  const y = useDerivedValue(() => 88 - (15 - 13 * blink.value));
+  const height = useDerivedValue(() => 2 * (15 - 13 * blink.value));
+  const pupilsShown = useDerivedValue(() => (blink.value > 0.6 ? 0 : 1));
+  const pupilX = useDerivedValue(() => cx + 2 + look.x.value * 5);
+  const pupilY = useDerivedValue(() => 91 + look.y.value * 4);
+  const pupilR = useDerivedValue(() => 7 * (1 - blink.value * 0.6));
+  const shineX = useDerivedValue(() => cx + 5 + look.x.value * 5);
+  const shineY = useDerivedValue(() => 87 + look.y.value * 4);
   return (
-    <G>
-      <AnimatedEllipse animatedProps={white} cx={cx} cy={88} rx={13} fill={colors.white} stroke={OUTLINE} strokeWidth={3} />
-      <AnimatedG animatedProps={pupils}>
-        <AnimatedCircle animatedProps={pupil} fill={OUTLINE} />
-        <AnimatedCircle animatedProps={shine} r={2.5} fill={colors.white} />
-      </AnimatedG>
-    </G>
+    <SkGroup>
+      <SkOval x={cx - 13} y={y} width={26} height={height} color={colors.white} />
+      <SkOval x={cx - 13} y={y} width={26} height={height} color={OUTLINE} style="stroke" strokeWidth={3} />
+      <SkGroup opacity={pupilsShown}>
+        <SkCircle cx={pupilX} cy={pupilY} r={pupilR} color={OUTLINE} />
+        <SkCircle cx={shineX} cy={shineY} r={2.5} color={colors.white} />
+      </SkGroup>
+    </SkGroup>
   );
 }
 
 function Mouth({ open }: { open: SharedValue<number> }) {
-  const props = useAnimatedProps(() => {
+  const path = useDerivedValue(() => {
     const k = open.value;
-    return { d: pathFrom(SMILE.map((v, i) => v + (OH[i] - v) * k)) };
+    return pathFrom(SMILE.map((v, i) => v + (OH[i] - v) * k));
   });
   return (
-    <AnimatedPath animatedProps={props} stroke={OUTLINE} strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" fill={OUTLINE} />
+    <SkGroup>
+      <SkPath path={path} color={OUTLINE} />
+      <SkPath path={path} style="stroke" strokeWidth={3.5} strokeCap="round" strokeJoin="round" color={OUTLINE} />
+    </SkGroup>
   );
 }
 
@@ -595,13 +622,18 @@ const BUBBLES = [
 ];
 
 function Bubble({ p, r, dx }: { p: SharedValue<number>; r: number; dx: number }) {
-  const props = useAnimatedProps(() => ({
-    cx: 110 + dx * p.value,
-    cy: 112 - 120 * p.value,
-    r: r * (0.3 + 0.7 * p.value),
-    opacity: p.value <= 0 ? 0 : interpolate(p.value, [0, 0.1, 0.7, 1], [0, 1, 0.9, 0]),
-  }));
-  return <AnimatedCircle animatedProps={props} fill="#FFFFFF" fillOpacity={0.55} stroke="#7CC6E8" strokeWidth={2.5} />;
+  const cx = useDerivedValue(() => 110 + dx * p.value);
+  const cy = useDerivedValue(() => 112 - 120 * p.value);
+  const radius = useDerivedValue(() => r * (0.3 + 0.7 * p.value));
+  const opacity = useDerivedValue(() =>
+    p.value <= 0 ? 0 : interpolate(p.value, [0, 0.1, 0.7, 1], [0, 1, 0.9, 0])
+  );
+  return (
+    <SkGroup opacity={opacity}>
+      <SkCircle cx={cx} cy={cy} r={radius} color="rgba(255,255,255,0.55)" />
+      <SkCircle cx={cx} cy={cy} r={radius} color="#7CC6E8" style="stroke" strokeWidth={2.5} />
+    </SkGroup>
+  );
 }
 
 // Tab screens stay mounted in the background; pause there so a hidden Ocho
@@ -804,9 +836,8 @@ function LivelyOctopus({
   const look = { x: lookX, y: lookY };
   const holding = pose === 'peek' ? null : heldItem;
 
-  // Each layer is its own drawing, and a drawing is redrawn whole whenever
-  // any part of it moves. So the tentacles (which bend), the face (which
-  // blinks now and then) and the gear (which never changes) are kept apart.
+  // Skateboard under him and his gear on top stay as still SVG layers;
+  // everything that moves is on the Skia canvas in between
   const viewBox = '0 -30 200 250';
   const still = (children: ReactNode) => (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -819,39 +850,39 @@ function LivelyOctopus({
   const drawing = (
     <Reanimated.View style={[{ width, height, transformOrigin: 'bottom' }, body]}>
       {holding === 'skateboard' && still(<Skateboard />)}
-      {still(
-        <G>
-          <Tentacle rest={REST[0]} phase={0} ripple={3} t={t} amp={amp} color={color} raise={{ up: WAVE_IN, alt: WAVE_OUT, amount: raise, swing }} />
-          {[1, 2, 3, 4].map((i) => (
-            <Tentacle key={i} rest={REST[i]} phase={i * 1.3} ripple={3.5} t={t} amp={amp} color={color} />
-          ))}
-          <Tentacle
-            rest={REST[5]}
-            phase={0}
-            ripple={0}
-            t={t}
-            amp={amp}
-            color={color}
-            raise={pose === 'peek' ? { up: PEEK_UP, amount: peek } : undefined}
-          />
-        </G>
-      )}
-      {still(
-        <G>
-          <HeadBase color={color} />
-          <Eye cx={78} look={look} blink={leftBlink} />
-          <Eye cx={122} look={look} blink={blink} />
-          <Mouth open={mouth} />
-          {BUBBLES.map((b, i) => (
-            <Bubble key={i} p={bubbles[i]} r={b.r} dx={b.dx} />
-          ))}
-        </G>
-      )}
-      {/* while peeking, the raised arm comes round in front of his face */}
-      {pose === 'peek' &&
-        still(
-          <Tentacle rest={REST[5]} phase={0} ripple={0} t={t} amp={amp} color={color} raise={{ up: PEEK_UP, amount: peek }} opacity={peekFront} />
-        )}
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <Canvas style={{ width, height }}>
+          {/* viewBox units: scale to points, then shift down past the hat room */}
+          <SkGroup transform={[{ scale: k }]}>
+            <SkGroup transform={[{ translateY: 30 }]}>
+              <Tentacle rest={REST[0]} phase={0} ripple={3} t={t} amp={amp} color={color} raise={{ up: WAVE_IN, alt: WAVE_OUT, amount: raise, swing }} />
+              {[1, 2, 3, 4].map((i) => (
+                <Tentacle key={i} rest={REST[i]} phase={i * 1.3} ripple={3.5} t={t} amp={amp} color={color} />
+              ))}
+              <Tentacle
+                rest={REST[5]}
+                phase={0}
+                ripple={0}
+                t={t}
+                amp={amp}
+                color={color}
+                raise={pose === 'peek' ? { up: PEEK_UP, amount: peek } : undefined}
+              />
+              <SkHead color={color} />
+              <Eye cx={78} look={look} blink={leftBlink} />
+              <Eye cx={122} look={look} blink={blink} />
+              <Mouth open={mouth} />
+              {BUBBLES.map((b, i) => (
+                <Bubble key={i} p={bubbles[i]} r={b.r} dx={b.dx} />
+              ))}
+              {/* while peeking, the raised arm comes round in front of his face */}
+              {pose === 'peek' && (
+                <Tentacle rest={REST[5]} phase={0} ripple={0} t={t} amp={amp} color={color} raise={{ up: PEEK_UP, amount: peek }} opacity={peekFront} />
+              )}
+            </SkGroup>
+          </SkGroup>
+        </Canvas>
+      </View>
       {(accessory || (holding && holding !== 'skateboard')) &&
         still(
           <G>
