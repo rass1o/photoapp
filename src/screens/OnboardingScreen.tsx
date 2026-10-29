@@ -14,7 +14,7 @@ type Props = {
 };
 
 // A small picture above the text, in place of the plain icon
-type Visual = 'mascot' | 'streak' | 'prizes' | 'rarities' | 'clam';
+type Visual = 'mascot' | 'streak' | 'prizes' | 'rarities' | 'peek';
 
 type Slide = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -31,17 +31,51 @@ const SLIDES: Slide[] = [
     icon: 'camera-outline',
     title: 'Welcome to ShuttInk',
     body:
-      'ShuttInk helps you shoot more and try new things. A new photo theme drops every week: shoot it your way, share it, and see how your take compares.',
+      'A new photo theme drops every week. Shoot it your way, share it with everyone, and see how your take compares.',
+  },
+  {
+    icon: 'compass-outline',
+    title: 'Why ShuttInk?',
+    body: 'ShuttInk is here to make you a braver, steadier photographer, one shot at a time.',
+    bullets: [
+      'Step out of your comfort zone: each theme nudges you toward subjects, light and techniques you might never try on your own. Only shoot landscapes? Try a portrait. Never shot at night? This might be the week',
+      'Stay consistent: a daily photo and a streak turn shooting into a habit. You grow by showing up, not by waiting for the perfect moment',
+      'Bring others in: whether you\u2019ve shot for years or just picked up your phone, everyone gets the same theme. It\u2019s an easy way to invite friends into photography',
+      'Learn by looking: seeing dozens of takes on one theme shows you angles and ideas you\u2019d have missed',
+    ],
   },
   {
     icon: 'calendar-outline',
     title: 'The weekly theme',
-    body: 'Here’s how a week goes:',
+    body: 'Here\u2019s how a week goes:',
     bullets: [
       'A theme is announced at the start of the week',
       'Submit one photo for it, tagged as Digital or Film',
       'Everyone votes all week: double-tap a photo or hit the heart. Vote for as many as you like',
       'When the week ends, the top photos win shutters (more on that soon)',
+    ],
+  },
+  {
+    icon: 'happy-outline',
+    visual: 'mascot',
+    title: 'Meet Ocho',
+    body: 'Ocho is ShuttInk\u2019s resident octopus, and he\u2019s camera-obsessed for a reason: his eyes basically are cameras.',
+    bullets: [
+      'Octopus eyes are built like a camera, with an iris, a lens and a retina, much like an aperture, lens and sensor',
+      'To focus, he slides his lens closer or farther away, the same way a camera lens does',
+      'You get your own Ocho: name him and dress him up in the Shop',
+    ],
+  },
+  {
+    icon: 'flash-outline',
+    visual: 'prizes',
+    title: 'Shutters & prizes',
+    body: 'Shutters are ShuttInk\u2019s currency. You earn them by shooting:',
+    bullets: [
+      'Each week\u2019s top 5 win 200, 175, 150, 75 and 50 shutters. Ties share the spot',
+      'Every daily photo earns 1 shutter',
+      `Plus +${STREAK_BONUS} every ${STREAK_BONUS_EVERY} days you keep your day streak going`,
+      'Feeling lucky? A clam blind box in the Shop holds 2 surprises for Ocho, with a shot at a legendary sidekick. Duplicates sell back for half',
     ],
   },
   {
@@ -57,29 +91,6 @@ const SLIDES: Slide[] = [
     ],
   },
   {
-    icon: 'flash-outline',
-    visual: 'prizes',
-    title: 'Shutters & prizes',
-    body: 'Shutters are ShuttInk’s currency. You earn them by shooting:',
-    bullets: [
-      'Each week’s top 5 win 200, 175, 150, 75 and 50 shutters. Ties share the spot',
-      'Every daily photo earns 1 shutter',
-      `Plus +${STREAK_BONUS} every ${STREAK_BONUS_EVERY} days you keep your day streak going`,
-      'Check your balance any time in the Shop',
-    ],
-  },
-  {
-    icon: 'happy-outline',
-    visual: 'mascot',
-    title: 'Meet Ocho',
-    body: 'Ocho is ShuttInk’s resident octopus, and he’s camera-obsessed for a reason: his eyes basically are cameras.',
-    bullets: [
-      'Octopus eyes are built like a camera, with an iris, a lens and a retina, much like an aperture, lens and sensor',
-      'To focus, he slides his lens closer or farther away, the same way a camera lens does',
-      'You get your own Ocho: name him and dress him up in the Shop',
-    ],
-  },
-  {
     icon: 'storefront-outline',
     visual: 'rarities',
     title: 'Spend them in the Shop',
@@ -88,20 +99,14 @@ const SLIDES: Slide[] = [
       'Avatar frames, banners and badges for your profile',
       'Colors, hats, glasses, props and new lines for Ocho. Prices go up with rarity',
       'Film stamps to tag the stock you shot on',
-      'Theme tickets to pitch next week’s theme',
+      'Theme tickets to pitch next week\u2019s theme',
     ],
   },
   {
-    icon: 'gift-outline',
-    visual: 'clam',
-    title: 'Open a clam',
-    body: 'Feeling lucky? A clam blind box holds 2 surprises for Ocho:',
-    bullets: [
-      'Each pull rolls a rarity, from Common up to Legendary',
-      'Legendary means a sidekick: a pet like Merlin the cat that sits beside Ocho. Only clams have them',
-      'Got something you already own? Sell the duplicate back for half its price',
-      'Tap the clam in the Shop to see the exact odds',
-    ],
+    icon: 'images-outline',
+    visual: 'peek',
+    title: 'Ready to sea others\u2019 photos?',
+    body: 'This week\u2019s theme, today\u2019s daily shots and a whole feed of other photographers\u2019 takes are waiting. Ocho\u2019s already got his camera out.',
   },
 ];
 
@@ -109,8 +114,8 @@ function SlideVisual({ visual, icon }: { visual?: Visual; icon: Slide['icon'] })
   switch (visual) {
     case 'mascot':
       return <Octopus color="#a78bfa" accessory="beret" heldItem="camera" size={120} />;
-    case 'clam':
-      return <Octopus color="#fb7185" accessory="crown" heldItem="disco_ball" pet="merlin" size={104} />;
+    case 'peek':
+      return <Octopus color="#a78bfa" accessory="beret" pose="peek" size={150} />;
     case 'streak':
       return (
         <View style={styles.streakCard}>
@@ -250,7 +255,7 @@ export default function OnboardingScreen({ onDone }: Props) {
             </Pressable>
           )}
           <Pressable style={styles.continueButton} onPress={() => (isLast ? onDone() : goTo(index + 1))}>
-            <Text style={styles.continueText}>{isLast ? 'Let’s dive in' : 'Continue'}</Text>
+            <Text style={styles.continueText}>{isLast ? 'Let’s Ride' : 'Continue'}</Text>
           </Pressable>
         </View>
       </View>

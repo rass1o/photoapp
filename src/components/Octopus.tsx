@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { ReactNode, useEffect, useRef } from 'react';
 import { Animated, Easing, View, StyleSheet } from 'react-native';
 import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
 import { Text } from './Themed';
@@ -28,6 +28,7 @@ type Props = {
   pet?: string | null;
   size?: number;
   animated?: boolean;
+  pose?: OctopusPose;
 };
 
 function Accessory({ kind }: { kind: string }) {
@@ -413,52 +414,301 @@ function HeldItem({ kind }: { kind: string }) {
   return <G transform="translate(146, 138)">{body}</G>;
 }
 
-export default function Octopus({ color, accessory, heldItem, pet, size = 140, animated = true }: Props) {
+function Tentacles({ paths, color }: { paths: string[]; color: string }) {
+  return (
+    <G>
+      {paths.map((d, i) => (
+        <Path key={`o${i}`} d={d} stroke={OUTLINE} strokeWidth={24} strokeLinecap="round" fill="none" />
+      ))}
+      {paths.map((d, i) => (
+        <Path key={`f${i}`} d={d} stroke={color} strokeWidth={17} strokeLinecap="round" fill="none" />
+      ))}
+    </G>
+  );
+}
+
+function Head({ color }: { color: string }) {
+  return (
+    <G>
+      <Ellipse cx={100} cy={82} rx={60} ry={52} fill={color} stroke={OUTLINE} strokeWidth={4} />
+      <Ellipse cx={72} cy={54} rx={15} ry={9} fill={colors.white} opacity={0.35} rotation={-30} origin="72, 54" />
+      <Ellipse cx={62} cy={108} rx={9} ry={5} fill="#fb7185" opacity={0.5} />
+      <Ellipse cx={138} cy={108} rx={9} ry={5} fill="#fb7185" opacity={0.5} />
+      <Ellipse cx={78} cy={88} rx={13} ry={15} fill={colors.white} stroke={OUTLINE} strokeWidth={3} />
+      <Ellipse cx={122} cy={88} rx={13} ry={15} fill={colors.white} stroke={OUTLINE} strokeWidth={3} />
+      <Path d="M90,112 Q100,122 110,112" stroke={OUTLINE} strokeWidth={3.5} strokeLinecap="round" fill="none" />
+    </G>
+  );
+}
+
+function Pupils() {
+  return (
+    <G>
+      <Circle cx={80} cy={91} r={7} fill={OUTLINE} />
+      <Circle cx={124} cy={91} r={7} fill={OUTLINE} />
+      <Circle cx={83} cy={87} r={2.5} fill={colors.white} />
+      <Circle cx={127} cy={87} r={2.5} fill={colors.white} />
+    </G>
+  );
+}
+
+// Closed eyes, faded in for a blink
+function Lids({ color }: { color: string }) {
+  return (
+    <G stroke={OUTLINE} strokeWidth={3} strokeLinecap="round">
+      <Ellipse cx={78} cy={88} rx={16} ry={18} fill={color} strokeWidth={0} />
+      <Ellipse cx={122} cy={88} rx={16} ry={18} fill={color} strokeWidth={0} />
+      <Path d="M67,90 Q78,98 89,90 M111,90 Q122,98 133,90" fill="none" strokeWidth={3.5} />
+    </G>
+  );
+}
+
+// The left arm waves, so it's drawn on its own layer behind the body
+const WAVE_ARM = TENTACLES[0];
+const HOLD_ARM = TENTACLES[5];
+const MIDDLE_ARMS = TENTACLES.slice(1, 5);
+
+// viewBox units -> points, for pivots and offsets
+const VB_W = 200;
+const VB_TOP = -30;
+
+const BUBBLES = [
+  { r: 7, dx: 55, delay: 0 },
+  { r: 5, dx: 80, delay: 260 },
+  { r: 9, dx: 40, delay: 520 },
+];
+
+// While peeking, this tentacle reaches up in front to hold the camera
+const PEEK_ARM = 'M132,132 C170,128 170,96 146,92';
+
+// 'peek': lifts a camera to his eye and back down, waving in between
+export type OctopusPose = 'idle' | 'peek';
+
+export default function Octopus({ color, accessory, heldItem, pet, size = 140, animated = true, pose = 'idle' }: Props) {
   const bob = useRef(new Animated.Value(0)).current;
+  const sway = useRef(new Animated.Value(0)).current;
+  const wave = useRef(new Animated.Value(0)).current; // degrees
+  const lookX = useRef(new Animated.Value(0)).current;
+  const lookY = useRef(new Animated.Value(0)).current;
+  const blink = useRef(new Animated.Value(0)).current;
+  const peek = useRef(new Animated.Value(0)).current;
+  const bubbles = useRef(BUBBLES.map(() => new Animated.Value(0))).current;
 
   useEffect(() => {
     if (!animated) return;
-    const loop = Animated.loop(
+    const ease = Easing.inOut(Easing.sin);
+    const loops = [
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(bob, { toValue: 1, duration: 1400, easing: ease, useNativeDriver: true }),
+          Animated.timing(bob, { toValue: 0, duration: 1400, easing: ease, useNativeDriver: true }),
+        ])
+      ),
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(sway, { toValue: 1, duration: 2100, easing: ease, useNativeDriver: true }),
+          Animated.timing(sway, { toValue: -1, duration: 2100, easing: ease, useNativeDriver: true }),
+        ])
+      ),
+    ];
+    loops.forEach((l) => l.start());
+
+    const t = (value: Animated.Value, toValue: number, duration: number) =>
+      Animated.timing(value, { toValue, duration, easing: ease, useNativeDriver: true });
+
+    const doWave = (swings = 3) =>
       Animated.sequence([
-        Animated.timing(bob, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(bob, { toValue: 0, duration: 1400, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [animated, bob]);
+        t(wave, 120, 320),
+        ...Array.from({ length: swings }, () => [t(wave, 140, 200), t(wave, 105, 200)]).flat(),
+        t(wave, 0, 380),
+      ]);
+    const doBlink = () =>
+      Animated.sequence([
+        Animated.timing(blink, { toValue: 1, duration: 50, useNativeDriver: true }),
+        Animated.delay(90),
+        Animated.timing(blink, { toValue: 0, duration: 60, useNativeDriver: true }),
+      ]);
+    const doLook = () => {
+      const x = Math.random() < 0.5 ? -1 : 1;
+      const y = Math.random() * 1.2 - 0.6;
+      return Animated.sequence([
+        Animated.parallel([t(lookX, x, 260), t(lookY, y, 260)]),
+        Animated.delay(700),
+        Animated.parallel([t(lookX, -x, 380), t(lookY, -y * 0.5, 380)]),
+        Animated.delay(600),
+        Animated.parallel([t(lookX, 0, 260), t(lookY, 0, 260)]),
+      ]);
+    };
+    const doBubbles = () =>
+      Animated.parallel(
+        bubbles.map((b, i) =>
+          Animated.sequence([
+            Animated.delay(BUBBLES[i].delay),
+            Animated.timing(b, { toValue: 1, duration: 1500, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+            Animated.timing(b, { toValue: 0, duration: 0, useNativeDriver: true }),
+          ])
+        )
+      );
+    const doPeek = () =>
+      Animated.sequence([
+        t(peek, 1, 500),
+        Animated.delay(1300),
+        doBlink(),
+        Animated.delay(300),
+        t(peek, 0, 500),
+        Animated.delay(250),
+        doWave(3),
+        Animated.delay(500),
+      ]);
 
-  const translateY = bob.interpolate({ inputRange: [0, 1], outputRange: [0, -size * 0.04] });
+    // Every few seconds he does something: waves, looks around, blinks or
+    // blows bubbles. Posed octopuses run their pose on repeat instead.
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout>;
+    const next = () => {
+      timer = setTimeout(() => {
+        if (!alive) return;
+        const roll = Math.random();
+        const action =
+          pose === 'peek'
+            ? doPeek()
+            : roll < 0.25
+              ? doWave()
+              : roll < 0.5
+                ? doLook()
+                : roll < 0.75
+                  ? doBubbles()
+                  : doBlink();
+        action.start(() => alive && next());
+      }, pose === 'peek' ? 300 : 1600 + Math.random() * 2400);
+    };
+    next();
+    // Blinks also happen on their own now and then
+    let blinkTimer: ReturnType<typeof setTimeout>;
+    const blinkLater = () => {
+      blinkTimer = setTimeout(() => {
+        if (!alive) return;
+        doBlink().start(blinkLater);
+      }, 2500 + Math.random() * 3500);
+    };
+    blinkLater();
 
-  const octopus = (
-    <Animated.View style={{ transform: [{ translateY }] }}>
-      <Svg width={size} height={size * 1.25} viewBox="0 -30 200 250">
-        {heldItem === 'skateboard' ? <Skateboard /> : null}
-        {TENTACLES.map((d, i) => (
-          <Path key={`o${i}`} d={d} stroke={OUTLINE} strokeWidth={24} strokeLinecap="round" fill="none" />
-        ))}
-        {TENTACLES.map((d, i) => (
-          <Path key={`f${i}`} d={d} stroke={color} strokeWidth={17} strokeLinecap="round" fill="none" />
-        ))}
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+      clearTimeout(blinkTimer);
+      loops.forEach((l) => l.stop());
+      [bob, sway, wave, lookX, lookY, blink, peek, ...bubbles].forEach((v) => v.stopAnimation());
+    };
+  }, [animated, pose, bob, sway, wave, lookX, lookY, blink, peek, bubbles]);
 
-        <Ellipse cx={100} cy={82} rx={60} ry={52} fill={color} stroke={OUTLINE} strokeWidth={4} />
-        <Ellipse cx={72} cy={54} rx={15} ry={9} fill={colors.white} opacity={0.35} rotation={-30} origin="72, 54" />
+  const width = size;
+  const height = size * 1.25;
+  const k = size / VB_W;
+  const viewBox = `0 ${VB_TOP} 200 250`;
+  const holding = pose === 'peek' ? 'camera' : heldItem;
 
-        <Ellipse cx={62} cy={108} rx={9} ry={5} fill="#fb7185" opacity={0.5} />
-        <Ellipse cx={138} cy={108} rx={9} ry={5} fill="#fb7185" opacity={0.5} />
+  const still = (
+    <Svg width={width} height={height} viewBox={viewBox}>
+      {holding === 'skateboard' ? <Skateboard /> : null}
+      <Tentacles paths={TENTACLES} color={color} />
+      <Head color={color} />
+      <Pupils />
+      {accessory ? <Accessory kind={accessory} /> : null}
+      {holding && holding !== 'skateboard' ? <HeldItem kind={holding} /> : null}
+    </Svg>
+  );
 
-        <Ellipse cx={78} cy={88} rx={13} ry={15} fill={colors.white} stroke={OUTLINE} strokeWidth={3} />
-        <Ellipse cx={122} cy={88} rx={13} ry={15} fill={colors.white} stroke={OUTLINE} strokeWidth={3} />
-        <Circle cx={80} cy={91} r={7} fill={OUTLINE} />
-        <Circle cx={124} cy={91} r={7} fill={OUTLINE} />
-        <Circle cx={83} cy={87} r={2.5} fill={colors.white} />
-        <Circle cx={127} cy={87} r={2.5} fill={colors.white} />
+  // Rotate a layer around a point given in viewBox units
+  const around = (x: number, y: number, rotate: Animated.AnimatedInterpolation<string>) => {
+    const dx = x * k - width / 2;
+    const dy = (y - VB_TOP) * k - height / 2;
+    return [{ translateX: dx }, { translateY: dy }, { rotate }, { translateX: -dx }, { translateY: -dy }];
+  };
+  const deg = (v: Animated.Value, range: [number, number]) =>
+    v.interpolate({ inputRange: range, outputRange: range.map((n) => `${n}deg`) });
 
-        <Path d="M90,112 Q100,122 110,112" stroke={OUTLINE} strokeWidth={3.5} strokeLinecap="round" fill="none" />
-
-        {accessory ? <Accessory kind={accessory} /> : null}
-        {heldItem && heldItem !== 'skateboard' ? <HeldItem kind={heldItem} /> : null}
+  const layer = (children: ReactNode, style?: object) => (
+    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, style]}>
+      <Svg width={width} height={height} viewBox={viewBox}>
+        {children}
       </Svg>
+    </Animated.View>
+  );
+
+  const octopus = !animated ? still : (
+    <Animated.View
+      style={{
+        width,
+        height,
+        transform: [
+          { translateY: bob.interpolate({ inputRange: [0, 1], outputRange: [0, -size * 0.04] }) },
+          ...around(100, 200, sway.interpolate({ inputRange: [-1, 1], outputRange: ['-4deg', '4deg'] })),
+        ],
+      }}
+    >
+      {layer(<Tentacles paths={[WAVE_ARM]} color={color} />, { transform: around(66, 100, deg(wave, [0, 360])) })}
+      {pose === 'peek' &&
+        layer(<Tentacles paths={[HOLD_ARM]} color={color} />, {
+          transform: around(140, 108, peek.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '100deg'] })),
+        })}
+      {layer(
+        <G>
+          {holding === 'skateboard' ? <Skateboard /> : null}
+          <Tentacles paths={pose === 'peek' ? MIDDLE_ARMS : [...MIDDLE_ARMS, HOLD_ARM]} color={color} />
+          <Head color={color} />
+        </G>
+      )}
+      {layer(<Pupils />, {
+        transform: [
+          { translateX: lookX.interpolate({ inputRange: [-1, 1], outputRange: [-5 * k, 5 * k] }) },
+          { translateY: lookY.interpolate({ inputRange: [-1, 1], outputRange: [-4 * k, 4 * k] }) },
+        ],
+      })}
+      {layer(<Lids color={color} />, { opacity: blink })}
+      {layer(
+        <G>
+          {accessory ? <Accessory kind={accessory} /> : null}
+          {pose !== 'peek' && holding && holding !== 'skateboard' ? <HeldItem kind={holding} /> : null}
+        </G>
+      )}
+      {pose === 'peek' &&
+        layer(<Tentacles paths={[PEEK_ARM]} color={color} />, {
+          opacity: peek.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0, 0, 1] }),
+        })}
+      {pose === 'peek' &&
+        layer(<HeldItem kind="camera" />, {
+          transform: [
+            { translateX: peek.interpolate({ inputRange: [0, 1], outputRange: [0, -45 * k] }) },
+            { translateY: peek.interpolate({ inputRange: [0, 1], outputRange: [0, -62 * k] }) },
+          ],
+        })}
+      {bubbles.map((b, i) => {
+        const r = BUBBLES[i].r * k;
+        return (
+          <Animated.View
+            key={i}
+            pointerEvents="none"
+            style={[
+              styles.airBubble,
+              {
+                width: r * 2,
+                height: r * 2,
+                borderRadius: r,
+                borderWidth: Math.max(1, 2 * k),
+                left: 110 * k - r,
+                top: (116 - VB_TOP) * k - r,
+                opacity: b.interpolate({ inputRange: [0, 0.1, 0.7, 1], outputRange: [0, 1, 0.9, 0] }),
+                transform: [
+                  { translateX: b.interpolate({ inputRange: [0, 1], outputRange: [0, BUBBLES[i].dx * k] }) },
+                  { translateY: b.interpolate({ inputRange: [0, 1], outputRange: [0, -110 * k] }) },
+                  { scale: b.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) },
+                ],
+              },
+            ]}
+          />
+        );
+      })}
     </Animated.View>
   );
 
@@ -510,6 +760,7 @@ export function OctopusCard({
 
 const styles = StyleSheet.create({
   pet: { position: 'absolute', left: 0 },
+  airBubble: { position: 'absolute', borderColor: '#7CC6E8', backgroundColor: 'rgba(255,255,255,0.55)' },
   card: {
     alignItems: 'center',
     backgroundColor: colors.sand,
