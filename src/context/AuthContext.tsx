@@ -13,11 +13,28 @@ type AuthContextValue = {
   isLoading: boolean;
   authError: string | null;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, username: string, password: string) => Promise<void>;
+  // 'confirm' = account made, waiting on the emailed confirmation link
+  signUp: (email: string, username: string, password: string) => Promise<'done' | 'confirm' | 'error'>;
+  resendConfirmation: (email: string) => Promise<string | null>;
   signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+// Supabase's raw auth errors, reworded for people signing up
+function friendlyAuthError(message: string) {
+  const m = message.toLowerCase();
+  if (m.includes('duplicate_inbox') || m.includes('database error saving new user')) {
+    return 'That email (or a version of it) already has an account, or the username is taken. Try signing in instead.';
+  }
+  if (m.includes('already registered')) return 'An account already uses this email. Try signing in instead.';
+  if (m.includes('email not confirmed')) {
+    return 'Confirm your email first: tap the link we sent you, then sign in.';
+  }
+  if (m.includes('invalid login credentials')) return 'That email and password don’t match.';
+  if (m.includes('rate limit')) return 'Too many tries. Wait a few minutes and try again.';
+  return message;
+}
 
 function userFromSession(session: Session | null): User | null {
   if (!session?.user) return null;
@@ -55,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         console.log('signIn error:', error.message);
-        setAuthError(error.message);
+        setAuthError(friendlyAuthError(error.message));
       }
     } catch (err) {
       console.log('signIn threw:', err);
@@ -66,19 +83,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, username: string, password: string) => {
     setAuthError(null);
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: { data: { username } },
       });
       if (error) {
         console.log('signUp error:', error.message);
-        setAuthError(error.message);
+        setAuthError(friendlyAuthError(error.message));
+        return 'error';
       }
+      // With email confirmation on, Supabase hides whether an address is
+      // taken: it "succeeds" with no identities instead of erroring
+      if (data.user && data.user.identities?.length === 0) {
+        setAuthError(friendlyAuthError('already registered'));
+        return 'error';
+      }
+      return data.session ? 'done' : 'confirm';
     } catch (err) {
       console.log('signUp threw:', err);
       setAuthError(err instanceof Error ? err.message : 'Something went wrong. Check your connection.');
+      return 'error';
     }
+  };
+
+  // Returns an error message, or null once the email is on its way
+  const resendConfirmation = async (email: string) => {
+    const { error } = await supabase.auth.resend({ type: 'signup', email });
+    return error ? friendlyAuthError(error.message) : null;
   };
 
   const signOut = async () => {
@@ -87,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, authError, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, isLoading, authError, signIn, signUp, resendConfirmation, signOut }}>
       {children}
     </AuthContext.Provider>
   );

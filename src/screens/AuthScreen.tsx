@@ -12,7 +12,7 @@ import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
 
 export default function AuthScreen() {
-  const { signIn, signUp, authError } = useAuth();
+  const { signIn, signUp, resendConfirmation, authError } = useAuth();
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
 
   const [email, setEmail] = useState('');
@@ -20,6 +20,9 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Set once an account is made but waiting on its emailed confirmation link
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [resendNote, setResendNote] = useState('');
 
   const handleSubmit = async () => {
     if (!email.includes('@')) {
@@ -39,10 +42,17 @@ export default function AuthScreen() {
     setIsSubmitting(true);
     if (mode === 'signIn') {
       await signIn(email, password);
-    } else {
-      await signUp(email, username.trim(), password);
+    } else if ((await signUp(email.trim(), username.trim(), password)) === 'confirm') {
+      setPendingEmail(email.trim());
+      setResendNote('');
     }
     setIsSubmitting(false);
+  };
+
+  const resend = async (address: string) => {
+    setResendNote('Sending…');
+    const failure = await resendConfirmation(address);
+    setResendNote(failure ?? 'Sent! Check your inbox (and spam).');
   };
 
   // authError comes back from Supabase itself (e.g. "Invalid login credentials",
@@ -78,47 +88,77 @@ export default function AuthScreen() {
             </Pressable>
           </View>
 
-          {mode === 'signUp' && (
-            <TextInput
-              style={styles.input}
-              placeholder="Username"
-              placeholderTextColor={colors.faint}
-              autoCapitalize="none"
-              value={username}
-              onChangeText={setUsername}
-            />
+          {pendingEmail ? (
+            <View style={styles.confirmCard}>
+              <Text style={styles.confirmTitle}>Check your inbox</Text>
+              <Text style={styles.confirmText}>
+                We sent a confirmation link to <Text style={styles.confirmEmail}>{pendingEmail}</Text>. Tap it to
+                activate your account, then come back and sign in.
+              </Text>
+              {resendNote ? <Text style={styles.confirmNote}>{resendNote}</Text> : null}
+              <Pressable
+                style={styles.submitButton}
+                onPress={() => {
+                  setPendingEmail(null);
+                  setMode('signIn');
+                }}
+              >
+                <Text style={styles.submitText}>I{'’'}ve confirmed, sign in</Text>
+              </Pressable>
+              <Pressable onPress={() => resend(pendingEmail)} style={styles.linkButton}>
+                <Text style={styles.linkText}>Didn{'’'}t get it? Send it again</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              {mode === 'signUp' && (
+                <TextInput
+                  style={styles.input}
+                  placeholder="Username"
+                  placeholderTextColor={colors.faint}
+                  autoCapitalize="none"
+                  value={username}
+                  onChangeText={setUsername}
+                />
+              )}
+
+              <TextInput
+                style={styles.input}
+                placeholder="Email"
+                placeholderTextColor={colors.faint}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor={colors.faint}
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+              />
+
+              {displayError ? <Text style={styles.error}>{displayError}</Text> : null}
+              {mode === 'signIn' && displayError?.startsWith('Confirm your email') && (
+                <Pressable onPress={() => resend(email.trim())} style={styles.linkButton}>
+                  <Text style={styles.linkText}>{resendNote || 'Send the confirmation link again'}</Text>
+                </Pressable>
+              )}
+
+              <Pressable
+                style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+                onPress={handleSubmit}
+                disabled={isSubmitting}
+              >
+                <Text style={styles.submitText}>
+                  {isSubmitting ? 'Please wait…' : mode === 'signIn' ? 'Sign in' : 'Create account'}
+                </Text>
+              </Pressable>
+            </>
           )}
-
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor={colors.faint}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor={colors.faint}
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
-
-          {displayError ? <Text style={styles.error}>{displayError}</Text> : null}
-
-          <Pressable
-            style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
-            onPress={handleSubmit}
-            disabled={isSubmitting}
-          >
-            <Text style={styles.submitText}>
-              {isSubmitting ? 'Please wait…' : mode === 'signIn' ? 'Sign in' : 'Create account'}
-            </Text>
-          </Pressable>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -167,5 +207,18 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   submitButtonDisabled: { opacity: 0.6 },
+  confirmCard: {
+    backgroundColor: colors.shell,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.sandBorder,
+    padding: 18,
+  },
+  confirmTitle: { ...bubbly, fontSize: 22, textAlign: 'center', marginBottom: 8 },
+  confirmText: { fontSize: 14, color: colors.text, textAlign: 'center', lineHeight: 20, marginBottom: 8 },
+  confirmEmail: { fontWeight: '600', color: colors.ink },
+  confirmNote: { fontSize: 12, color: colors.reef, textAlign: 'center', marginBottom: 4 },
+  linkButton: { alignSelf: 'center', paddingVertical: 10 },
+  linkText: { fontSize: 13, color: colors.reef, fontWeight: '600' },
   submitText: { color: colors.white, fontSize: 14, fontWeight: '600' },
 });
