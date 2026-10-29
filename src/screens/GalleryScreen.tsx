@@ -5,6 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../lib/supabase';
 import BackBar from '../components/BackBar';
+import SandGrain from '../components/SandGrain';
 import { Text } from '../components/Themed';
 import { colors } from '../theme';
 
@@ -48,6 +49,7 @@ export default function GalleryScreen({ route, navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.page} edges={['top', 'bottom']}>
+      <SandGrain />
       <BackBar title={`${username}’s gallery`} />
 
       <View style={styles.filterRow}>

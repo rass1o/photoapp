@@ -19,6 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import FilmStamp from '../components/FilmStamp';
 import FormatTag from '../components/FormatTag';
 import BackBar from '../components/BackBar';
+import SandGrain from '../components/SandGrain';
 import { Text, TextInput } from '../components/Themed';
 import { colors } from '../theme';
 
@@ -174,6 +175,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.page} edges={['top']}>
+      <SandGrain />
       <BackBar />
       <KeyboardAvoidingView
         style={styles.flex}

@@ -25,6 +25,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ShopItem, isOwned, loadShop } from '../lib/shop';
 import FilmStamp from '../components/FilmStamp';
 import SectionHeader from '../components/SectionHeader';
+import SandGrain from '../components/SandGrain';
 import StreakCalendar from '../components/StreakCalendar';
 import OchoCelebration from '../components/OchoCelebration';
 import { Text, TextInput } from '../components/Themed';
@@ -330,6 +331,7 @@ export default function CameraScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <SafeAreaView style={styles.container}>
+        <SandGrain />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
           <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
             <View style={styles.topRow}>

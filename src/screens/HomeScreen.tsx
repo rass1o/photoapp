@@ -33,6 +33,8 @@ import { useNotifications } from '../context/NotificationsContext';
 import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
 import Wave from '../components/Wave';
+import SandGrain from '../components/SandGrain';
+import SeaLife from '../components/SeaLife';
 
 type Theme = {
   id: string;
@@ -616,6 +618,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
+      <SeaLife />
       <View style={styles.topBar}>
         <Text style={styles.appName}>ShuttInk</Text>
         <View style={styles.topBarIcons}>
@@ -725,6 +728,7 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.feedWrap}>
+        <SandGrain />
         <Wave />
         {isLoading ? (
           <View style={styles.centered}>
@@ -1028,7 +1032,7 @@ const styles = StyleSheet.create({
   toggleTextActive: { fontSize: 13, fontWeight: '600', color: colors.deep },
 
   feedWrap: { flex: 1, backgroundColor: colors.shell },
-  feedSheet: { flex: 1, backgroundColor: colors.shell, paddingTop: 4 },
+  feedSheet: { flex: 1, paddingTop: 4 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, paddingHorizontal: 30 },
   errorText: { color: '#b91c1c', fontSize: 13, textAlign: 'center' },
   emptyText: { color: colors.faint, fontSize: 13, textAlign: 'center' },

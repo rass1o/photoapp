@@ -27,6 +27,8 @@ import {
 import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
 import Wave from '../components/Wave';
+import SandGrain from '../components/SandGrain';
+import SeaLife from '../components/SeaLife';
 
 type Profile = {
   id: string;
@@ -366,6 +368,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: profile.banner_color }]} edges={['top']}>
+      <SeaLife />
       <View style={styles.header}>
         <Pressable onPress={pickAvatar} style={[styles.avatar, { borderColor: profile.avatar_frame_color }]}>
           {isUploadingAvatar ? (
@@ -409,6 +412,7 @@ export default function ProfileScreen() {
       </View>
 
       <View style={styles.sheet}>
+        <SandGrain />
         <Wave />
         <FlatList
           data={gallery.slice(0, GALLERY_PREVIEW)}

@@ -11,6 +11,8 @@ import { loadFriendIds, onFriendsChanged } from '../lib/friends';
 import { Text } from '../components/Themed';
 import { colors, bubbly } from '../theme';
 import Wave from '../components/Wave';
+import SandGrain from '../components/SandGrain';
+import SeaLife from '../components/SeaLife';
 
 type Theme = {
   id: string;
@@ -134,6 +136,7 @@ export default function RankingsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <SeaLife />
       <View style={styles.header}>
         <Text style={styles.title}>Rankings</Text>
         {theme && <Text style={styles.subtitle}>{theme.name}</Text>}
@@ -164,6 +167,7 @@ export default function RankingsScreen() {
       </View>
 
       <View style={styles.sheet}>
+        <SandGrain />
         <Wave />
 
         {isLoading ? (

@@ -20,6 +20,8 @@ import BlindBoxModal from '../components/BlindBoxModal';
 import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
 import Wave from '../components/Wave';
+import SandGrain from '../components/SandGrain';
+import SeaLife from '../components/SeaLife';
 
 type Profile = {
   username: string;
@@ -209,6 +211,7 @@ export default function ShopScreen() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: shown.banner }]} edges={['top']}>
+      <SeaLife />
       <View style={styles.topBar}>
         <Text style={styles.title}>Shop</Text>
         <View style={styles.balancePill}>
@@ -238,6 +241,7 @@ export default function ShopScreen() {
       </View>
 
       <View style={styles.sheet}>
+        <SandGrain />
         <Wave />
         <ScrollView
           contentContainerStyle={{ paddingBottom: 24 }}
