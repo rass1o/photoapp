@@ -38,7 +38,6 @@ import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
 import Wave from '../components/Wave';
 import SandGrain from '../components/SandGrain';
-import SeaLife from '../components/SeaLife';
 
 type Theme = {
   id: string;
@@ -84,6 +83,32 @@ function formatCountdown(endDate: string): string {
 
 const DOUBLE_TAP_WINDOW_MS = 300;
 const PAGE_SIZE = 8;
+
+const clampRatio = (width: number, height: number) => Math.min(Math.max(width / height, 0.5), 2);
+
+// Each photo's shape, looked up before it's shown, so cards are the right
+// height from the start instead of jumping when the image finishes loading
+function measureAspectRatios(rows: Array<{ id: string; image_url: string }>) {
+  return Promise.all(
+    rows.map(
+      (row) =>
+        new Promise<[string, number] | null>((resolve) => {
+          const timer = setTimeout(() => resolve(null), 2500);
+          Image.getSize(
+            row.image_url,
+            (width, height) => {
+              clearTimeout(timer);
+              resolve(width && height ? [row.id, clampRatio(width, height)] : null);
+            },
+            () => {
+              clearTimeout(timer);
+              resolve(null);
+            }
+          );
+        })
+    )
+  ).then((entries) => Object.fromEntries(entries.filter((e): e is [string, number] => !!e)));
+}
 
 export default function HomeScreen() {
   const { user } = useAuth();
@@ -143,11 +168,14 @@ export default function HomeScreen() {
         toValue: open ? 1 : 0,
         duration: 260,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: false, // animates height
+        // Only transform and opacity move, so it runs natively and never
+        // resizes the list mid-scroll
+        useNativeDriver: true,
       }).start();
     },
     [headerProgress]
   );
+  const headerOffset = headerProgress.interpolate({ inputRange: [0, 1], outputRange: [-headerHeight, 0] });
 
   const onFeedScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const y = e.nativeEvent.contentOffset.y;
@@ -268,7 +296,8 @@ export default function HomeScreen() {
       }
 
       const rows = (submissionsData ?? []) as Submission[];
-      const withProfiles = await attachUsernamesAndComments(rows);
+      const [withProfiles, ratios] = await Promise.all([attachUsernamesAndComments(rows), measureAspectRatios(rows)]);
+      setAspectRatios(ratios);
       setSubmissions(withProfiles);
       setHasMore(rows.length === PAGE_SIZE);
 
@@ -308,7 +337,8 @@ export default function HomeScreen() {
 
     if (!error && data) {
       const rows = data as Submission[];
-      const withProfiles = await attachUsernamesAndComments(rows);
+      const [withProfiles, ratios] = await Promise.all([attachUsernamesAndComments(rows), measureAspectRatios(rows)]);
+      setAspectRatios((prev) => ({ ...prev, ...ratios }));
       setSubmissions((prev) => [...prev, ...withProfiles]);
       setHasMore(rows.length === PAGE_SIZE);
 
@@ -666,100 +696,100 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
-      <SeaLife />
-      <View style={styles.topBar}>
-        <Pressable onPress={scrollToTop} hitSlop={6}>
-          <Text style={styles.appName}>ShuttInk</Text>
-        </Pressable>
-        <View style={styles.topBarIcons}>
-          <Pressable onPress={() => setSearchVisible((v) => !v)}>
-            <Ionicons name="search-outline" size={20} color={colors.ink} />
+      {/* Title and daily strip stay put; everything below slides up under them */}
+      <View style={styles.fixedTop}>
+        <View style={styles.topBar}>
+          <View style={styles.topBarSide} />
+          <Pressable onPress={scrollToTop} hitSlop={6}>
+            <Text style={styles.appName}>ShuttInk</Text>
           </Pressable>
-          <Pressable onPress={() => setNotifVisible(true)} style={{ marginLeft: 14 }} hitSlop={8}>
-            <Ionicons name={unread > 0 ? 'notifications' : 'notifications-outline'} size={20} color={colors.ink} />
-            {unread > 0 && (
-              <View style={styles.bellBadge}>
-                <Text style={styles.bellBadgeText}>{unread > 9 ? '9+' : unread}</Text>
-              </View>
-            )}
-          </Pressable>
-        </View>
-      </View>
-
-      {searchVisible && (
-        <View style={styles.searchWrap}>
-          <View style={styles.searchBar}>
-            <Ionicons name="search-outline" size={16} color={colors.muted} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search users by username"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoFocus
-            />
-            {searchQuery.length > 0 && (
-              <Pressable onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={16} color={colors.faint} />
-              </Pressable>
-            )}
+          <View style={[styles.topBarSide, styles.topBarIcons]}>
+            <Pressable onPress={() => setSearchVisible((v) => !v)}>
+              <Ionicons name="search-outline" size={20} color={colors.ink} />
+            </Pressable>
+            <Pressable onPress={() => setNotifVisible(true)} style={{ marginLeft: 14 }} hitSlop={8}>
+              <Ionicons name={unread > 0 ? 'notifications' : 'notifications-outline'} size={20} color={colors.ink} />
+              {unread > 0 && (
+                <View style={styles.bellBadge}>
+                  <Text style={styles.bellBadgeText}>{unread > 9 ? '9+' : unread}</Text>
+                </View>
+              )}
+            </Pressable>
           </View>
+        </View>
 
-          {searchQuery.trim() !== '' && (
-            <View style={styles.searchResultsPanel}>
-              {isSearching ? (
-                <ActivityIndicator style={{ marginVertical: 12 }} color={colors.deep} />
-              ) : searchResults.length === 0 ? (
-                <Text style={styles.searchEmptyText}>No users found for "{searchQuery}"</Text>
-              ) : (
-                searchResults.map((result) => (
-                  <Pressable
-                    key={result.id}
-                    style={styles.searchResultRow}
-                    onPress={() => goToUserProfile(result.id)}
-                  >
-                    {result.avatar_url ? (
-                      <Image source={{ uri: result.avatar_url }} style={styles.searchResultAvatar} />
-                    ) : (
-                      <View style={styles.searchResultAvatar} />
-                    )}
-                    <Text style={styles.searchResultUsername}>{result.username}</Text>
-                    <Ionicons name="chevron-forward" size={16} color={colors.faint} />
-                  </Pressable>
-                ))
+        {searchVisible && (
+          <View style={styles.searchWrap}>
+            <View style={styles.searchBar}>
+              <Ionicons name="search-outline" size={16} color={colors.muted} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search users by username"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus
+              />
+              {searchQuery.length > 0 && (
+                <Pressable onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={16} color={colors.faint} />
+                </Pressable>
               )}
             </View>
-          )}
-        </View>
-      )}
 
-      {dailyPhotos.length > 0 && (
-        <View style={styles.dailyStripWrap}>
-          <Text style={styles.dailyStripLabel}>Today, around the app</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
-            {dailyPhotos.map((d) => (
-              <Pressable key={d.id} onPress={() => setDailyViewerUrl(d.image_url)}>
-                <Image source={{ uri: d.image_url }} style={styles.dailyThumb} />
-                <Text style={styles.dailyThumbUsername} numberOfLines={1}>{d.username}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-      )}
+            {searchQuery.trim() !== '' && (
+              <View style={styles.searchResultsPanel}>
+                {isSearching ? (
+                  <ActivityIndicator style={{ marginVertical: 12 }} color={colors.deep} />
+                ) : searchResults.length === 0 ? (
+                  <Text style={styles.searchEmptyText}>No users found for "{searchQuery}"</Text>
+                ) : (
+                  searchResults.map((result) => (
+                    <Pressable
+                      key={result.id}
+                      style={styles.searchResultRow}
+                      onPress={() => goToUserProfile(result.id)}
+                    >
+                      {result.avatar_url ? (
+                        <Image source={{ uri: result.avatar_url }} style={styles.searchResultAvatar} />
+                      ) : (
+                        <View style={styles.searchResultAvatar} />
+                      )}
+                      <Text style={styles.searchResultUsername}>{result.username}</Text>
+                      <Ionicons name="chevron-forward" size={16} color={colors.faint} />
+                    </Pressable>
+                  ))
+                )}
+              </View>
+            )}
+          </View>
+        )}
+
+        {dailyPhotos.length > 0 && (
+          <View style={styles.dailyStripWrap}>
+            <Text style={styles.dailyStripLabel}>Today, around the app</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
+              {dailyPhotos.map((d) => (
+                <Pressable key={d.id} onPress={() => setDailyViewerUrl(d.image_url)}>
+                  <Image source={{ uri: d.image_url }} style={styles.dailyThumb} />
+                  <Text style={styles.dailyThumbUsername} numberOfLines={1}>{d.username}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+      </View>
 
       <Animated.View
-        style={{
-          overflow: 'hidden',
-          height: headerHeight ? headerProgress.interpolate({ inputRange: [0, 1], outputRange: [0, headerHeight] }) : undefined,
-          opacity: headerProgress,
-        }}
+        style={[
+          styles.slider,
+          // Taller than the screen by the banner's height, so sliding up never leaves a gap
+          { marginBottom: -headerHeight, transform: [{ translateY: headerOffset }] },
+        ]}
       >
         <Animated.View
           onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
-          style={{
-            transform: [
-              { translateY: headerProgress.interpolate({ inputRange: [0, 1], outputRange: [-headerHeight / 2, 0] }) },
-            ],
-          }}
+          style={{ opacity: headerProgress }}
         >
           <View style={styles.themeBanner}>
             <Text style={styles.themeLabel}>THIS WEEK'S THEME</Text>
@@ -793,125 +823,126 @@ export default function HomeScreen() {
           </View>
 
         </Animated.View>
-      </Animated.View>
-      {/* room for the wave below */}
-      <View style={styles.waveGap} />
+        {/* room for the wave below */}
+        <View style={styles.waveGap} />
 
-      <View style={styles.feedWrap}>
-        <SandGrain />
-        <Wave />
-        {isLoading ? (
-          <View style={styles.centered}>
-            <ActivityIndicator color={colors.deep} />
-          </View>
-        ) : errorMessage ? (
-          <View style={styles.centered}>
-            <Text style={styles.errorText}>{errorMessage}</Text>
-          </View>
-        ) : (
-          <FlatList
-            ref={listRef}
-            style={styles.feedSheet}
-            data={submissions}
-            onScroll={onFeedScroll}
-            scrollEventThrottle={16}
-            onScrollBeginDrag={() => (userScrollingRef.current = true)}
-            onMomentumScrollBegin={() => (userScrollingRef.current = true)}
-            onScrollEndDrag={() => (userScrollingRef.current = false)}
-            onMomentumScrollEnd={() => (userScrollingRef.current = false)}
-            keyExtractor={(item) => item.id}
-            refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
-            onEndReachedThreshold={0.6}
-            onEndReached={loadMore}
-            ListFooterComponent={
-              isLoadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color={colors.deep} /> : undefined
-            }
-            ListEmptyComponent={
-              <View style={styles.centered}>
-                <Text style={styles.emptyText}>
-                  {feed === 'friends'
-                    ? 'Nothing from your friends for this theme yet. Add friends from their profiles, or dive into Global.'
-                    : 'No submissions yet for this theme. Water you waiting for? Be the first!'}
-                </Text>
-                {feed === 'friends' && (
-                  <Pressable style={styles.emptyButton} onPress={() => setFeed('global')}>
-                    <Text style={styles.emptyButtonText}>Browse Global</Text>
-                  </Pressable>
-                )}
-              </View>
-            }
-            renderItem={({ item }) => {
-              const hasVoted = votedIds.has(item.id);
-              return (
-                <View style={styles.card}>
-                  <Pressable
-                    style={styles.cardHeaderTouchable}
-                    onPress={() => navigation.push('UserProfile', { userId: item.user_id })}
-                  >
-                    {item.avatar_url ? (
-                      <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
-                    ) : (
-                      <View style={styles.avatar} />
-                    )}
-                    <Text style={styles.username}>{item.username}</Text>
-                    <FormatTag format={item.format} />
-                  </Pressable>
-
-                  <Pressable onPress={() => handleImageTap(item.id)}>
-                    <Image
-                      source={{ uri: item.image_url }}
-                      style={[styles.image, { aspectRatio: aspectRatios[item.id] ?? 1 }]}
-                      onLoad={(e) => {
-                        const { width, height } = e.nativeEvent.source;
-                        if (width && height) {
-                          const ratio = Math.min(Math.max(width / height, 0.5), 2);
-                          setAspectRatios((prev) => ({ ...prev, [item.id]: ratio }));
-                        }
-                      }}
-                    />
-                    {item.film_stamp && (
-                      <View style={styles.stampOverlay} pointerEvents="none">
-                        <FilmStamp stock={item.film_stamp} />
-                      </View>
-                    )}
-                    {burstId === item.id && (
-                      <View style={styles.burstOverlay} pointerEvents="none">
-                        <Ionicons name="heart" size={80} color={colors.white} />
-                      </View>
-                    )}
-                  </Pressable>
-
-                  {item.caption ? (
-                    <Text style={styles.caption}>
-                      <Text style={styles.captionUsername}>{item.username}</Text> {item.caption}
-                    </Text>
-                  ) : null}
-
-                  <View style={styles.actionsRow}>
-                    <Pressable style={styles.actionItem} onPress={() => handleHeartTap(item.id)}>
-                      <Ionicons
-                        name={hasVoted ? 'heart' : 'heart-outline'}
-                        size={20}
-                        color={hasVoted ? '#dc2626' : colors.text}
-                      />
-                      <Text style={[styles.actionText, hasVoted && styles.actionTextActive]}>
-                        {item.vote_count}
-                      </Text>
+        <View style={styles.feedWrap}>
+          <SandGrain />
+          <Wave />
+          {isLoading ? (
+            <View style={styles.centered}>
+              <ActivityIndicator color={colors.deep} />
+            </View>
+          ) : errorMessage ? (
+            <View style={styles.centered}>
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          ) : (
+            <FlatList
+              ref={listRef}
+              style={styles.feedSheet}
+              data={submissions}
+              onScroll={onFeedScroll}
+              scrollEventThrottle={16}
+              onScrollBeginDrag={() => (userScrollingRef.current = true)}
+              onMomentumScrollBegin={() => (userScrollingRef.current = true)}
+              onScrollEndDrag={() => (userScrollingRef.current = false)}
+              onMomentumScrollEnd={() => (userScrollingRef.current = false)}
+              keyExtractor={(item) => item.id}
+              refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
+              onEndReachedThreshold={0.6}
+              onEndReached={loadMore}
+              ListFooterComponent={
+                isLoadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color={colors.deep} /> : undefined
+              }
+              ListEmptyComponent={
+                <View style={styles.centered}>
+                  <Text style={styles.emptyText}>
+                    {feed === 'friends'
+                      ? 'Nothing from your friends for this theme yet. Add friends from their profiles, or dive into Global.'
+                      : 'No submissions yet for this theme. Water you waiting for? Be the first!'}
+                  </Text>
+                  {feed === 'friends' && (
+                    <Pressable style={styles.emptyButton} onPress={() => setFeed('global')}>
+                      <Text style={styles.emptyButtonText}>Browse Global</Text>
                     </Pressable>
-                    <Pressable style={styles.actionItem} onPress={() => openComments(item.id)}>
-                      <Ionicons name="chatbubble-outline" size={17} color={colors.text} />
-                      <Text style={styles.actionText}>{commentCounts[item.id] ?? 0}</Text>
-                    </Pressable>
-                    <Pressable style={{ marginLeft: 'auto' }} onPress={() => shareSubmission(item)}>
-                      <Ionicons name="share-outline" size={18} color={colors.text} />
-                    </Pressable>
-                  </View>
+                  )}
                 </View>
-              );
-            }}
-          />
-        )}
-      </View>
+              }
+              renderItem={({ item }) => {
+                const hasVoted = votedIds.has(item.id);
+                return (
+                  <View style={styles.card}>
+                    <Pressable
+                      style={styles.cardHeaderTouchable}
+                      onPress={() => navigation.push('UserProfile', { userId: item.user_id })}
+                    >
+                      {item.avatar_url ? (
+                        <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+                      ) : (
+                        <View style={styles.avatar} />
+                      )}
+                      <Text style={styles.username}>{item.username}</Text>
+                      <FormatTag format={item.format} />
+                    </Pressable>
+
+                    <Pressable onPress={() => handleImageTap(item.id)}>
+                      <Image
+                        source={{ uri: item.image_url }}
+                        style={[styles.image, { aspectRatio: aspectRatios[item.id] ?? 1 }]}
+                        onLoad={(e) => {
+                          const { width, height } = e.nativeEvent.source;
+                          // Backup for photos that couldn't be measured up front
+                          if (width && height && !aspectRatios[item.id]) {
+                            const ratio = clampRatio(width, height);
+                            setAspectRatios((prev) => ({ ...prev, [item.id]: ratio }));
+                          }
+                        }}
+                      />
+                      {item.film_stamp && (
+                        <View style={styles.stampOverlay} pointerEvents="none">
+                          <FilmStamp stock={item.film_stamp} />
+                        </View>
+                      )}
+                      {burstId === item.id && (
+                        <View style={styles.burstOverlay} pointerEvents="none">
+                          <Ionicons name="heart" size={80} color={colors.white} />
+                        </View>
+                      )}
+                    </Pressable>
+
+                    {item.caption ? (
+                      <Text style={styles.caption}>
+                        <Text style={styles.captionUsername}>{item.username}</Text> {item.caption}
+                      </Text>
+                    ) : null}
+
+                    <View style={styles.actionsRow}>
+                      <Pressable style={styles.actionItem} onPress={() => handleHeartTap(item.id)}>
+                        <Ionicons
+                          name={hasVoted ? 'heart' : 'heart-outline'}
+                          size={20}
+                          color={hasVoted ? '#dc2626' : colors.text}
+                        />
+                        <Text style={[styles.actionText, hasVoted && styles.actionTextActive]}>
+                          {item.vote_count}
+                        </Text>
+                      </Pressable>
+                      <Pressable style={styles.actionItem} onPress={() => openComments(item.id)}>
+                        <Ionicons name="chatbubble-outline" size={17} color={colors.text} />
+                        <Text style={styles.actionText}>{commentCounts[item.id] ?? 0}</Text>
+                      </Pressable>
+                      <Pressable style={{ marginLeft: 'auto' }} onPress={() => shareSubmission(item)}>
+                        <Ionicons name="share-outline" size={18} color={colors.text} />
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              }}
+            />
+          )}
+        </View>
+      </Animated.View>
 
       <Modal visible={!!commentSubmissionId} animationType="slide" transparent onRequestClose={() => setCommentSubmissionId(null)}>
         <KeyboardAvoidingView
@@ -1007,7 +1038,9 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.sea },
+  screen: { flex: 1, backgroundColor: colors.sea, overflow: 'hidden' },
+  fixedTop: { backgroundColor: colors.sea, zIndex: 1 },
+  slider: { flex: 1 },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1016,8 +1049,10 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 4,
   },
-  appName: { ...bubbly, fontSize: 24 },
-  topBarIcons: { flexDirection: 'row', alignItems: 'center' },
+  appName: { ...bubbly, fontSize: 34, textShadowOffset: { width: 0, height: 3 } },
+  // Equal-width sides keep the title centred between them
+  topBarSide: { flex: 1 },
+  topBarIcons: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },
 
   searchBar: {
     flexDirection: 'row',

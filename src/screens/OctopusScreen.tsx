@@ -15,7 +15,6 @@ import { Text, TextInput } from '../components/Themed';
 import { colors } from '../theme';
 import Wave from '../components/Wave';
 import SandGrain from '../components/SandGrain';
-import SeaLife from '../components/SeaLife';
 
 const SECTIONS: Array<{ category: OctoCategory; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
   { category: 'octo_color', label: 'Colors', icon: 'color-palette-outline' },
@@ -158,7 +157,6 @@ export default function OctopusScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
-      <SeaLife />
       <BackBar title="Your octopus" />
       <ScrollView contentContainerStyle={{ paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
