@@ -2,7 +2,14 @@
   "name": "ShuttInk",
   "plugins": [
     "expo-status-bar",
-    "expo-font"
+    "expo-font",
+    [
+      "expo-image-picker",
+      {
+        "cameraPermission": "ShuttInk uses your camera so you can snap your daily and weekly photos.",
+        "photosPermission": "ShuttInk needs your photos so you can submit pictures you've already taken."
+      }
+    ]
   ],
   "extra": {
     "eas": {

@@ -122,39 +122,89 @@ export default function CameraScreen() {
     }, [user])
   );
 
-  const pickImage = async (target: 'weekly' | 'daily') => {
-    const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
+  const ensurePermission = async (source: 'camera' | 'library') => {
+    const isCamera = source === 'camera';
+    const permission = isCamera
+      ? await ImagePicker.getCameraPermissionsAsync()
+      : await ImagePicker.getMediaLibraryPermissionsAsync();
+    if (permission.status === 'granted') return true;
 
-    if (permission.status !== 'granted') {
-      if (!permission.canAskAgain) {
-        Alert.alert(
-          'Photo access needed',
-          'Enable photo access for Expo Go in Settings to submit a photo.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Open Settings', onPress: () => Linking.openSettings() },
-          ]
-        );
-        return;
-      }
-
-      const requested = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!requested.granted) {
-        Alert.alert('Permission needed', 'Allow photo library access to submit a photo.');
-        return;
-      }
+    const what = isCamera ? 'camera' : 'photo';
+    if (!permission.canAskAgain) {
+      Alert.alert(
+        `${isCamera ? 'Camera' : 'Photo'} access needed`,
+        `Enable ${what} access for Expo Go in Settings to submit a photo.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ]
+      );
+      return false;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-    });
+    const requested = isCamera
+      ? await ImagePicker.requestCameraPermissionsAsync()
+      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!requested.granted) {
+      Alert.alert('Permission needed', `Allow ${what} access to submit a photo.`);
+      return false;
+    }
+    return true;
+  };
+
+  const pickImage = async (target: 'weekly' | 'daily', source: 'camera' | 'library') => {
+    if (!(await ensurePermission(source))) return;
+
+    const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.8 };
+    let result: ImagePicker.ImagePickerResult;
+    try {
+      result =
+        source === 'camera'
+          ? await ImagePicker.launchCameraAsync(options)
+          : await ImagePicker.launchImageLibraryAsync(options);
+    } catch {
+      // Simulators and some devices have no camera
+      Alert.alert('Camera unavailable', 'Choose a photo from your library instead.');
+      return;
+    }
 
     if (!result.canceled && result.assets[0]) {
       if (target === 'weekly') setImageUri(result.assets[0].uri);
       else setDailyImageUri(result.assets[0].uri);
     }
   };
+
+  // Tapping a photo you've already picked offers to replace it
+  const changeImage = (target: 'weekly' | 'daily') => {
+    Alert.alert('Change photo', undefined, [
+      { text: 'Take photo', onPress: () => pickImage(target, 'camera') },
+      { text: 'Choose from library', onPress: () => pickImage(target, 'library') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const renderCapture = (target: 'weekly' | 'daily', uri: string | null, boxStyle: object) =>
+    uri ? (
+      <Pressable style={boxStyle} onPress={() => changeImage(target)}>
+        <Image source={{ uri }} style={styles.preview} />
+        <View style={styles.changeBadge}>
+          <Ionicons name="refresh" size={12} color={colors.white} />
+          <Text style={styles.changeBadgeText}>Change</Text>
+        </View>
+      </Pressable>
+    ) : (
+      <View style={[boxStyle, styles.sourceRow]}>
+        <Pressable style={styles.sourceButton} onPress={() => pickImage(target, 'camera')}>
+          <Ionicons name="camera" size={target === 'weekly' ? 28 : 22} color={colors.deep} />
+          <Text style={styles.sourceText}>Take photo</Text>
+        </Pressable>
+        <View style={styles.sourceDivider} />
+        <Pressable style={styles.sourceButton} onPress={() => pickImage(target, 'library')}>
+          <Ionicons name="images" size={target === 'weekly' ? 28 : 22} color={colors.deep} />
+          <Text style={styles.sourceText}>Choose from library</Text>
+        </Pressable>
+      </View>
+    );
 
   const handleSubmit = async () => {
     if (!imageUri || !user || !theme || alreadySubmitted) return;
@@ -303,13 +353,7 @@ export default function CameraScreen() {
                 <Text style={styles.title}>Submit for "{theme.name}"</Text>
                 <Text style={styles.subtitle}>1 submission allowed per theme</Text>
 
-                <Pressable style={styles.captureButton} onPress={() => pickImage('weekly')}>
-                  {imageUri ? (
-                    <Image source={{ uri: imageUri }} style={styles.preview} />
-                  ) : (
-                    <Text style={styles.captureText}>Take or choose a photo</Text>
-                  )}
-                </Pressable>
+                {renderCapture('weekly', imageUri, styles.captureButton)}
 
                 <View style={styles.toggleRow}>
                   <Pressable
@@ -409,13 +453,7 @@ export default function CameraScreen() {
                     everyone. +{DAILY_SUBMISSION_REWARD} shutter and keeps your daily streak going.
                   </Text>
 
-                  <Pressable style={styles.dailyCaptureButton} onPress={() => pickImage('daily')}>
-                    {dailyImageUri ? (
-                      <Image source={{ uri: dailyImageUri }} style={styles.preview} />
-                    ) : (
-                      <Text style={styles.captureText}>Take or choose a photo</Text>
-                    )}
-                  </Pressable>
+                  {renderCapture('daily', dailyImageUri, styles.dailyCaptureButton)}
 
                   <Pressable
                     style={[
@@ -514,7 +552,23 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     overflow: 'hidden',
   },
-  captureText: { color: colors.muted, fontSize: 14 },
+  sourceRow: { flexDirection: 'row', alignItems: 'stretch' },
+  sourceButton: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 8 },
+  sourceText: { color: colors.text, fontSize: 13, fontWeight: '600', textAlign: 'center' },
+  sourceDivider: { width: 1, marginVertical: 20, backgroundColor: colors.sandBorder },
+  changeBadge: {
+    position: 'absolute',
+    right: 8,
+    bottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.backdrop,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  changeBadgeText: { color: colors.white, fontSize: 11, fontWeight: '600' },
   preview: { width: '100%', height: '100%' },
   toggleRow: { flexDirection: 'row', borderRadius: 8, borderWidth: 1, borderColor: colors.sandBorder, overflow: 'hidden', marginBottom: 16 },
   toggle: { flex: 1, padding: 10, alignItems: 'center' },
