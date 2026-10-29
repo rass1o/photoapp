@@ -13,7 +13,7 @@ import SectionHeader from '../components/SectionHeader';
 import BackBar from '../components/BackBar';
 import { Text, TextInput } from '../components/Themed';
 import { colors } from '../theme';
-import Wave from '../components/Wave';
+import Wave, { WAVE_HEIGHT } from '../components/Wave';
 import SandGrain from '../components/SandGrain';
 
 const SECTIONS: Array<{ category: OctoCategory; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   centered: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30 },
   emptyText: { color: colors.muted, fontSize: 13, textAlign: 'center' },
 
-  header: { alignItems: 'center', paddingTop: 12, paddingBottom: 26, paddingHorizontal: 16 },
+  header: { alignItems: 'center', paddingTop: 12, paddingBottom: 12, paddingHorizontal: 16 },
   balancePill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   sheet: {
     backgroundColor: colors.shell,
     paddingHorizontal: 16,
-    paddingTop: 14,
+    paddingTop: WAVE_HEIGHT + 6,
     minHeight: 400,
   },
 

@@ -10,7 +10,7 @@ import FormatTag from '../components/FormatTag';
 import { loadFriendIds, onFriendsChanged } from '../lib/friends';
 import { Text } from '../components/Themed';
 import { colors, bubbly } from '../theme';
-import Wave from '../components/Wave';
+import Wave, { WAVE_HEIGHT } from '../components/Wave';
 import SandGrain from '../components/SandGrain';
 
 type Theme = {
@@ -179,6 +179,7 @@ export default function RankingsScreen() {
         ) : (
           <FlatList
             data={rankings}
+            contentContainerStyle={{ paddingTop: WAVE_HEIGHT + 4 }}
             keyExtractor={(item) => item.id}
             refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
             ListEmptyComponent={
@@ -240,7 +241,7 @@ export default function RankingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.sea },
   header: { paddingHorizontal: 16, paddingTop: 12 },
-  sheet: { flex: 1, backgroundColor: colors.shell, paddingHorizontal: 16, paddingTop: 6 },
+  sheet: { flex: 1, backgroundColor: colors.shell, paddingHorizontal: 16 },
   title: { ...bubbly, fontSize: 28 },
   subtitle: { fontSize: 13, color: colors.muted },
   prizeHint: { fontSize: 12, color: colors.reefDark, fontWeight: '500', marginTop: 2, marginBottom: 12 },
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.sandTrack,
     borderRadius: 20,
     padding: 3,
-    marginBottom: 24, // room for the wave below
+    marginBottom: 6,
   },
   toggle: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 18 },
   toggleActive: { backgroundColor: colors.shell },

@@ -26,7 +26,7 @@ import {
 } from '../lib/friends';
 import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
-import Wave from '../components/Wave';
+import Wave, { WAVE_HEIGHT } from '../components/Wave';
 import SandGrain from '../components/SandGrain';
 
 type Profile = {
@@ -411,13 +411,13 @@ export default function ProfileScreen() {
 
       <View style={styles.sheet}>
         <SandGrain />
-        <Wave />
+        <Wave water={profile.banner_color} />
         <FlatList
           data={gallery.slice(0, GALLERY_PREVIEW)}
           keyExtractor={(g) => g.id}
           numColumns={3}
           columnWrapperStyle={{ gap: 6 }}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={{ paddingTop: WAVE_HEIGHT + 2, paddingBottom: 20 }}
           ListHeaderComponent={
             <View>
               <View style={styles.statsRow}>
@@ -627,7 +627,7 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  header: { alignItems: 'center', paddingTop: 20, paddingBottom: 26 },
+  header: { alignItems: 'center', paddingTop: 20, paddingBottom: 12 },
   avatar: {
     width: 68,
     height: 68,
@@ -688,7 +688,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.shell,
     paddingHorizontal: 16,
-    paddingTop: 14,
   },
   statsRow: {
     flexDirection: 'row',

@@ -19,7 +19,7 @@ import Clam from '../components/Clam';
 import BlindBoxModal from '../components/BlindBoxModal';
 import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
-import Wave from '../components/Wave';
+import Wave, { WAVE_HEIGHT } from '../components/Wave';
 import SandGrain from '../components/SandGrain';
 
 type Profile = {
@@ -240,9 +240,9 @@ export default function ShopScreen() {
 
       <View style={styles.sheet}>
         <SandGrain />
-        <Wave />
+        <Wave water={shown.banner} />
         <ScrollView
-          contentContainerStyle={{ paddingBottom: 24 }}
+          contentContainerStyle={{ paddingTop: WAVE_HEIGHT + 2, paddingBottom: 24 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
   },
   balanceText: { fontSize: 12, color: '#92400e', fontWeight: '600' },
 
-  header: { alignItems: 'center', paddingTop: 8, paddingBottom: 26 },
+  header: { alignItems: 'center', paddingTop: 8, paddingBottom: 12 },
   avatar: {
     width: 68,
     height: 68,
@@ -467,7 +467,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.shell,
     paddingHorizontal: 16,
-    paddingTop: 14,
   },
 
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },

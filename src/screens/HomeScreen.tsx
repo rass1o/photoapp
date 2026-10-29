@@ -36,7 +36,7 @@ import NotificationsModal from '../components/NotificationsModal';
 import { useNotifications } from '../context/NotificationsContext';
 import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
-import Wave from '../components/Wave';
+import Wave, { WAVE_HEIGHT } from '../components/Wave';
 import SandGrain from '../components/SandGrain';
 
 type Theme = {
@@ -823,8 +823,6 @@ export default function HomeScreen() {
           </View>
 
         </Animated.View>
-        {/* room for the wave below */}
-        <View style={styles.waveGap} />
 
         <View style={styles.feedWrap}>
           <SandGrain />
@@ -841,6 +839,7 @@ export default function HomeScreen() {
             <FlatList
               ref={listRef}
               style={styles.feedSheet}
+              contentContainerStyle={{ paddingTop: WAVE_HEIGHT }}
               data={submissions}
               onScroll={onFeedScroll}
               scrollEventThrottle={16}
@@ -1138,14 +1137,13 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 3,
   },
-  waveGap: { height: 20 },
   toggle: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 18 },
   toggleActive: { backgroundColor: colors.shell },
   toggleText: { fontSize: 13, color: colors.muted },
   toggleTextActive: { fontSize: 13, fontWeight: '600', color: colors.deep },
 
   feedWrap: { flex: 1, backgroundColor: colors.shell },
-  feedSheet: { flex: 1, paddingTop: 4 },
+  feedSheet: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, paddingHorizontal: 30 },
   errorText: { color: '#b91c1c', fontSize: 13, textAlign: 'center' },
   emptyText: { color: colors.faint, fontSize: 13, textAlign: 'center' },

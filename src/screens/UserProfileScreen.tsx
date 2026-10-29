@@ -21,7 +21,7 @@ import {
 } from '../lib/friends';
 import { Text } from '../components/Themed';
 import { colors, bubbly } from '../theme';
-import Wave from '../components/Wave';
+import Wave, { WAVE_HEIGHT } from '../components/Wave';
 import SandGrain from '../components/SandGrain';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
@@ -272,13 +272,13 @@ export default function UserProfileScreen({ route, navigation }: Props) {
 
         <View style={styles.sheet}>
           <SandGrain />
-          <Wave />
+          <Wave water={profile.banner_color} />
           <FlatList
             data={gallery.slice(0, GALLERY_PREVIEW)}
             keyExtractor={(g) => g.id}
             numColumns={3}
             columnWrapperStyle={{ gap: 6 }}
-            contentContainerStyle={{ paddingBottom: 20 }}
+            contentContainerStyle={{ paddingTop: WAVE_HEIGHT + 2, paddingBottom: 20 }}
             ListHeaderComponent={
               <View>
                 {showcaseUrls.length > 0 && (
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.shell },
   emptyText: { color: colors.faint, fontSize: 13, textAlign: 'center', padding: 20 },
 
-  header: { alignItems: 'center', paddingTop: 8, paddingBottom: 26 },
+  header: { alignItems: 'center', paddingTop: 8, paddingBottom: 12 },
   avatar: {
     width: 68,
     height: 68,
@@ -420,7 +420,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.shell,
     paddingHorizontal: 16,
-    paddingTop: 14,
   },
   sectionLabel: { fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 8, marginTop: 4 },
 
