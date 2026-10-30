@@ -17,6 +17,7 @@ import OnboardingScreen from './src/screens/OnboardingScreen';
 import FriendRequestPopup from './src/components/FriendRequestPopup';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { NotificationsProvider } from './src/context/NotificationsContext';
+import { ReplayIntroContext, SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { colors } from './src/theme';
 
 // Screens without their own background sit on warm shell instead of gray
@@ -37,6 +38,7 @@ const onboardingKey = (userId: string) => `hasSeenOnboarding:${userId}`;
 
 function Root() {
   const { user, isLoading } = useAuth();
+  const { settings } = useSettings();
   // Which account the check below is for, so a fresh sign-in waits on its own
   const [onboarding, setOnboarding] = useState<{ userId: string; seen: boolean } | null>(null);
   const [fontsLoaded, fontError] = useFonts({
@@ -60,6 +62,13 @@ function Root() {
     AsyncStorage.setItem(onboardingKey(user.id), 'true');
   };
 
+  // From Settings: forget this account has seen the intro and show it now
+  const replayIntro = () => {
+    if (!user) return;
+    AsyncStorage.removeItem(onboardingKey(user.id));
+    setOnboarding({ userId: user.id, seen: false });
+  };
+
   const checkingOnboarding = !!user && onboarding?.userId !== user.id;
 
   // If the font fails to load, carry on with the system font rather than hang
@@ -76,22 +85,26 @@ function Root() {
   }
 
   return (
-    <NavigationContainer theme={NAV_THEME}>
-      {user ? <AppNavigator /> : <AuthScreen />}
-      {user && <FriendRequestPopup />}
-      <StatusBar style="auto" />
-    </NavigationContainer>
+    <ReplayIntroContext.Provider value={replayIntro}>
+      <NavigationContainer theme={NAV_THEME}>
+        {user ? <AppNavigator /> : <AuthScreen />}
+        {user && settings.friendPopups && <FriendRequestPopup />}
+        <StatusBar style="auto" />
+      </NavigationContainer>
+    </ReplayIntroContext.Provider>
   );
 }
 
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <NotificationsProvider>
-          <Root />
-        </NotificationsProvider>
-      </AuthProvider>
+      <SettingsProvider>
+        <AuthProvider>
+          <NotificationsProvider>
+            <Root />
+          </NotificationsProvider>
+        </AuthProvider>
+      </SettingsProvider>
     </SafeAreaProvider>
   );
 }

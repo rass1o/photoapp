@@ -38,6 +38,7 @@ import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
 import Wave, { WAVE_HEIGHT } from '../components/Wave';
 import SandGrain from '../components/SandGrain';
+import Wordmark from '../components/Wordmark';
 
 type Theme = {
   id: string;
@@ -701,7 +702,7 @@ export default function HomeScreen() {
         <View style={styles.topBar}>
           <View style={styles.topBarSide} />
           <Pressable onPress={scrollToTop} hitSlop={6}>
-            <Text style={styles.appName}>ShuttInk</Text>
+            <Wordmark size={27} />
           </Pressable>
           <View style={[styles.topBarSide, styles.topBarIcons]}>
             <Pressable onPress={() => setSearchVisible((v) => !v)}>
@@ -1048,7 +1049,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 4,
   },
-  appName: { ...bubbly, fontSize: 34, textShadowOffset: { width: 0, height: 3 } },
   // Equal-width sides keep the title centred between them
   topBarSide: { flex: 1 },
   topBarIcons: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end' },

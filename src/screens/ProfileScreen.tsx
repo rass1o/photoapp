@@ -88,7 +88,7 @@ function CustomizeButton({ icon, label, onPress, accent }: CustomizeButtonProps)
 const SHOWCASE_KEYS = ['showcase_url_1', 'showcase_url_2', 'showcase_url_3'] as const;
 
 export default function ProfileScreen() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
@@ -372,6 +372,9 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: profile.banner_color }]} edges={['top']}>
       <View style={styles.header}>
+        <Pressable style={styles.settingsButton} onPress={() => navigation.push('Settings')} hitSlop={10}>
+          <Ionicons name="settings-outline" size={22} color={colors.ink} />
+        </Pressable>
         <Pressable onPress={pickAvatar} style={[styles.avatar, { borderColor: profile.avatar_frame_color }]}>
           {isUploadingAvatar ? (
             <ActivityIndicator color={colors.coral} />
@@ -602,9 +605,9 @@ export default function ProfileScreen() {
                   </Pressable>
                 </View>
               )}
-              <Pressable style={styles.signOutButton} onPress={signOut}>
-                <Ionicons name="log-out-outline" size={16} color="#b91c1c" />
-                <Text style={styles.signOutText}>Sign out</Text>
+              <Pressable style={styles.settingsRow} onPress={() => navigation.push('Settings')}>
+                <Ionicons name="settings-outline" size={16} color={colors.reef} />
+                <Text style={styles.settingsRowText}>Settings & account</Text>
               </Pressable>
             </View>
           }
@@ -637,6 +640,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   header: { alignItems: 'center', paddingTop: 20, paddingBottom: 12 },
+  settingsButton: { position: 'absolute', top: 12, right: 16, zIndex: 1 },
   avatar: {
     width: 68,
     height: 68,
@@ -826,7 +830,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.reefLight,
   },
   octopusButtonText: { fontSize: 13, color: colors.reef, fontWeight: '600' },
-  signOutButton: {
+  settingsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -836,7 +840,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#fecaca',
+    borderColor: colors.reefBorder,
+    backgroundColor: colors.reefLight,
   },
-  signOutText: { fontSize: 13, color: '#b91c1c', fontWeight: '500' },
+  settingsRowText: { fontSize: 13, color: colors.reef, fontWeight: '600' },
 });

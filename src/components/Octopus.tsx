@@ -1,5 +1,6 @@
 import { ReactNode, useContext, useEffect, useRef, useState } from 'react';
 import { NavigationContext } from '@react-navigation/native';
+import { useSettings } from '../context/SettingsContext';
 import { Pressable, View, StyleSheet } from 'react-native';
 import {
   Canvas,
@@ -1000,6 +1001,9 @@ export default function Octopus({
   tappable = false,
 }: Props) {
   const focused = useScreenFocused();
+  // the Settings switch for animations turns every Ocho into his still drawing
+  const { settings } = useSettings();
+  animated = animated && settings.animations;
   const octopus = animated ? (
     <LivelyOctopus color={color} accessory={accessory} heldItem={heldItem} size={size} pose={pose} tappable={tappable} />
   ) : (

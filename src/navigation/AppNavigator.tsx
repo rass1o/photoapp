@@ -14,6 +14,7 @@ import SubmissionDetailScreen from '../screens/SubmissionDetailScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import OctopusScreen from '../screens/OctopusScreen';
 import GalleryScreen from '../screens/GalleryScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 export type RootTabParamList = {
   Home: undefined;
@@ -30,6 +31,7 @@ export type RootStackParamList = {
   UserProfile: { userId: string };
   Octopus: undefined;
   Gallery: { userId: string; username: string };
+  Settings: undefined;
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -97,6 +99,11 @@ export default function AppNavigator() {
       <Stack.Screen
         name="Gallery"
         component={GalleryScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="Settings"
+        component={SettingsScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

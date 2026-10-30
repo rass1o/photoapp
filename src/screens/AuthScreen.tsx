@@ -7,18 +7,12 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { Text, TextInput } from '../components/Themed';
+import PasswordRules from '../components/PasswordRules';
+import Wordmark from '../components/Wordmark';
+import { passwordOk } from '../lib/password';
 import { colors, bubbly } from '../theme';
-
-// New passwords must pass all of these; shown as a checklist under the field
-const PASSWORD_RULES: { label: string; test: (p: string) => boolean }[] = [
-  { label: 'More than 6 characters', test: (p) => p.length > 6 },
-  { label: 'A number', test: (p) => /\d/.test(p) },
-  { label: 'An uppercase letter', test: (p) => /[A-Z]/.test(p) },
-  { label: 'A special character (like ! @ # $)', test: (p) => /[^A-Za-z0-9]/.test(p) },
-];
 
 export default function AuthScreen() {
   const { signIn, signUp, resendConfirmation, authError } = useAuth();
@@ -42,7 +36,7 @@ export default function AuthScreen() {
       setError('Enter your password');
       return;
     }
-    if (mode === 'signUp' && !PASSWORD_RULES.every((r) => r.test(password))) {
+    if (mode === 'signUp' && !passwordOk(password)) {
       setError('Your password needs everything on the list above');
       return;
     }
@@ -79,7 +73,9 @@ export default function AuthScreen() {
         style={styles.flex}
       >
         <View style={styles.content}>
-          <Text style={styles.logo}>ShuttInk</Text>
+          <View style={styles.logo}>
+            <Wordmark size={38} />
+          </View>
           <Text style={styles.tagline}>A new theme every week. Shoot it your way.</Text>
 
           <View style={styles.modeRow}>
@@ -154,23 +150,7 @@ export default function AuthScreen() {
                 onChangeText={setPassword}
               />
 
-              {mode === 'signUp' && (
-                <View style={styles.rules}>
-                  {PASSWORD_RULES.map((rule) => {
-                    const met = rule.test(password);
-                    return (
-                      <View key={rule.label} style={styles.ruleRow}>
-                        <Ionicons
-                          name={met ? 'checkmark-circle' : 'ellipse-outline'}
-                          size={14}
-                          color={met ? '#047857' : colors.faint}
-                        />
-                        <Text style={[styles.ruleText, met && styles.ruleTextMet]}>{rule.label}</Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
+              {mode === 'signUp' && <PasswordRules password={password} />}
 
               {displayError ? <Text style={styles.error}>{displayError}</Text> : null}
               {mode === 'signIn' && displayError?.startsWith('Confirm your email') && (
@@ -200,7 +180,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.sea },
   flex: { flex: 1 },
   content: { flex: 1, justifyContent: 'center', paddingHorizontal: 28 },
-  logo: { ...bubbly, fontSize: 44, textAlign: 'center', textShadowOffset: { width: 0, height: 3 } },
+  logo: { alignItems: 'center' },
   tagline: {
     fontSize: 13,
     color: colors.muted,
@@ -229,10 +209,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.sandBorder,
   },
-  rules: { marginTop: -2, marginBottom: 12, gap: 4, paddingHorizontal: 2 },
-  ruleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  ruleText: { fontSize: 12, color: colors.muted },
-  ruleTextMet: { color: '#047857' },
   error: { color: '#b91c1c', fontSize: 12, marginBottom: 10 },
   submitButton: {
     backgroundColor: colors.deep,
