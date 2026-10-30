@@ -32,19 +32,21 @@ const MAX_SIDE = 2048;
 
 // Re-encodes a picked photo as a JPEG no bigger than MAX_SIDE. iPhones hand
 // over HEIC, which Android can't display, so everything is saved as JPEG.
+// The photo is shrunk while it's decoded: newer iPhones shoot 24-48 MP, and
+// loading that at full size (as this used to, twice) can run out of memory.
 async function toJpeg(uri: string) {
-  const original = await ImageManipulator.manipulate(uri).renderAsync();
-  const longest = Math.max(original.width, original.height);
-
-  let image = original;
-  if (longest > MAX_SIDE) {
-    const scale = MAX_SIDE / longest;
-    image = await ImageManipulator.manipulate(uri)
-      .resize({ width: Math.round(original.width * scale), height: Math.round(original.height * scale) })
-      .renderAsync();
+  const context = ImageManipulator.manipulate(uri, { maxWidth: MAX_SIDE, maxHeight: MAX_SIDE });
+  try {
+    const image = await context.renderAsync();
+    try {
+      const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.8 });
+      return saved.uri;
+    } finally {
+      image.release();
+    }
+  } finally {
+    context.release();
   }
-  const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.8 });
-  return saved.uri;
 }
 
 // Reads a picked photo for a Supabase Storage upload.
