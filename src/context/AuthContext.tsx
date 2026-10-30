@@ -12,10 +12,13 @@ type AuthContextValue = {
   user: User | null;
   isLoading: boolean;
   authError: string | null;
-  signIn: (email: string, password: string) => Promise<void>;
-  // 'confirm' = account made, waiting on the emailed confirmation link
+  // 'unconfirmed' = right password, but the email hasn't been verified yet
+  signIn: (email: string, password: string) => Promise<'done' | 'unconfirmed' | 'error'>;
+  // 'confirm' = account made, waiting on the emailed 6-digit code
   signUp: (email: string, username: string, password: string) => Promise<'done' | 'confirm' | 'error'>;
   resendConfirmation: (email: string) => Promise<string | null>;
+  // Checks the emailed sign-up code; signs in on success. Returns an error or null
+  verifySignupCode: (email: string, code: string) => Promise<string | null>;
   signOut: () => Promise<void>;
 };
 
@@ -29,7 +32,10 @@ function friendlyAuthError(message: string) {
   }
   if (m.includes('already registered')) return 'An account already uses this email. Try signing in instead.';
   if (m.includes('email not confirmed')) {
-    return 'Confirm your email first: tap the link we sent you, then sign in.';
+    return 'Confirm your email first: enter the code we sent you.';
+  }
+  if ((m.includes('token') || m.includes('otp')) && (m.includes('expired') || m.includes('invalid'))) {
+    return 'That code is wrong or has expired. Check it, or send a new one.';
   }
   if (m.includes('invalid login credentials')) return 'That email and password don’t match.';
   if (m.includes('rate limit')) return 'Too many tries. Wait a few minutes and try again.';
@@ -72,11 +78,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         console.log('signIn error:', error.message);
+        // the screen switches to code entry instead of showing an error
+        if (error.message.toLowerCase().includes('email not confirmed')) return 'unconfirmed';
         setAuthError(friendlyAuthError(error.message));
+        return 'error';
       }
+      return 'done';
     } catch (err) {
       console.log('signIn threw:', err);
       setAuthError(err instanceof Error ? err.message : 'Something went wrong. Check your connection.');
+      return 'error';
     }
   };
 
@@ -113,13 +124,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error ? friendlyAuthError(error.message) : null;
   };
 
+  const verifySignupCode = async (email: string, code: string) => {
+    const { error } = await supabase.auth.verifyOtp({ email, token: code, type: 'signup' });
+    return error ? friendlyAuthError(error.message) : null;
+  };
+
   const signOut = async () => {
     setAuthError(null);
     await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, authError, signIn, signUp, resendConfirmation, signOut }}>
+    <AuthContext.Provider value={{ user, isLoading, authError, signIn, signUp, resendConfirmation, verifySignupCode, signOut }}>
       {children}
     </AuthContext.Provider>
   );

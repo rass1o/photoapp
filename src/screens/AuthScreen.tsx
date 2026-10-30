@@ -15,7 +15,7 @@ import { passwordOk } from '../lib/password';
 import { colors, bubbly } from '../theme';
 
 export default function AuthScreen() {
-  const { signIn, signUp, resendConfirmation, authError } = useAuth();
+  const { signIn, signUp, resendConfirmation, verifySignupCode, authError } = useAuth();
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
 
   const [email, setEmail] = useState('');
@@ -23,9 +23,19 @@ export default function AuthScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Set once an account is made but waiting on its emailed confirmation link
+  // Set once an account is made but waiting on its emailed 6-digit code
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const [resendNote, setResendNote] = useState('');
+  const [code, setCode] = useState('');
+  const [codeError, setCodeError] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  const askForCode = (address: string) => {
+    setPendingEmail(address);
+    setCode('');
+    setCodeError('');
+    setResendNote('');
+  };
 
   const handleSubmit = async () => {
     if (!email.includes('@')) {
@@ -48,18 +58,36 @@ export default function AuthScreen() {
     setError('');
     setIsSubmitting(true);
     if (mode === 'signIn') {
-      await signIn(email, password);
+      // An account that never entered its code gets a fresh one and the code screen
+      if ((await signIn(email.trim(), password)) === 'unconfirmed') {
+        askForCode(email.trim());
+        resend(email.trim());
+      }
     } else if ((await signUp(email.trim(), username.trim(), password)) === 'confirm') {
-      setPendingEmail(email.trim());
-      setResendNote('');
+      askForCode(email.trim());
     }
     setIsSubmitting(false);
+  };
+
+  const verify = async () => {
+    if (!pendingEmail) return;
+    const digits = code.replace(/\D/g, '');
+    if (digits.length < 6) {
+      setCodeError('Enter the full code from the email');
+      return;
+    }
+    setIsVerifying(true);
+    setCodeError('');
+    const failure = await verifySignupCode(pendingEmail, digits);
+    setIsVerifying(false);
+    // on success the session arrives and the app moves past this screen
+    if (failure) setCodeError(failure);
   };
 
   const resend = async (address: string) => {
     setResendNote('Sending…');
     const failure = await resendConfirmation(address);
-    setResendNote(failure ?? 'Sent! Check your inbox (and spam).');
+    setResendNote(failure ?? 'Sent a new code. Check your inbox (and spam).');
   };
 
   // authError comes back from Supabase itself (e.g. "Invalid login credentials",
@@ -99,23 +127,37 @@ export default function AuthScreen() {
 
           {pendingEmail ? (
             <View style={styles.confirmCard}>
-              <Text style={styles.confirmTitle}>Check your inbox</Text>
+              <Text style={styles.confirmTitle}>Enter your code</Text>
               <Text style={styles.confirmText}>
-                We sent a confirmation link to <Text style={styles.confirmEmail}>{pendingEmail}</Text>. Tap it to
-                activate your account, then come back and sign in.
+                We emailed a code to <Text style={styles.confirmEmail}>{pendingEmail}</Text>. Enter it below to
+                finish setting up your account.
               </Text>
+              <TextInput
+                style={styles.codeInput}
+                value={code}
+                onChangeText={(t) => setCode(t.replace(/\D/g, ''))}
+                keyboardType="number-pad"
+                textContentType="oneTimeCode"
+                autoComplete="one-time-code"
+                maxLength={10}
+                placeholder="123456"
+                placeholderTextColor={colors.faint}
+                autoFocus
+              />
+              {codeError ? <Text style={[styles.error, styles.centered]}>{codeError}</Text> : null}
               {resendNote ? <Text style={styles.confirmNote}>{resendNote}</Text> : null}
               <Pressable
-                style={styles.submitButton}
-                onPress={() => {
-                  setPendingEmail(null);
-                  setMode('signIn');
-                }}
+                style={[styles.submitButton, isVerifying && styles.submitButtonDisabled]}
+                onPress={verify}
+                disabled={isVerifying}
               >
-                <Text style={styles.submitText}>I{'’'}ve confirmed, sign in</Text>
+                <Text style={styles.submitText}>{isVerifying ? 'Checking\u2026' : 'Confirm'}</Text>
               </Pressable>
               <Pressable onPress={() => resend(pendingEmail)} style={styles.linkButton}>
-                <Text style={styles.linkText}>Didn{'’'}t get it? Send it again</Text>
+                <Text style={styles.linkText}>Didn{'\u2019'}t get it? Send a new code</Text>
+              </Pressable>
+              <Pressable onPress={() => setPendingEmail(null)} style={styles.linkButtonTight}>
+                <Text style={styles.backLinkText}>Use a different email</Text>
               </Pressable>
             </View>
           ) : (
@@ -153,11 +195,6 @@ export default function AuthScreen() {
               {mode === 'signUp' && <PasswordRules password={password} />}
 
               {displayError ? <Text style={styles.error}>{displayError}</Text> : null}
-              {mode === 'signIn' && displayError?.startsWith('Confirm your email') && (
-                <Pressable onPress={() => resend(email.trim())} style={styles.linkButton}>
-                  <Text style={styles.linkText}>{resendNote || 'Send the confirmation link again'}</Text>
-                </Pressable>
-              )}
 
               <Pressable
                 style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
@@ -230,6 +267,22 @@ const styles = StyleSheet.create({
   confirmEmail: { fontWeight: '600', color: colors.ink },
   confirmNote: { fontSize: 12, color: colors.reef, textAlign: 'center', marginBottom: 4 },
   linkButton: { alignSelf: 'center', paddingVertical: 10 },
+  linkButtonTight: { alignSelf: 'center', paddingVertical: 4 },
+  backLinkText: { fontSize: 13, color: colors.muted },
+  centered: { textAlign: 'center' },
+  codeInput: {
+    backgroundColor: colors.shell,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.sandBorder,
+    paddingVertical: 12,
+    marginVertical: 10,
+    fontSize: 26,
+    letterSpacing: 8,
+    textAlign: 'center',
+    color: colors.ink,
+    fontWeight: '600',
+  },
   linkText: { fontSize: 13, color: colors.reef, fontWeight: '600' },
   submitText: { color: colors.white, fontSize: 14, fontWeight: '600' },
 });
