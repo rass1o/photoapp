@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -29,7 +30,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
 // Shown under Help & support when set; leave empty to hide the row
-const SUPPORT_EMAIL = '';
+const SUPPORT_EMAIL = 'support@shuttink.app';
+const SUPPORT_URL = 'https://shuttink.app/support';
+const PRIVACY_URL = 'https://shuttink.app/privacy';
 
 type Sheet = 'username' | 'bio' | 'password' | 'feedback' | 'privacy' | 'delete' | null;
 
@@ -213,8 +216,17 @@ export default function SettingsScreen({ navigation }: Props) {
 
   const deleteAccount = async () => {
     if (draft.trim().toUpperCase() !== 'DELETE') return setError('Type DELETE to confirm');
+    if (!user) return;
     setBusy(true);
     setError('');
+    // Photo files live under <user id>/ in both buckets; clear them before
+    // the account goes (best effort: the account is deleted either way)
+    for (const bucket of ['submissions', 'avatars']) {
+      const { data: files } = await supabase.storage.from(bucket).list(user.id, { limit: 1000 });
+      if (files && files.length > 0) {
+        await supabase.storage.from(bucket).remove(files.map((f) => `${user.id}/${f.name}`));
+      }
+    }
     const { error: err } = await supabase.rpc('delete_my_account');
     if (err) {
       setBusy(false);
@@ -307,13 +319,22 @@ export default function SettingsScreen({ navigation }: Props) {
               setFeedbackKind('problem');
               open('feedback');
             }}
-            last={!SUPPORT_EMAIL}
           />
-          {SUPPORT_EMAIL ? <Row icon="mail-open-outline" label="Contact" value={SUPPORT_EMAIL} last /> : null}
+          <Row icon="help-buoy-outline" label="Help center" onPress={() => Linking.openURL(SUPPORT_URL)} />
+          {SUPPORT_EMAIL ? (
+            <Row
+              icon="mail-open-outline"
+              label="Contact"
+              value={SUPPORT_EMAIL}
+              onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)}
+              last
+            />
+          ) : null}
         </Section>
 
         <Section title="Privacy">
           <Row icon="shield-checkmark-outline" label="Your data & privacy" onPress={() => open('privacy')} />
+          <Row icon="document-text-outline" label="Privacy policy" onPress={() => Linking.openURL(PRIVACY_URL)} />
           <Row icon="trash-outline" label="Delete account" danger onPress={() => open('delete')} last />
         </Section>
 
@@ -414,7 +435,7 @@ export default function SettingsScreen({ navigation }: Props) {
             'Your email is only used to sign you in. Other people can’t see it.',
             'Your phone’s camera and photo library are only used when you choose to take or pick a photo.',
             'Feedback and problem reports you send are read by the ShuttInk team.',
-            'You can delete your account at any time from this screen. That removes your posts, votes, comments, friends, shutters and items from ShuttInk.',
+            'You can delete your account at any time from this screen. That removes your photos, posts, votes, comments, friends, shutters and items from ShuttInk.',
           ].map((line) => (
             <View key={line} style={styles.privacyRow}>
               <View style={styles.privacyDot} />
@@ -426,8 +447,8 @@ export default function SettingsScreen({ navigation }: Props) {
 
       <EditSheet visible={sheet === 'delete'} title="Delete account" onClose={close}>
         <Text style={styles.warning}>
-          This permanently deletes your account and everything in it: posts, votes, comments, friends, shutters, items
-          and your octopus. It can{'’'}t be undone.
+          This permanently deletes your account and everything in it: photos, posts, votes, comments, friends, shutters,
+          items and your octopus. It can{'’'}t be undone.
         </Text>
         <Text style={styles.hint}>Type DELETE to confirm.</Text>
         <TextInput style={styles.input} value={draft} onChangeText={setDraft} autoCapitalize="characters" autoCorrect={false} />

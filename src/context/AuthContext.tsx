@@ -19,6 +19,9 @@ type AuthContextValue = {
   resendConfirmation: (email: string) => Promise<string | null>;
   // Checks the emailed sign-up code; signs in on success. Returns an error or null
   verifySignupCode: (email: string, code: string) => Promise<string | null>;
+  // Forgot password: email a reset code, then check it and set the new password
+  sendPasswordReset: (email: string) => Promise<string | null>;
+  resetPasswordWithCode: (email: string, code: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
 };
 
@@ -129,13 +132,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error ? friendlyAuthError(error.message) : null;
   };
 
+  const sendPasswordReset = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    return error ? friendlyAuthError(error.message) : null;
+  };
+
+  // A correct code signs the person in, then the new password is saved
+  const resetPasswordWithCode = async (email: string, code: string, password: string) => {
+    const { error } = await supabase.auth.verifyOtp({ email, token: code, type: 'recovery' });
+    if (error) return friendlyAuthError(error.message);
+    const { error: updateError } = await supabase.auth.updateUser({ password });
+    return updateError ? friendlyAuthError(updateError.message) : null;
+  };
+
   const signOut = async () => {
     setAuthError(null);
     await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, authError, signIn, signUp, resendConfirmation, verifySignupCode, signOut }}>
+    <AuthContext.Provider value={{ user, isLoading, authError, signIn, signUp, resendConfirmation, verifySignupCode, sendPasswordReset, resetPasswordWithCode, signOut }}>
       {children}
     </AuthContext.Provider>
   );

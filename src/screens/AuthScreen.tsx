@@ -15,7 +15,8 @@ import { passwordOk } from '../lib/password';
 import { colors, bubbly } from '../theme';
 
 export default function AuthScreen() {
-  const { signIn, signUp, resendConfirmation, verifySignupCode, authError } = useAuth();
+  const { signIn, signUp, resendConfirmation, verifySignupCode, sendPasswordReset, resetPasswordWithCode, authError } =
+    useAuth();
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
 
   const [email, setEmail] = useState('');
@@ -29,6 +30,44 @@ export default function AuthScreen() {
   const [code, setCode] = useState('');
   const [codeError, setCodeError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+
+  // Forgot password: 'email' asks where to send the code, 'code' takes the
+  // code and the new password
+  const [resetStep, setResetStep] = useState<'email' | 'code' | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [resetError, setResetError] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
+
+  const startReset = () => {
+    setResetStep('email');
+    setCode('');
+    setNewPassword('');
+    setResetError('');
+    setResendNote('');
+  };
+
+  const sendResetCode = async () => {
+    const address = email.trim();
+    if (!address.includes('@')) return setResetError('Enter the email on your account');
+    setIsResetting(true);
+    setResetError('');
+    const failure = await sendPasswordReset(address);
+    setIsResetting(false);
+    if (failure) return setResetError(failure);
+    setResetStep('code');
+  };
+
+  const finishReset = async () => {
+    const digits = code.replace(/\D/g, '');
+    if (digits.length < 6) return setResetError('Enter the full code from the email');
+    if (!passwordOk(newPassword)) return setResetError('Your new password needs everything on the list');
+    setIsResetting(true);
+    setResetError('');
+    // on success they're signed in and the app moves past this screen
+    const failure = await resetPasswordWithCode(email.trim(), digits, newPassword);
+    setIsResetting(false);
+    if (failure) setResetError(failure);
+  };
 
   const askForCode = (address: string) => {
     setPendingEmail(address);
@@ -160,6 +199,76 @@ export default function AuthScreen() {
                 <Text style={styles.backLinkText}>Use a different email</Text>
               </Pressable>
             </View>
+          ) : resetStep ? (
+            <View style={styles.confirmCard}>
+              <Text style={styles.confirmTitle}>Reset your password</Text>
+              {resetStep === 'email' ? (
+                <>
+                  <Text style={styles.confirmText}>Enter the email on your account and we{'\u2019'}ll send you a code.</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Email"
+                    placeholderTextColor={colors.faint}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                    value={email}
+                    onChangeText={setEmail}
+                    autoFocus
+                  />
+                  {resetError ? <Text style={[styles.error, styles.centered]}>{resetError}</Text> : null}
+                  <Pressable
+                    style={[styles.submitButton, isResetting && styles.submitButtonDisabled]}
+                    onPress={sendResetCode}
+                    disabled={isResetting}
+                  >
+                    <Text style={styles.submitText}>{isResetting ? 'Sending\u2026' : 'Send code'}</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.confirmText}>
+                    If <Text style={styles.confirmEmail}>{email.trim()}</Text> has an account, a code is on its way.
+                    Enter it and choose a new password.
+                  </Text>
+                  <TextInput
+                    style={styles.codeInput}
+                    value={code}
+                    onChangeText={(t) => setCode(t.replace(/\D/g, ''))}
+                    keyboardType="number-pad"
+                    textContentType="oneTimeCode"
+                    autoComplete="one-time-code"
+                    maxLength={10}
+                    placeholder="123456"
+                    placeholderTextColor={colors.faint}
+                    autoFocus
+                  />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="New password"
+                    placeholderTextColor={colors.faint}
+                    secureTextEntry
+                    textContentType="newPassword"
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                  />
+                  <PasswordRules password={newPassword} />
+                  {resetError ? <Text style={[styles.error, styles.centered]}>{resetError}</Text> : null}
+                  <Pressable
+                    style={[styles.submitButton, isResetting && styles.submitButtonDisabled]}
+                    onPress={finishReset}
+                    disabled={isResetting}
+                  >
+                    <Text style={styles.submitText}>{isResetting ? 'Saving\u2026' : 'Set new password'}</Text>
+                  </Pressable>
+                  <Pressable onPress={sendResetCode} style={styles.linkButton}>
+                    <Text style={styles.linkText}>Didn{'\u2019'}t get it? Send a new code</Text>
+                  </Pressable>
+                </>
+              )}
+              <Pressable onPress={() => setResetStep(null)} style={styles.linkButtonTight}>
+                <Text style={styles.backLinkText}>Back to sign in</Text>
+              </Pressable>
+            </View>
           ) : (
             <>
               {mode === 'signUp' && (
@@ -205,6 +314,11 @@ export default function AuthScreen() {
                   {isSubmitting ? 'Please wait…' : mode === 'signIn' ? 'Sign in' : 'Create account'}
                 </Text>
               </Pressable>
+              {mode === 'signIn' && (
+                <Pressable onPress={startReset} style={styles.linkButton}>
+                  <Text style={styles.linkText}>Forgot password?</Text>
+                </Pressable>
+              )}
             </>
           )}
         </View>
