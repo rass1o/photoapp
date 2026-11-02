@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
+import { ensureCurrentTheme } from '../lib/themes';
 import { useAuth } from '../context/AuthContext';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import FormatTag from '../components/FormatTag';
@@ -47,6 +48,7 @@ export default function RankingsScreen() {
   const loadData = useCallback(async (selectedFeed: Feed) => {
     setErrorMessage(null);
 
+    await ensureCurrentTheme();
     const nowIso = new Date().toISOString();
     const { data: themeData, error: themeError } = await supabase
       .from('themes')

@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   Linking,
   Keyboard,
-  TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -18,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
+import { ensureCurrentTheme } from '../lib/themes';
 import { readImage } from '../lib/upload';
 import { localDateString } from '../lib/date';
 import { useAuth } from '../context/AuthContext';
@@ -119,6 +119,7 @@ export default function CameraScreen() {
 
   useEffect(() => {
     const loadTheme = async () => {
+      await ensureCurrentTheme();
       const nowIso = new Date().toISOString();
       const { data } = await supabase
         .from('themes')
@@ -353,208 +354,210 @@ export default function CameraScreen() {
   }
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-      <SafeAreaView style={styles.container}>
-        <SandGrain />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
-          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-            <View style={styles.topRow}>
-              <View />
-              <Pressable style={styles.cheatSheetButton} onPress={() => setCheatSheetVisible(true)}>
-                <Ionicons name="book-outline" size={14} color={colors.reef} />
-                <Text style={styles.cheatSheetButtonText}>Cheat sheet</Text>
+    <SafeAreaView style={styles.container}>
+      <SandGrain />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+          <View style={styles.topRow}>
+            <View />
+            <Pressable style={styles.cheatSheetButton} onPress={() => setCheatSheetVisible(true)}>
+              <Ionicons name="book-outline" size={14} color={colors.reef} />
+              <Text style={styles.cheatSheetButtonText}>Cheat sheet</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.streaks}>
+            <StreakBanner daily={streaks.daily} weekly={streaks.weekly} showBonusHint />
+          </View>
+
+          {/* ---------- Weekly submission (main) ---------- */}
+          {!theme ? (
+            <View style={styles.section}>
+              <Text style={styles.title}>No active theme right now</Text>
+              <Text style={styles.subtitle}>The tide's out. Check back once this week's theme is live.</Text>
+            </View>
+          ) : alreadySubmitted ? (
+            <View style={styles.section}>
+              <View style={styles.doneWrap}>
+                <Text style={styles.doneTitle}>You're all set</Text>
+                <Text style={styles.doneSubtitle}>
+                  Your submission is in for "{theme.name}". Check the Home tab to see it in the feed.
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.section}>
+              <Text style={styles.title}>Submit for "{theme.name}"</Text>
+              <Text style={styles.subtitle}>1 submission allowed per theme</Text>
+
+              {renderCapture('weekly', imageUri, styles.captureButton)}
+
+              <View style={styles.toggleRow}>
+                <Pressable
+                  style={[styles.toggle, format === 'digital' && styles.toggleActive]}
+                  onPress={() => setFormat('digital')}
+                >
+                  <Text style={format === 'digital' ? styles.toggleTextActive : styles.toggleText}>
+                    Digital
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.toggle, format === 'film' && styles.toggleActive]}
+                  onPress={() => setFormat('film')}
+                >
+                  <Text style={format === 'film' ? styles.toggleTextActive : styles.toggleText}>
+                    Film
+                  </Text>
+                </Pressable>
+              </View>
+
+              {format === 'film' && (
+                <View style={styles.stampPicker}>
+                  <Text style={styles.stampPickerLabel}>Film stamp</Text>
+                  {ownedStamps.length === 0 ? (
+                    <Text style={styles.stampPickerEmpty}>
+                      Pick up film stamps in the Shop to tag the stock you shot on.
+                    </Text>
+                  ) : (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stampRow}>
+                      <Pressable
+                        style={[styles.stampOption, filmStamp === null && styles.stampOptionActive]}
+                        onPress={() => setFilmStamp(null)}
+                      >
+                        <Text style={styles.stampNoneText}>None</Text>
+                      </Pressable>
+                      {ownedStamps.map((stamp) => (
+                        <Pressable
+                          key={stamp.id}
+                          style={[styles.stampOption, filmStamp === stamp.value && styles.stampOptionActive]}
+                          onPress={() => setFilmStamp(stamp.value)}
+                        >
+                          <FilmStamp stock={stamp.value} accent={stamp.accent} size="small" />
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  )}
+                </View>
+              )}
+
+              <View>
+                <TextInput
+                  style={styles.captionInput}
+                  placeholder="Add a caption (optional)"
+                  placeholderTextColor={colors.faint}
+                  value={caption}
+                  onChangeText={setCaption}
+                  maxLength={140}
+                  multiline
+                  returnKeyType="done"
+                  blurOnSubmit
+                  onSubmitEditing={Keyboard.dismiss}
+                />
+                <Pressable onPress={Keyboard.dismiss} style={styles.doneButton}>
+                  <Text style={styles.doneButtonText}>Done</Text>
+                </Pressable>
+              </View>
+
+              <Pressable
+                style={[styles.submitButton, (!imageUri || isUploading) && styles.submitButtonDisabled]}
+                onPress={handleSubmit}
+                disabled={!imageUri || isUploading}
+              >
+                {isUploading ? (
+                  <ActivityIndicator color={colors.white} />
+                ) : (
+                  <Text style={styles.submitText}>Submit</Text>
+                )}
               </Pressable>
             </View>
+          )}
 
-            <View style={styles.streaks}>
-              <StreakBanner daily={streaks.daily} weekly={streaks.weekly} showBonusHint />
-            </View>
+          {/* ---------- Daily freelance photo (secondary) ---------- */}
+          <View style={styles.dailySection}>
+            <SectionHeader icon="sunny-outline" label="Daily photo" />
+            {user && <StreakCalendar userId={user.id} refreshKey={calendarKey} />}
 
-            {/* ---------- Weekly submission (main) ---------- */}
-            {!theme ? (
-              <View style={styles.section}>
-                <Text style={styles.title}>No active theme right now</Text>
-                <Text style={styles.subtitle}>The tide's out. Check back once this week's theme is live.</Text>
-              </View>
-            ) : alreadySubmitted ? (
-              <View style={styles.section}>
-                <View style={styles.doneWrap}>
-                  <Text style={styles.doneTitle}>You're all set</Text>
-                  <Text style={styles.doneSubtitle}>
-                    Your submission is in for "{theme.name}". Check the Home tab to see it in the feed.
-                  </Text>
-                </View>
+            {isCheckingDaily ? (
+              <ActivityIndicator color={colors.deep} style={{ marginTop: 10 }} />
+            ) : dailyAlreadySubmitted ? (
+              <View style={styles.dailyDoneRow}>
+                <Ionicons name="checkmark-circle" size={16} color="#166534" />
+                <Text style={styles.dailyDoneText}>Posted for today — see you tomorrow</Text>
               </View>
             ) : (
-              <View style={styles.section}>
-                <Text style={styles.title}>Submit for "{theme.name}"</Text>
-                <Text style={styles.subtitle}>1 submission allowed per theme</Text>
+              <>
+                <Text style={styles.dailySubtitle}>
+                  No theme, no pressure — just a photo of whatever you're up to, visible to
+                  everyone. +{DAILY_SUBMISSION_REWARD} shutter and keeps your daily streak going, with a
+                  +{STREAK_BONUS} bonus every {STREAK_BONUS_EVERY} days in a row.
+                </Text>
 
-                {renderCapture('weekly', imageUri, styles.captureButton)}
-
-                <View style={styles.toggleRow}>
-                  <Pressable
-                    style={[styles.toggle, format === 'digital' && styles.toggleActive]}
-                    onPress={() => setFormat('digital')}
-                  >
-                    <Text style={format === 'digital' ? styles.toggleTextActive : styles.toggleText}>
-                      Digital
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.toggle, format === 'film' && styles.toggleActive]}
-                    onPress={() => setFormat('film')}
-                  >
-                    <Text style={format === 'film' ? styles.toggleTextActive : styles.toggleText}>
-                      Film
-                    </Text>
-                  </Pressable>
-                </View>
-
-                {format === 'film' && (
-                  <View style={styles.stampPicker}>
-                    <Text style={styles.stampPickerLabel}>Film stamp</Text>
-                    {ownedStamps.length === 0 ? (
-                      <Text style={styles.stampPickerEmpty}>
-                        Pick up film stamps in the Shop to tag the stock you shot on.
-                      </Text>
-                    ) : (
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stampRow}>
-                        <Pressable
-                          style={[styles.stampOption, filmStamp === null && styles.stampOptionActive]}
-                          onPress={() => setFilmStamp(null)}
-                        >
-                          <Text style={styles.stampNoneText}>None</Text>
-                        </Pressable>
-                        {ownedStamps.map((stamp) => (
-                          <Pressable
-                            key={stamp.id}
-                            style={[styles.stampOption, filmStamp === stamp.value && styles.stampOptionActive]}
-                            onPress={() => setFilmStamp(stamp.value)}
-                          >
-                            <FilmStamp stock={stamp.value} accent={stamp.accent} size="small" />
-                          </Pressable>
-                        ))}
-                      </ScrollView>
-                    )}
-                  </View>
-                )}
-
-                <View>
-                  <TextInput
-                    style={styles.captionInput}
-                    placeholder="Add a caption (optional)"
-                    placeholderTextColor={colors.faint}
-                    value={caption}
-                    onChangeText={setCaption}
-                    maxLength={140}
-                    multiline
-                    returnKeyType="done"
-                    blurOnSubmit
-                    onSubmitEditing={Keyboard.dismiss}
-                  />
-                  <Pressable onPress={Keyboard.dismiss} style={styles.doneButton}>
-                    <Text style={styles.doneButtonText}>Done</Text>
-                  </Pressable>
-                </View>
+                {renderCapture('daily', dailyImageUri, styles.dailyCaptureButton)}
 
                 <Pressable
-                  style={[styles.submitButton, (!imageUri || isUploading) && styles.submitButtonDisabled]}
-                  onPress={handleSubmit}
-                  disabled={!imageUri || isUploading}
+                  style={[
+                    styles.dailySubmitButton,
+                    (!dailyImageUri || isUploadingDaily) && styles.submitButtonDisabled,
+                  ]}
+                  onPress={handleDailySubmit}
+                  disabled={!dailyImageUri || isUploadingDaily}
                 >
-                  {isUploading ? (
+                  {isUploadingDaily ? (
                     <ActivityIndicator color={colors.white} />
                   ) : (
-                    <Text style={styles.submitText}>Submit</Text>
+                    <Text style={styles.submitText}>Post daily photo</Text>
                   )}
                 </Pressable>
-              </View>
+              </>
             )}
-
-            {/* ---------- Daily freelance photo (secondary) ---------- */}
-            <View style={styles.dailySection}>
-              <SectionHeader icon="sunny-outline" label="Daily photo" />
-              {user && <StreakCalendar userId={user.id} refreshKey={calendarKey} />}
-
-              {isCheckingDaily ? (
-                <ActivityIndicator color={colors.deep} style={{ marginTop: 10 }} />
-              ) : dailyAlreadySubmitted ? (
-                <View style={styles.dailyDoneRow}>
-                  <Ionicons name="checkmark-circle" size={16} color="#166534" />
-                  <Text style={styles.dailyDoneText}>Posted for today — see you tomorrow</Text>
-                </View>
-              ) : (
-                <>
-                  <Text style={styles.dailySubtitle}>
-                    No theme, no pressure — just a photo of whatever you're up to, visible to
-                    everyone. +{DAILY_SUBMISSION_REWARD} shutter and keeps your daily streak going, with a
-                    +{STREAK_BONUS} bonus every {STREAK_BONUS_EVERY} days in a row.
-                  </Text>
-
-                  {renderCapture('daily', dailyImageUri, styles.dailyCaptureButton)}
-
-                  <Pressable
-                    style={[
-                      styles.dailySubmitButton,
-                      (!dailyImageUri || isUploadingDaily) && styles.submitButtonDisabled,
-                    ]}
-                    onPress={handleDailySubmit}
-                    disabled={!dailyImageUri || isUploadingDaily}
-                  >
-                    {isUploadingDaily ? (
-                      <ActivityIndicator color={colors.white} />
-                    ) : (
-                      <Text style={styles.submitText}>Post daily photo</Text>
-                    )}
-                  </Pressable>
-                </>
-              )}
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-
-        <OchoCelebration
-          visible={!!celebration}
-          kind={celebration?.kind ?? 'daily'}
-          themeName={celebration?.kind === 'weekly' ? celebration.themeName : undefined}
-          streak={celebration?.streak}
-          reward={celebration?.kind === 'daily' ? celebration.reward : undefined}
-          bonus={celebration?.kind === 'daily' ? celebration.bonus : undefined}
-          onClose={() => setCelebration(null)}
-        />
-
-        <Modal
-          visible={cheatSheetVisible}
-          animationType="slide"
-          transparent
-          onRequestClose={() => setCheatSheetVisible(false)}
-        >
-          <View style={styles.cheatSheetBackdrop}>
-            <View style={styles.cheatSheetCard}>
-              <View style={styles.cheatSheetHeader}>
-                <Text style={styles.cheatSheetTitle}>Exposure cheat sheet</Text>
-                <Pressable onPress={() => setCheatSheetVisible(false)}>
-                  <Ionicons name="close" size={22} color={colors.text} />
-                </Pressable>
-              </View>
-              <ScrollView>
-                <Text style={styles.cheatSheetIntro}>
-                  Three settings control exposure together — aperture, shutter speed, and ISO.
-                  Quick reference for what each one does:
-                </Text>
-                {CHEAT_SHEET_ROWS.map((row, i) => (
-                  <View key={i} style={styles.cheatSheetRow}>
-                    <Text style={styles.cheatSheetSetting}>{row.setting}</Text>
-                    <Text style={styles.cheatSheetEffect}>{row.effect}</Text>
-                  </View>
-                ))}
-              </ScrollView>
-            </View>
           </View>
-        </Modal>
-      </SafeAreaView>
-    </TouchableWithoutFeedback>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <OchoCelebration
+        visible={!!celebration}
+        kind={celebration?.kind ?? 'daily'}
+        themeName={celebration?.kind === 'weekly' ? celebration.themeName : undefined}
+        streak={celebration?.streak}
+        reward={celebration?.kind === 'daily' ? celebration.reward : undefined}
+        bonus={celebration?.kind === 'daily' ? celebration.bonus : undefined}
+        onClose={() => setCelebration(null)}
+      />
+
+      <Modal
+        visible={cheatSheetVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setCheatSheetVisible(false)}
+      >
+        <View style={styles.cheatSheetBackdrop}>
+          <View style={styles.cheatSheetCard}>
+            <View style={styles.cheatSheetHeader}>
+              <Text style={styles.cheatSheetTitle}>Exposure cheat sheet</Text>
+              <Pressable onPress={() => setCheatSheetVisible(false)}>
+                <Ionicons name="close" size={22} color={colors.text} />
+              </Pressable>
+            </View>
+            <ScrollView>
+              <Text style={styles.cheatSheetIntro}>
+                Three settings control exposure together — aperture, shutter speed, and ISO.
+                Quick reference for what each one does:
+              </Text>
+              {CHEAT_SHEET_ROWS.map((row, i) => (
+                <View key={i} style={styles.cheatSheetRow}>
+                  <Text style={styles.cheatSheetSetting}>{row.setting}</Text>
+                  <Text style={styles.cheatSheetEffect}>{row.effect}</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 }
 

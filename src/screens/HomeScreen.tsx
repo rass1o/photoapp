@@ -24,6 +24,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
+import { ensureCurrentTheme } from '../lib/themes';
 import { localDateString } from '../lib/date';
 import { useAuth } from '../context/AuthContext';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -241,6 +242,7 @@ export default function HomeScreen() {
     async (selectedFeed: Feed) => {
       setErrorMessage(null);
 
+      await ensureCurrentTheme();
       const nowIso = new Date().toISOString();
       const { data: themeData, error: themeError } = await supabase
         .from('themes')
