@@ -10,16 +10,20 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Share,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
+import * as Clipboard from 'expo-clipboard';
 import { Text, TextInput } from './Themed';
 import { colors, bubbly } from '../theme';
 
 // Turns a photo into a styled card (with your own message printed on it) and
 // opens the phone's share sheet, so it can go to Messages, Instagram, etc.
-// The message is part of the image because many apps drop text sent with one.
+// The card message is part of the image because many apps drop text sent
+// with one; a separate text message (with a link to the app) goes alongside
+// where the phone allows it.
 
 type CardStyle = 'polaroid' | 'film' | 'postcard' | 'ocean';
 
@@ -32,6 +36,11 @@ const STYLES: { id: CardStyle; label: string; icon: keyof typeof Ionicons.glyphM
 
 const CARD_WIDTH = 300;
 const MESSAGE_MAX = 90;
+const DEFAULT_TEXT = 'Have you seen this picture?';
+
+// Where the shared text points. Placeholder until the app is in the App
+// Store; swap in the store link then. Empty = no link line.
+const SHARE_LINK = 'https://shuttink.app';
 
 type Props = {
   visible: boolean;
@@ -54,7 +63,8 @@ function Sprockets() {
 export default function ShareCardModal({ visible, imageUrl, username, themeName, onClose }: Props) {
   const cardRef = useRef<ComponentRef<typeof View>>(null);
   const [style, setStyle] = useState<CardStyle>('polaroid');
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(''); // printed on the card
+  const [text, setText] = useState(DEFAULT_TEXT); // sent with the picture
   const [ratio, setRatio] = useState(1); // photo height / width
   const [loaded, setLoaded] = useState(false);
   const [sharing, setSharing] = useState(false);
@@ -64,6 +74,7 @@ export default function ShareCardModal({ visible, imageUrl, username, themeName,
     if (!visible || !imageUrl) return;
     setLoaded(false);
     setMessage('');
+    setText(DEFAULT_TEXT);
     Image.getSize(
       imageUrl,
       (w, h) => setRatio(Math.min(1.35, Math.max(0.75, h / w))),
@@ -76,11 +87,23 @@ export default function ShareCardModal({ visible, imageUrl, username, themeName,
     setSharing(true);
     try {
       const uri = await captureRef(cardRef, { format: 'jpg', quality: 0.95, result: 'tmpfile' });
+      const fileUri = uri.startsWith('file://') ? uri : `file://${uri}`;
+      const fullText = [text.trim(), SHARE_LINK ? `See it on ShuttInk: ${SHARE_LINK}` : ''].filter(Boolean).join('\n\n');
+
+      if (Platform.OS === 'ios') {
+        // iOS sends the picture and the text together (e.g. one iMessage)
+        await Share.share({ url: fileUri, message: fullText });
+        return;
+      }
+
+      // Android's share sheet here only takes the picture, so the text goes
+      // on the clipboard to paste in next to it
+      if (fullText) await Clipboard.setStringAsync(fullText);
       if (!(await Sharing.isAvailableAsync())) {
         Alert.alert('Sharing isn’t available on this device');
         return;
       }
-      await Sharing.shareAsync(uri, { mimeType: 'image/jpeg', UTI: 'public.jpeg', dialogTitle: 'Share photo' });
+      await Sharing.shareAsync(fileUri, { mimeType: 'image/jpeg', dialogTitle: 'Share photo' });
     } catch (err) {
       console.log('Share card failed:', err);
       Alert.alert('Couldn’t share that', 'Please try again.');
@@ -195,6 +218,7 @@ export default function ShareCardModal({ visible, imageUrl, username, themeName,
               ))}
             </ScrollView>
 
+            <Text style={styles.fieldLabel}>On the card</Text>
             <TextInput
               style={styles.messageInput}
               value={message}
@@ -204,6 +228,28 @@ export default function ShareCardModal({ visible, imageUrl, username, themeName,
               placeholderTextColor={colors.faint}
             />
             <Text style={styles.counter}>{MESSAGE_MAX - message.length} left</Text>
+
+            <Text style={styles.fieldLabel}>Message to send</Text>
+            <TextInput
+              style={[styles.messageInput, styles.textInput]}
+              value={text}
+              onChangeText={setText}
+              maxLength={300}
+              multiline
+              placeholder="Say something with the picture"
+              placeholderTextColor={colors.faint}
+            />
+            {SHARE_LINK ? (
+              <View style={styles.linkRow}>
+                <Ionicons name="link-outline" size={13} color={colors.reef} />
+                <Text style={styles.linkText}>See it on ShuttInk: {SHARE_LINK}</Text>
+              </View>
+            ) : null}
+            {Platform.OS === 'android' && (
+              <Text style={styles.androidNote}>
+                Your message gets copied when you share, so you can paste it in next to the picture.
+              </Text>
+            )}
 
             <Pressable style={[styles.shareButton, (!loaded || sharing) && { opacity: 0.6 }]} onPress={share} disabled={!loaded || sharing}>
               {sharing ? (
@@ -317,6 +363,11 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   counter: { alignSelf: 'flex-end', fontSize: 11, color: colors.muted, marginTop: 4 },
+  fieldLabel: { alignSelf: 'flex-start', fontSize: 12, fontWeight: '700', color: colors.ink, marginBottom: 6, marginTop: 4 },
+  textInput: { minHeight: 64, textAlignVertical: 'top' },
+  linkRow: { alignSelf: 'stretch', flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
+  linkText: { fontSize: 12, color: colors.reef },
+  androidNote: { alignSelf: 'stretch', fontSize: 11, color: colors.muted, marginTop: 6 },
   shareButton: {
     alignSelf: 'stretch',
     flexDirection: 'row',
