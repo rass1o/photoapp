@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, Pressable, ActivityIndicator, Image, FlatList, Alert } from 'react-native';
+import { View, StyleSheet, Pressable, ActivityIndicator, Image, FlatList, Alert, LayoutAnimation } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -94,6 +95,26 @@ export default function ProfileScreen() {
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [cameras, setCameras] = useState<CameraItem[]>([]);
   const [newCameraName, setNewCameraName] = useState('');
+  // Profile sections folded shut, remembered on this phone
+  const [closedSections, setClosedSections] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    AsyncStorage.getItem(CLOSED_SECTIONS_KEY)
+      .then((raw) => raw && setClosedSections(new Set(JSON.parse(raw))))
+      .catch(() => {});
+  }, []);
+  const toggleSection = (key: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.create(200, 'easeInEaseOut', 'opacity'));
+    setClosedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      AsyncStorage.setItem(CLOSED_SECTIONS_KEY, JSON.stringify([...next])).catch(() => {});
+      return next;
+    });
+  };
+  const isOpen = (key: string) => !closedSections.has(key);
+  // Header props that make a section fold
+  const fold = (key: string) => ({ open: isOpen(key), onToggle: () => toggleSection(key) });
   const [goals, setGoals] = useState<GoalItem[]>([]);
   const [shopItems, setShopItems] = useState<ShopItem[]>([]);
   const [ownedIds, setOwnedIds] = useState<Set<string>>(new Set());
@@ -375,18 +396,21 @@ export default function ProfileScreen() {
         <Pressable style={styles.settingsButton} onPress={() => navigation.push('Settings')} hitSlop={10}>
           <Ionicons name="settings-outline" size={22} color={colors.ink} />
         </Pressable>
-        <Pressable onPress={pickAvatar} style={[styles.avatar, { borderColor: profile.avatar_frame_color }]}>
-          {isUploadingAvatar ? (
-            <ActivityIndicator color={colors.coral} />
-          ) : profile.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
-          ) : (
-            <Text style={styles.avatarInitials}>{profile.username.slice(0, 2).toUpperCase()}</Text>
-          )}
-          <View style={styles.avatarEditBadge}>
-            <Ionicons name="camera" size={12} color={colors.white} />
-          </View>
-        </Pressable>
+        <View style={styles.avatarWrap}>
+          <Pressable onPress={pickAvatar} style={[styles.avatar, { borderColor: profile.avatar_frame_color }]}>
+            {isUploadingAvatar ? (
+              <ActivityIndicator color={colors.coral} />
+            ) : profile.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
+            ) : (
+              <Text style={styles.avatarInitials}>{profile.username.slice(0, 2).toUpperCase()}</Text>
+            )}
+          </Pressable>
+          {/* outside the round photo, which clips anything past its edge */}
+          <Pressable style={styles.avatarEditBadge} onPress={pickAvatar} hitSlop={8}>
+            <Ionicons name="camera" size={13} color={colors.white} />
+          </Pressable>
+        </View>
 
         <Text style={styles.username}>{profile.username}</Text>
 
@@ -428,7 +452,7 @@ export default function ProfileScreen() {
         <SandGrain />
         <Wave water={profile.banner_color} />
         <FlatList
-          data={gallery.slice(0, GALLERY_PREVIEW)}
+          data={isOpen('gallery') ? gallery.slice(0, GALLERY_PREVIEW) : []}
           keyExtractor={(g) => g.id}
           numColumns={3}
           columnWrapperStyle={{ gap: 6 }}
@@ -450,128 +474,142 @@ export default function ProfileScreen() {
                 </View>
               </View>
 
-              <SectionHeader icon="options-outline" label="Customize" />
-              <View style={styles.customizeGrid}>
-                <CustomizeButton icon="ellipse-outline" label="Avatar frame" onPress={() => setLockerCategory('frame')} />
-                <CustomizeButton icon="image-outline" label="Banner" onPress={() => setLockerCategory('banner')} />
-                <CustomizeButton icon="ribbon-outline" label="Badge" onPress={() => setLockerCategory('badge')} />
-                <CustomizeButton icon="create-outline" label="Edit bio" onPress={startEditBio} accent />
-              </View>
+              <SectionHeader icon="options-outline" label="Customize" {...fold('customize')} />
+              {isOpen('customize') && (
+                <View style={styles.customizeGrid}>
+                  <CustomizeButton icon="ellipse-outline" label="Avatar frame" onPress={() => setLockerCategory('frame')} />
+                  <CustomizeButton icon="image-outline" label="Banner" onPress={() => setLockerCategory('banner')} />
+                  <CustomizeButton icon="ribbon-outline" label="Badge" onPress={() => setLockerCategory('badge')} />
+                  <CustomizeButton icon="create-outline" label="Edit bio" onPress={startEditBio} accent />
+                </View>
+              )}
 
-              <SectionHeader icon="people-outline" label="Friends" />
-              <View style={styles.customizeGrid}>
-                <CustomizeButton
-                  icon="people-outline"
-                  label={`Friends · ${friends.length}`}
-                  onPress={() => setFriendsTab('friends')}
-                />
-                <CustomizeButton
-                  icon="person-add-outline"
-                  label={friendRequests.length > 0 ? `Requests · ${friendRequests.length}` : 'Requests'}
-                  onPress={() => setFriendsTab('requests')}
-                  accent={friendRequests.length > 0}
-                />
-              </View>
+              <SectionHeader icon="people-outline" label="Friends" {...fold('friends')} />
+              {isOpen('friends') && (
+                <View style={styles.customizeGrid}>
+                  <CustomizeButton
+                    icon="people-outline"
+                    label={`Friends · ${friends.length}`}
+                    onPress={() => setFriendsTab('friends')}
+                  />
+                  <CustomizeButton
+                    icon="person-add-outline"
+                    label={friendRequests.length > 0 ? `Requests · ${friendRequests.length}` : 'Requests'}
+                    onPress={() => setFriendsTab('requests')}
+                    accent={friendRequests.length > 0}
+                  />
+                </View>
+              )}
 
-              <SectionHeader icon="flag-outline" label="Goals" />
-              <View style={styles.goalsList}>
-                {goals.length === 0 ? (
-                  <Text style={styles.emptyText}>No goals yet. Seas the day and set one.</Text>
-                ) : (
-                  goals.map((g) => (
-                    <View key={g.id} style={styles.goalRow}>
-                      <Pressable onPress={() => toggleGoal(g.id, g.is_completed)} style={styles.goalCheckbox}>
-                        <Ionicons
-                          name={g.is_completed ? 'checkbox' : 'square-outline'}
-                          size={19}
-                          color={g.is_completed ? '#10b981' : colors.faint}
-                        />
-                      </Pressable>
-                      <Text style={[styles.goalText, g.is_completed && styles.goalTextCompleted]}>
-                        {g.text}
-                      </Text>
-                      <Pressable onPress={() => removeGoal(g.id)}>
-                        <Ionicons name="close-circle" size={16} color={colors.sandDark} />
-                      </Pressable>
-                    </View>
-                  ))
-                )}
-              </View>
-              <View style={styles.addGoalRow}>
-                <TextInput
-                  style={styles.addGoalInput}
-                  placeholder="e.g. Shoot 5 golden hour photos"
-                  value={newGoalText}
-                  onChangeText={setNewGoalText}
-                  onSubmitEditing={addGoal}
-                  returnKeyType="done"
-                />
-                <Pressable style={styles.addCameraButton} onPress={addGoal}>
-                  <Ionicons name="add" size={18} color={colors.white} />
-                </Pressable>
-              </View>
-
-              <SectionHeader icon="images-outline" label="Showcase" />
-              <View style={styles.showcaseRow}>
-                {showcaseUrls.map((url, i) => (
-                  <Pressable
-                    key={i}
-                    style={styles.showcaseTile}
-                    onPress={() => pickShowcasePhoto(i as 0 | 1 | 2)}
-                  >
-                    {uploadingShowcaseSlot === i ? (
-                      <ActivityIndicator color={colors.coral} />
-                    ) : url ? (
-                      <>
-                        <Image source={{ uri: url }} style={styles.showcaseImage} />
-                        <Pressable
-                          style={styles.showcaseRemove}
-                          onPress={() => clearShowcaseSlot(i as 0 | 1 | 2)}
-                        >
-                          <Ionicons name="close" size={12} color={colors.white} />
-                        </Pressable>
-                      </>
+              <SectionHeader icon="flag-outline" label="Goals" {...fold('goals')} />
+              {isOpen('goals') && (
+                <>
+                  <View style={styles.goalsList}>
+                    {goals.length === 0 ? (
+                      <Text style={styles.emptyText}>No goals yet. Seas the day and set one.</Text>
                     ) : (
-                      <Ionicons name="add" size={22} color={colors.faint} />
+                      goals.map((g) => (
+                        <View key={g.id} style={styles.goalRow}>
+                          <Pressable onPress={() => toggleGoal(g.id, g.is_completed)} style={styles.goalCheckbox}>
+                            <Ionicons
+                              name={g.is_completed ? 'checkbox' : 'square-outline'}
+                              size={19}
+                              color={g.is_completed ? '#10b981' : colors.faint}
+                            />
+                          </Pressable>
+                          <Text style={[styles.goalText, g.is_completed && styles.goalTextCompleted]}>
+                            {g.text}
+                          </Text>
+                          <Pressable onPress={() => removeGoal(g.id)}>
+                            <Ionicons name="close-circle" size={16} color={colors.sandDark} />
+                          </Pressable>
+                        </View>
+                      ))
                     )}
-                  </Pressable>
-                ))}
-              </View>
+                  </View>
+                  <View style={styles.addGoalRow}>
+                    <TextInput
+                      style={styles.addGoalInput}
+                      placeholder="e.g. Shoot 5 golden hour photos"
+                      value={newGoalText}
+                      onChangeText={setNewGoalText}
+                      onSubmitEditing={addGoal}
+                      returnKeyType="done"
+                    />
+                    <Pressable style={styles.addCameraButton} onPress={addGoal}>
+                      <Ionicons name="add" size={18} color={colors.white} />
+                    </Pressable>
+                  </View>
+                </>
+              )}
 
-              <SectionHeader icon="camera-outline" label="Camera collection" />
-              <View style={styles.cameraList}>
-                {cameras.length === 0 ? (
-                  <Text style={styles.emptyText}>No cameras added yet.</Text>
-                ) : (
-                  cameras.map((c) => (
-                    <View key={c.id} style={styles.cameraChip}>
-                      <Ionicons name="camera-outline" size={13} color={colors.text} />
-                      <Text style={styles.cameraChipText}>{c.camera_name}</Text>
-                      <Pressable onPress={() => removeCamera(c.id)}>
-                        <Ionicons name="close-circle" size={15} color={colors.faint} />
-                      </Pressable>
-                    </View>
-                  ))
-                )}
-              </View>
-              <View style={styles.addCameraRow}>
-                <TextInput
-                  style={styles.addCameraInput}
-                  placeholder="e.g. Canon AE-1"
-                  value={newCameraName}
-                  onChangeText={setNewCameraName}
-                  onSubmitEditing={addCamera}
-                  returnKeyType="done"
-                />
-                <Pressable style={styles.addCameraButton} onPress={addCamera}>
-                  <Ionicons name="add" size={18} color={colors.white} />
-                </Pressable>
-              </View>
+              <SectionHeader icon="images-outline" label="Showcase" {...fold('showcase')} />
+              {isOpen('showcase') && (
+                <View style={styles.showcaseRow}>
+                  {showcaseUrls.map((url, i) => (
+                    <Pressable
+                      key={i}
+                      style={styles.showcaseTile}
+                      onPress={() => pickShowcasePhoto(i as 0 | 1 | 2)}
+                    >
+                      {uploadingShowcaseSlot === i ? (
+                        <ActivityIndicator color={colors.coral} />
+                      ) : url ? (
+                        <>
+                            <Image source={{ uri: url }} style={styles.showcaseImage} />
+                            <Pressable
+                              style={styles.showcaseRemove}
+                              onPress={() => clearShowcaseSlot(i as 0 | 1 | 2)}
+                            >
+                              <Ionicons name="close" size={12} color={colors.white} />
+                            </Pressable>
+                        </>
+                      ) : (
+                        <Ionicons name="add" size={22} color={colors.faint} />
+                      )}
+                    </Pressable>
+                  ))}
+                </View>
+              )}
 
-              <SectionHeader icon="grid-outline" label="Gallery" />
+              <SectionHeader icon="camera-outline" label="Camera collection" {...fold('cameras')} />
+              {isOpen('cameras') && (
+                <>
+                  <View style={styles.cameraList}>
+                    {cameras.length === 0 ? (
+                      <Text style={styles.emptyText}>No cameras added yet.</Text>
+                    ) : (
+                      cameras.map((c) => (
+                        <View key={c.id} style={styles.cameraChip}>
+                          <Ionicons name="camera-outline" size={13} color={colors.text} />
+                          <Text style={styles.cameraChipText}>{c.camera_name}</Text>
+                          <Pressable onPress={() => removeCamera(c.id)}>
+                            <Ionicons name="close-circle" size={15} color={colors.faint} />
+                          </Pressable>
+                        </View>
+                      ))
+                    )}
+                  </View>
+                  <View style={styles.addCameraRow}>
+                    <TextInput
+                      style={styles.addCameraInput}
+                      placeholder="e.g. Canon AE-1"
+                      value={newCameraName}
+                      onChangeText={setNewCameraName}
+                      onSubmitEditing={addCamera}
+                      returnKeyType="done"
+                    />
+                    <Pressable style={styles.addCameraButton} onPress={addCamera}>
+                      <Ionicons name="add" size={18} color={colors.white} />
+                    </Pressable>
+                  </View>
+                </>
+              )}
+
+              <SectionHeader icon="grid-outline" label="Gallery" {...fold('gallery')} />
             </View>
           }
-          ListEmptyComponent={<Text style={styles.emptyText}>No submissions yet.</Text>}
+          ListEmptyComponent={isOpen('gallery') ? <Text style={styles.emptyText}>No submissions yet.</Text> : undefined}
           renderItem={({ item }) => (
             <Pressable
               style={styles.galleryTile}
@@ -582,7 +620,7 @@ export default function ProfileScreen() {
           )}
           ListFooterComponent={
             <View>
-              {gallery.length > GALLERY_PREVIEW && (
+              {isOpen('gallery') && gallery.length > GALLERY_PREVIEW && (
                 <SeeAllButton
                   count={gallery.length}
                   onPress={() => navigation.push('Gallery', { userId: profile.id, username: profile.username })}
@@ -590,19 +628,23 @@ export default function ProfileScreen() {
               )}
               {octopus && (
                 <View style={styles.octopusSection}>
-                  <SectionHeader icon="happy-outline" label="Your octopus" />
-                  <OctopusCard
-                    name={octopus.data.name}
-                    line={octopus.line}
-                    color={octopus.data.color}
-                    accessory={octopus.data.accessory}
-                    heldItem={octopus.data.held_item}
-                    pet={octopus.data.pet}
-                  />
-                  <Pressable style={styles.octopusButton} onPress={() => navigation.push('Octopus')}>
-                    <Ionicons name="color-wand-outline" size={16} color={colors.reef} />
-                    <Text style={styles.octopusButtonText}>Customize {octopus.data.name}</Text>
-                  </Pressable>
+                  <SectionHeader icon="happy-outline" label="Your octopus" {...fold('octopus')} />
+                  {isOpen('octopus') && (
+                    <>
+                      <OctopusCard
+                        name={octopus.data.name}
+                        line={octopus.line}
+                        color={octopus.data.color}
+                        accessory={octopus.data.accessory}
+                        heldItem={octopus.data.held_item}
+                        pet={octopus.data.pet}
+                      />
+                      <Pressable style={styles.octopusButton} onPress={() => navigation.push('Octopus')}>
+                        <Ionicons name="color-wand-outline" size={16} color={colors.reef} />
+                        <Text style={styles.octopusButtonText}>Customize {octopus.data.name}</Text>
+                      </Pressable>
+                    </>
+                  )}
                 </View>
               )}
               <Pressable style={styles.settingsRow} onPress={() => navigation.push('Settings')}>
@@ -637,6 +679,8 @@ export default function ProfileScreen() {
   );
 }
 
+const CLOSED_SECTIONS_KEY = 'profileClosedSections';
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   header: { alignItems: 'center', paddingTop: 20, paddingBottom: 12 },
@@ -649,19 +693,19 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
     overflow: 'hidden',
   },
+  avatarWrap: { marginBottom: 8 },
   avatarImage: { width: '100%', height: '100%' },
   avatarInitials: { fontSize: 18, fontWeight: '600', color: colors.coral },
   avatarEditBadge: {
     position: 'absolute',
     bottom: -2,
-    right: -2,
+    right: -4,
     backgroundColor: colors.deep,
-    borderRadius: 10,
-    width: 20,
-    height: 20,
+    borderRadius: 12,
+    width: 24,
+    height: 24,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,

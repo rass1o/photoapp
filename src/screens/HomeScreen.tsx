@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   RefreshControl,
   Modal,
-  Share,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -40,6 +39,7 @@ import { colors, bubbly } from '../theme';
 import Wave, { WAVE_HEIGHT } from '../components/Wave';
 import SandGrain from '../components/SandGrain';
 import Wordmark from '../components/Wordmark';
+import ShareCardModal from '../components/ShareCardModal';
 
 type Theme = {
   id: string;
@@ -127,6 +127,7 @@ export default function HomeScreen() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [shareItem, setShareItem] = useState<Submission | null>(null);
   const [hasSubmittedThisTheme, setHasSubmittedThisTheme] = useState(false);
   const [aspectRatios, setAspectRatios] = useState<Record<string, number>>({});
 
@@ -687,15 +688,8 @@ export default function HomeScreen() {
     }
   };
 
-  const shareSubmission = async (item: Submission) => {
-    try {
-      await Share.share({
-        message: `Check out ${item.username}'s photo on ShuttInk for "${theme?.name}": ${item.image_url}`,
-      });
-    } catch (err) {
-      console.log('Share failed:', err);
-    }
-  };
+  // Opens the share card: pick a style, add a message, send it anywhere
+  const shareSubmission = (item: Submission) => setShareItem(item);
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
@@ -1034,6 +1028,13 @@ export default function HomeScreen() {
         recommendedFilms={theme?.recommended_films}
         exampleImageUrl={theme?.example_image_url}
         onClose={() => setThemeWelcomeVisible(false)}
+      />
+      <ShareCardModal
+        visible={!!shareItem}
+        imageUrl={shareItem?.image_url ?? null}
+        username={shareItem?.username ?? ''}
+        themeName={theme?.name}
+        onClose={() => setShareItem(null)}
       />
     </SafeAreaView>
   );

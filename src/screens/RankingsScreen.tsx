@@ -272,7 +272,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: colors.sand,
   },
-  rowMe: { backgroundColor: colors.reefLight, borderRadius: 8, paddingHorizontal: 8 },
+  // The highlight reaches past the row's edges so your rank, photo and name
+  // stay lined up with everyone else's
+  rowMe: { backgroundColor: colors.reefLight, borderRadius: 8, marginHorizontal: -8, paddingHorizontal: 8 },
   rank: { width: 28, fontWeight: '600', color: colors.muted, fontSize: 14 },
   rankTop: { color: '#b45309' },
   thumb: { width: 40, height: 40, borderRadius: 6, backgroundColor: colors.sand },

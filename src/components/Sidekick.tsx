@@ -518,7 +518,7 @@ function GibsonGlasses() {
   );
 }
 
-// Harold: a plump white chicken in a blue apron
+// Harold: a plump white chicken in a yellow apron
 function Harold() {
   return (
     <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
@@ -530,19 +530,19 @@ function Harold() {
       <Ellipse cx={50} cy={66} rx={26} ry={24} fill="#FFFFFF" />
       <Path d="M25,62 C18,70 22,80 30,78" fill="#F3F4F6" />
       <Path d="M75,62 C82,70 78,80 70,78" fill="#F3F4F6" />
-      {/* apron: bib, skirt, pocket, ties */}
-      <Path d="M42,52 L58,52 L60,66 L40,66 Z" fill="#93C5FD" />
-      <Path d="M36,64 L64,64 C66,76 62,86 50,88 C38,86 34,76 36,64 Z" fill="#93C5FD" />
+      {/* apron: shoulder straps (under his head), bib, skirt, pocket, ties */}
+      <Path d="M43,53 C39,49 36,48 32,51 M57,53 C61,49 64,48 68,51" stroke={OUTLINE} strokeWidth={5} fill="none" />
+      <Path d="M43,53 C39,49 36,48 32,51 M57,53 C61,49 64,48 68,51" stroke="#FACC15" strokeWidth={2.5} fill="none" />
+      <Path d="M42,52 L58,52 L60,66 L40,66 Z" fill="#FDE047" />
+      <Path d="M36,64 L64,64 C66,76 62,86 50,88 C38,86 34,76 36,64 Z" fill="#FDE047" />
       <Path d="M36,64 L64,64" stroke="#FFFFFF" strokeWidth={2} />
-      <Path d="M44,72 L56,72 L55,80 L45,80 Z" fill="#BFDBFE" strokeWidth={1.8} />
+      <Path d="M44,72 L56,72 L55,80 L45,80 Z" fill="#FEF08A" strokeWidth={1.8} />
       <Path d="M50,74 C48,72 46,74 48,76 L50,78 L52,76 C54,74 52,72 50,74 Z" fill="#F472B6" strokeWidth={1} />
-      <Path d="M36,64 L28,68 M64,64 L72,68" stroke="#93C5FD" strokeWidth={2.5} />
+      <Path d="M36,64 L28,68 M64,64 L72,68" stroke="#FACC15" strokeWidth={2.5} />
       {/* head */}
       <Circle cx={50} cy={34} r={17} fill="#FFFFFF" />
       {/* comb */}
       <Path d="M42,20 C40,12 46,10 47,16 C48,8 55,8 54,16 C56,10 62,13 58,21 Z" fill="#EF4444" />
-      {/* neck strap of the apron */}
-      <Path d="M42,52 C40,46 44,42 46,44 M58,52 C60,46 56,42 54,44" stroke="#93C5FD" strokeWidth={2.5} fill="none" />
       {/* beak and wattle */}
       <Path d="M45,38 L55,38 L50,45 Z" fill="#F59E0B" />
       <Path d="M48,44 C46,50 52,52 52,46 Z" fill="#EF4444" strokeWidth={1.8} />

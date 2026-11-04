@@ -19,6 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import FilmStamp from '../components/FilmStamp';
 import FormatTag from '../components/FormatTag';
 import BackBar from '../components/BackBar';
+import ShareCardModal from '../components/ShareCardModal';
 import SandGrain from '../components/SandGrain';
 import { Text, TextInput } from '../components/Themed';
 import { colors } from '../theme';
@@ -49,6 +50,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
   const { submissionId } = route.params;
   const { user } = useAuth();
 
+  const [sharing, setSharing] = useState(false);
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -229,6 +231,9 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
                   {submission.vote_count}
                 </Text>
               </Pressable>
+              <Pressable style={styles.actionItem} onPress={() => setSharing(true)} hitSlop={6}>
+                <Ionicons name="share-outline" size={21} color={colors.text} />
+              </Pressable>
             </View>
 
             {submission.caption ? (
@@ -262,6 +267,12 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
         </Pressable>
       </View>
       </KeyboardAvoidingView>
+      <ShareCardModal
+        visible={sharing}
+        imageUrl={submission.image_url}
+        username={submission.username}
+        onClose={() => setSharing(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -280,7 +291,7 @@ const styles = StyleSheet.create({
 
   image: { width: '100%', backgroundColor: colors.sand },
 
-  actionsRow: { flexDirection: 'row', padding: 16 },
+  actionsRow: { flexDirection: 'row', gap: 22, padding: 16 },
   actionItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   actionText: { fontSize: 15, color: colors.text },
   actionTextActive: { color: '#dc2626', fontWeight: '600' },
