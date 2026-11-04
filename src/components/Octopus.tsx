@@ -1042,6 +1042,7 @@ export function OctopusCard({
   heldItem,
   pet,
   size = 120,
+  plain = false,
 }: {
   name: string;
   line: string;
@@ -1050,9 +1051,10 @@ export function OctopusCard({
   heldItem?: string | null;
   pet?: string | null;
   size?: number;
+  plain?: boolean; // no card behind him, e.g. standing in his room
 }) {
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, plain && styles.cardPlain]}>
       <View style={styles.bubble}>
         <Text style={styles.bubbleText}>{line.replace('{name}', name)}</Text>
         <View style={styles.bubbleTail} />
@@ -1065,6 +1067,7 @@ export function OctopusCard({
 
 const styles = StyleSheet.create({
   pet: { position: 'absolute', left: 0 },
+  cardPlain: { backgroundColor: 'transparent', paddingTop: 0, paddingBottom: 0 },
   card: {
     alignItems: 'center',
     backgroundColor: colors.sand,

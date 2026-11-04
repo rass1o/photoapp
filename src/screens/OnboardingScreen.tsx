@@ -75,7 +75,7 @@ const SLIDES: Slide[] = [
       'Each week\u2019s top 5 win 200, 175, 150, 75 and 50 shutters. Ties share the spot',
       'Every daily photo earns 1 shutter',
       `Plus +${STREAK_BONUS} every ${STREAK_BONUS_EVERY} days you keep your day streak going`,
-      'Feeling lucky? A clam blind box in the Shop holds 2 surprises for Ocho, with a shot at a legendary sidekick. Duplicates sell back for half',
+      'Feeling lucky? A clam blind box in the Shop holds 2 surprises for Ocho, with a shot at an epic or legendary sidekick. Duplicates sell back for half',
     ],
   },
   {

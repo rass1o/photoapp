@@ -19,7 +19,7 @@ import Reanimated, {
 import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
 import { colors } from '../theme';
 
-// Legendary pets that sit beside your octopus. Same cartoon style as the
+// Sidekick pets (epic and legendary) that sit beside your octopus. Same cartoon style as the
 // octopus: chunky outline, simple shapes.
 
 const OUTLINE = colors.abyss;
@@ -518,6 +518,51 @@ function GibsonGlasses() {
   );
 }
 
+// Harold: a plump white chicken in a blue apron
+function Harold() {
+  return (
+    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
+      {/* feet */}
+      <Path d="M40,88 L40,96 M35,97 L40,95 L45,97 M60,88 L60,96 M55,97 L60,95 L65,97" stroke="#F59E0B" strokeWidth={3} fill="none" />
+      {/* tail feathers */}
+      <Path d="M72,58 C84,48 90,52 86,62 C92,60 92,70 82,72 Z" fill="#FFFFFF" />
+      {/* body and wings */}
+      <Ellipse cx={50} cy={66} rx={26} ry={24} fill="#FFFFFF" />
+      <Path d="M25,62 C18,70 22,80 30,78" fill="#F3F4F6" />
+      <Path d="M75,62 C82,70 78,80 70,78" fill="#F3F4F6" />
+      {/* apron: bib, skirt, pocket, ties */}
+      <Path d="M42,52 L58,52 L60,66 L40,66 Z" fill="#93C5FD" />
+      <Path d="M36,64 L64,64 C66,76 62,86 50,88 C38,86 34,76 36,64 Z" fill="#93C5FD" />
+      <Path d="M36,64 L64,64" stroke="#FFFFFF" strokeWidth={2} />
+      <Path d="M44,72 L56,72 L55,80 L45,80 Z" fill="#BFDBFE" strokeWidth={1.8} />
+      <Path d="M50,74 C48,72 46,74 48,76 L50,78 L52,76 C54,74 52,72 50,74 Z" fill="#F472B6" strokeWidth={1} />
+      <Path d="M36,64 L28,68 M64,64 L72,68" stroke="#93C5FD" strokeWidth={2.5} />
+      {/* head */}
+      <Circle cx={50} cy={34} r={17} fill="#FFFFFF" />
+      {/* comb */}
+      <Path d="M42,20 C40,12 46,10 47,16 C48,8 55,8 54,16 C56,10 62,13 58,21 Z" fill="#EF4444" />
+      {/* neck strap of the apron */}
+      <Path d="M42,52 C40,46 44,42 46,44 M58,52 C60,46 56,42 54,44" stroke="#93C5FD" strokeWidth={2.5} fill="none" />
+      {/* beak and wattle */}
+      <Path d="M45,38 L55,38 L50,45 Z" fill="#F59E0B" />
+      <Path d="M48,44 C46,50 52,52 52,46 Z" fill="#EF4444" strokeWidth={1.8} />
+      <Ellipse cx={39} cy={41} rx={3.5} ry={2} fill="#FB7185" opacity={0.5} stroke="none" />
+      <Ellipse cx={61} cy={41} rx={3.5} ry={2} fill="#FB7185" opacity={0.5} stroke="none" />
+    </G>
+  );
+}
+
+function HaroldEyes() {
+  return (
+    <G>
+      <Circle cx={43} cy={31} r={2.8} fill="#111" />
+      <Circle cx={57} cy={31} r={2.8} fill="#111" />
+      <Circle cx={43.9} cy={30} r={0.9} fill={colors.white} />
+      <Circle cx={57.9} cy={30} r={0.9} fill={colors.white} />
+    </G>
+  );
+}
+
 export const PET_NAMES: Record<string, string> = {
   merlin: 'Merlin',
   susie: 'Susie',
@@ -527,6 +572,7 @@ export const PET_NAMES: Record<string, string> = {
   gibson: 'Gibson',
   tuxie: 'Tuxie',
   ginger: 'Ginger',
+  harold: 'Harold',
 };
 
 const CAT_KINDS = ['merlin', 'tuxie', 'ginger'] as const;
@@ -591,6 +637,14 @@ function Still({ kind }: { kind: string }) {
         <LeilaEyeWhites />
         <LeilaPupils />
         <LeilaArm />
+      </G>
+    );
+  }
+  if (kind === 'harold') {
+    return (
+      <G>
+        <Harold />
+        <HaroldEyes />
       </G>
     );
   }
@@ -1238,6 +1292,22 @@ function GibsonLive({ frame, active }: LiveProps) {
   );
 }
 
+// Harold blinks and looks around (from useBase); no special move of his own
+function HaroldLive({ frame, active }: LiveProps) {
+  const base = useBase(active, []);
+  const eyes = useEyes(base, frame, [1.8, 1.2]);
+  return (
+    <Body frame={frame} breathe={base.breathe}>
+      <Layer frame={frame}>
+        <Harold />
+      </Layer>
+      <Layer frame={frame} origin={[50, 31]} style={eyes.pupils}>
+        <HaroldEyes />
+      </Layer>
+    </Body>
+  );
+}
+
 const LIVE: Record<string, (props: LiveProps) => ReactNode> = {
   merlin: MerlinLive,
   tuxie: TuxieLive,
@@ -1247,6 +1317,7 @@ const LIVE: Record<string, (props: LiveProps) => ReactNode> = {
   mango: MangoLive,
   leila: LeilaLive,
   gibson: GibsonLive,
+  harold: HaroldLive,
 };
 
 type Props = { kind: string; size?: number; animated?: boolean };

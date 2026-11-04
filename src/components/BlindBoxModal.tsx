@@ -280,7 +280,7 @@ export default function BlindBoxModal({
             <>
               <Text style={styles.description}>
                 Crack it open for {ITEMS_PER_BOX} surprises for your octopus: hats, gear and, if the tide{'’'}s
-                with you, a legendary sidekick. Pull something you already have? Sell it back for half its price.
+                with you, a sidekick (epic or legendary). Pull something you already have? Sell it back for half its price.
               </Text>
 
               <Text style={styles.sectionLabel}>Chances for each pull</Text>

@@ -285,7 +285,7 @@ export default function ShopScreen() {
                   <Text style={styles.octoBlurb}>
                     {duplicates.length > 0
                       ? `${duplicates.length} ${duplicates.length === 1 ? 'duplicate' : 'duplicates'} to sell. Tap to open.`
-                      : '2 surprises for Ocho, from common hats to legendary sidekicks. Tap for the odds.'}
+                      : '2 surprises for Ocho, from common hats to epic and legendary sidekicks. Tap for the odds.'}
                   </Text>
                 </View>
                 <View style={styles.clamPrice}>
