@@ -20,6 +20,9 @@ import FilmStamp from '../components/FilmStamp';
 import FormatTag from '../components/FormatTag';
 import BackBar from '../components/BackBar';
 import ShareCardModal from '../components/ShareCardModal';
+import VoteSheet from '../components/VoteSheet';
+import { useThemeVotes } from '../lib/voting';
+import { formatTimeLeft, themePhase } from '../lib/themes';
 import { frameColor } from '../components/AvatarFrame';
 import SandGrain from '../components/SandGrain';
 import { Text, TextInput } from '../components/Themed';
@@ -30,6 +33,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'SubmissionDetail'>;
 type Submission = {
   id: string;
   user_id: string;
+  theme_id: string;
   image_url: string;
   format: 'digital' | 'film';
   vote_count: number;
@@ -53,7 +57,8 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
 
   const [sharing, setSharing] = useState(false);
   const [submission, setSubmission] = useState<Submission | null>(null);
-  const [hasVoted, setHasVoted] = useState(false);
+  const [themeEnd, setThemeEnd] = useState<string | null>(null);
+  const [voteSheetOpen, setVoteSheetOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentInput, setCommentInput] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -62,7 +67,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
   const load = async () => {
     const { data: subData, error } = await supabase
       .from('submissions')
-      .select('id, user_id, image_url, format, vote_count, caption, film_stamp')
+      .select('id, user_id, theme_id, image_url, format, vote_count, caption, film_stamp')
       .eq('id', submissionId)
       .single();
 
@@ -84,15 +89,8 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
       avatar_frame_color: profileData?.avatar_frame_color ?? '#7c3aed',
     });
 
-    if (user) {
-      const { data: voteRow } = await supabase
-        .from('votes')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('submission_id', submissionId)
-        .maybeSingle();
-      setHasVoted(!!voteRow);
-    }
+    const { data: themeRow } = await supabase.from('themes').select('end_date').eq('id', subData.theme_id).maybeSingle();
+    setThemeEnd(themeRow?.end_date ?? null);
 
     const { data: commentRows } = await supabase
       .from('comments')
@@ -117,25 +115,32 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
     load();
   }, [submissionId]);
 
-  const toggleVote = async () => {
+  const phase = themePhase(themeEnd);
+  const votes = useThemeVotes(submission?.theme_id, user?.id, (from, to) =>
+    setSubmission((prev) =>
+      prev ? { ...prev, vote_count: prev.vote_count + (to === prev.id ? 1 : 0) - (from === prev.id ? 1 : 0) } : prev
+    )
+  );
+  const overallHere = !!submission && votes.mine.overall === submission.id;
+  const picksHere = submission
+    ? Object.entries(votes.mine).filter(([c, id]) => c !== 'overall' && id === submission.id).length
+    : 0;
+
+  const openVoting = () => {
     if (!user || !submission) return;
     if (submission.user_id === user.id) {
       Alert.alert('That\u2019s your own catch', 'You can\u2019t vote for your own photo, but your friends can!');
       return;
     }
-    const wasVoted = hasVoted;
-
-    setHasVoted(!wasVoted);
-    setSubmission((prev) => (prev ? { ...prev, vote_count: prev.vote_count + (wasVoted ? -1 : 1) } : prev));
-
-    const { error } = wasVoted
-      ? await supabase.from('votes').delete().eq('user_id', user.id).eq('submission_id', submissionId)
-      : await supabase.from('votes').insert({ user_id: user.id, submission_id: submissionId });
-
-    if (error) {
-      setHasVoted(wasVoted);
-      setSubmission((prev) => (prev ? { ...prev, vote_count: prev.vote_count + (wasVoted ? 1 : -1) } : prev));
+    if (phase === 'submit') {
+      Alert.alert('Voting day is coming', 'Voting happens on the last day of each theme.');
+      return;
     }
+    if (phase === 'ended') {
+      Alert.alert('Voting\u2019s over', 'This theme has ended. Check Rankings for the winners.');
+      return;
+    }
+    setVoteSheetOpen(true);
   };
 
   const postComment = async () => {
@@ -222,14 +227,20 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
             </View>
 
             <View style={styles.actionsRow}>
-              <Pressable style={styles.actionItem} onPress={toggleVote}>
+              <Pressable style={styles.actionItem} onPress={openVoting}>
                 <Ionicons
-                  name={hasVoted ? 'heart' : 'heart-outline'}
+                  name={overallHere ? 'star' : 'star-outline'}
                   size={22}
-                  color={hasVoted ? '#dc2626' : colors.text}
+                  color={overallHere || picksHere > 0 ? '#F59E0B' : colors.text}
                 />
-                <Text style={[styles.actionText, hasVoted && styles.actionTextActive]}>
-                  {submission.vote_count}
+                <Text style={[styles.actionText, (overallHere || picksHere > 0) && styles.actionTextActive]}>
+                  {phase === 'vote'
+                    ? overallHere || picksHere > 0
+                      ? `${(overallHere ? 1 : 0) + picksHere} of your votes`
+                      : 'Vote'
+                    : phase === 'ended'
+                      ? `${submission.vote_count} votes`
+                      : 'Voting on the last day'}
                 </Text>
               </Pressable>
               <Pressable style={styles.actionItem} onPress={() => setSharing(true)} hitSlop={6}>
@@ -268,6 +279,15 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
         </Pressable>
       </View>
       </KeyboardAvoidingView>
+      <VoteSheet
+        submissionId={voteSheetOpen ? submission.id : null}
+        username={submission.username}
+        categories={votes.categories}
+        mine={votes.mine}
+        timeLeft={themeEnd ? formatTimeLeft(new Date(themeEnd).getTime() - Date.now()) : ''}
+        onToggle={votes.toggle}
+        onClose={() => setVoteSheetOpen(false)}
+      />
       <ShareCardModal
         visible={sharing}
         imageUrl={submission.image_url}
@@ -295,7 +315,7 @@ const styles = StyleSheet.create({
   actionsRow: { flexDirection: 'row', gap: 22, padding: 16 },
   actionItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   actionText: { fontSize: 15, color: colors.text },
-  actionTextActive: { color: '#dc2626', fontWeight: '600' },
+  actionTextActive: { color: '#B45309', fontWeight: '600' },
   caption: { fontSize: 14, color: colors.text, paddingHorizontal: 16, paddingBottom: 12, lineHeight: 19 },
   captionUsername: { fontWeight: '600', color: colors.ink },
 

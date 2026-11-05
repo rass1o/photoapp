@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
-import { ensureCurrentTheme } from '../lib/themes';
+import { ensureCurrentTheme, themePhase, themeStatus } from '../lib/themes';
 import { readImage } from '../lib/upload';
 import { localDateString } from '../lib/date';
 import { useAuth } from '../context/AuthContext';
@@ -38,6 +38,7 @@ import { colors, bubbly } from '../theme';
 type Theme = {
   id: string;
   name: string;
+  end_date: string;
 };
 
 const DAILY_SUBMISSION_REWARD = 1;
@@ -167,7 +168,7 @@ export default function CameraScreen() {
       const nowIso = new Date().toISOString();
       const { data } = await supabase
         .from('themes')
-        .select('id, name')
+        .select('id, name, end_date')
         .lte('start_date', nowIso)
         .gte('end_date', nowIso)
         .order('start_date', { ascending: false })
@@ -424,6 +425,17 @@ export default function CameraScreen() {
               <Text style={styles.title}>No active theme right now</Text>
               <Text style={styles.subtitle}>The tide's out. Check back once this week's theme is live.</Text>
             </View>
+          ) : themePhase(theme.end_date) === 'vote' && !alreadySubmitted ? (
+            // The theme's last day is for voting, so new photos are closed
+            <View style={styles.section}>
+              <View style={styles.doneWrap}>
+                <Text style={styles.doneTitle}>It{'\u2019'}s voting day!</Text>
+                <Text style={styles.doneSubtitle}>
+                  Submissions for "{theme.name}" closed at the start of the theme{'\u2019'}s last day. Head to Home to
+                  vote: you get one overall pick plus one in each category. Your daily photo is still open below.
+                </Text>
+              </View>
+            </View>
           ) : alreadySubmitted ? (
             <View style={styles.section}>
               <View style={styles.doneWrap}>
@@ -436,7 +448,9 @@ export default function CameraScreen() {
           ) : (
             <View style={styles.section}>
               <Text style={styles.title}>Submit for "{theme.name}"</Text>
-              <Text style={styles.subtitle}>1 submission allowed per theme</Text>
+              <Text style={styles.subtitle}>
+                1 submission per theme {'\u00b7'} {themeStatus(theme.end_date).toLowerCase()}
+              </Text>
 
               {renderCapture('weekly', imageUri, styles.captureButton)}
 

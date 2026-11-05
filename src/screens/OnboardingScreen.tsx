@@ -50,9 +50,9 @@ const SLIDES: Slide[] = [
     body: 'Here\u2019s how a week goes:',
     bullets: [
       'A theme is announced at the start of the week',
-      'Submit one photo for it, tagged as Digital or Film',
-      'Everyone votes all week: double-tap a photo or hit the heart. Vote for as many as you like',
-      'When the week ends, the top photos win shutters (more on that soon)',
+      'Submit one photo for it, tagged as Digital or Film. Submissions close a day before the theme ends',
+      'That last day is voting day: scroll the whole feed and cast 6 votes, your overall favorite plus one each for Most Dramatic, Most Creative, Best Use of Light, Best Composition and Best Story',
+      'When voting ends, the overall top 5 and each category\u2019s winner earn shutters (more on that soon)',
     ],
   },
   {
@@ -72,7 +72,7 @@ const SLIDES: Slide[] = [
     title: 'Shutters & prizes',
     body: 'Shutters are ShuttInk\u2019s currency. You earn them by shooting:',
     bullets: [
-      'Each week\u2019s top 5 win 200, 175, 150, 75 and 50 shutters. Ties share the spot',
+      'Each week\u2019s overall top 5 win 200, 175, 150, 75 and 50 shutters (ties share the spot), and each category winner gets 50',
       'Every daily photo earns 1 shutter',
       `Plus +${STREAK_BONUS} every ${STREAK_BONUS_EVERY} days you keep your day streak going`,
       'Feeling lucky? A clam blind box in the Shop holds 2 surprises for Ocho, with a shot at an epic or legendary sidekick. Duplicates sell back for half',

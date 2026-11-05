@@ -2,8 +2,11 @@ import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
 import { colors } from '../theme';
 
 const OUTLINE = colors.abyss;
-const SHELL = '#F7A99A';
-const SHELL_DARK = '#E9857A';
+// Shell colors for each blind box
+const SHELLS: Record<string, { shell: string; dark: string; glow: string }> = {
+  clam: { shell: '#F7A99A', dark: '#E9857A', glow: '#FDE68A' },
+  pearl: { shell: '#D9CCF7', dark: '#B5A0EC', glow: '#F5D0FE' },
+};
 const HINGE = { x: 60, y: 66 };
 
 // Scallop fan: a ridged half-disc around the hinge, with a bump between
@@ -31,7 +34,8 @@ const BOTTOM_BOWL = 'M14,66 Q16,100 60,100 Q104,100 106,66 Z';
 
 // The blind box: a cartoon clam. Closed in the shop, open (pearl and
 // sparkles) once you've cracked it.
-export default function Clam({ size = 96, open = false }: { size?: number; open?: boolean }) {
+export default function Clam({ size = 96, open = false, variant = 'clam' }: { size?: number; open?: boolean; variant?: string }) {
+  const { shell: SHELL, dark: SHELL_DARK, glow } = SHELLS[variant] ?? SHELLS.clam;
   return (
     <Svg width={size} height={size * 0.92} viewBox="0 -20 120 124">
       {open && (
@@ -65,7 +69,7 @@ export default function Clam({ size = 96, open = false }: { size?: number; open?
       {!open && (
         <G>
           {/* Closed: a peek of pearl glow at the lip and a little smile */}
-          <Path d="M24,68 Q60,76 96,68" stroke="#FDE68A" strokeWidth={3} strokeLinecap="round" fill="none" />
+          <Path d="M24,68 Q60,76 96,68" stroke={glow} strokeWidth={3} strokeLinecap="round" fill="none" />
           <Circle cx={46} cy={84} r={2.5} fill={OUTLINE} />
           <Circle cx={74} cy={84} r={2.5} fill={OUTLINE} />
           <Path d="M54,89 Q60,94 66,89" stroke={OUTLINE} strokeWidth={2.5} strokeLinecap="round" fill="none" />

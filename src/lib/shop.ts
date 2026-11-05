@@ -16,6 +16,7 @@ export type ShopItem = {
   accent: string | null;
   rarity: string; // rarities.id, e.g. 'common'
   in_blind_box: boolean;
+  box: string | null; // which blind box it comes out of: 'clam' or 'pearl'
 };
 
 // Maps each profile cosmetic category to the profile column it equips into
@@ -35,7 +36,7 @@ export async function loadShop(userId: string) {
   const [{ data: items }, { data: inventory }] = await Promise.all([
     supabase
       .from('shop_items')
-      .select('id, category, value, label, price, is_purchasable, unlock_hint, accent, rarity, in_blind_box')
+      .select('id, category, value, label, price, is_purchasable, unlock_hint, accent, rarity, in_blind_box, box')
       .order('sort_order'),
     supabase.from('user_inventory').select('item_id').eq('user_id', userId),
   ]);

@@ -6,6 +6,8 @@ import { Text } from './Themed';
 import Clam from './Clam';
 import Octopus from './Octopus';
 import Sidekick from './Sidekick';
+import FrameDecoration, { frameColor } from './AvatarFrame';
+import BannerArt, { bannerColor } from './BannerArt';
 import { ShopItem } from '../lib/shop';
 import { Duplicate, ITEMS_PER_BOX, Pick, RARITY_COLORS, TierOdds, sellValue } from '../lib/blindBox';
 import { colors, bubbly } from '../theme';
@@ -44,6 +46,24 @@ const rarityLabel = (id: string) => id.charAt(0).toUpperCase() + id.slice(1);
 // What an item looks like on your octopus (or beside it, for pets)
 export function ItemPreview({ item, color, size }: { item: ShopItem; color: string; size: number }) {
   if (item.category === 'octo_pet') return <Sidekick kind={item.value} size={size * 0.9} />;
+  if (item.category === 'frame') {
+    const ring = size * 0.5;
+    return (
+      <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: ring, height: ring }}>
+          <View style={[previewStyles.ring, { width: ring, height: ring, borderRadius: ring / 2, borderColor: frameColor(item.value) }]} />
+          <FrameDecoration value={item.value} size={ring} />
+        </View>
+      </View>
+    );
+  }
+  if (item.category === 'banner') {
+    return (
+      <View style={[previewStyles.banner, { width: size * 1.2, height: size * 0.7, backgroundColor: bannerColor(item.value) }]}>
+        <BannerArt value={item.value} />
+      </View>
+    );
+  }
   return (
     <Octopus
       color={color}
@@ -230,7 +250,7 @@ export default function BlindBoxModal({
               />
             )}
             <Animated.View style={{ transform: [{ rotate }, { scale: swell }] }}>
-              <Clam size={130} open={phase === 'revealed'} />
+              <Clam size={130} open={phase === 'revealed'} variant={box?.value} />
             </Animated.View>
           </View>
 
@@ -279,8 +299,9 @@ export default function BlindBoxModal({
           {phase === 'info' && (
             <>
               <Text style={styles.description}>
-                Crack it open for {ITEMS_PER_BOX} surprises for your octopus: hats, gear and, if the tide{'’'}s
-                with you, a sidekick (epic or legendary). Pull something you already have? Sell it back for half its price.
+                {box?.value === 'pearl'
+                  ? `Crack it open for ${ITEMS_PER_BOX} surprises for your profile: designed avatar frames and scene banners, up to the legendary Sunset sail. Pull something you already have? Sell it back for half its price.`
+                  : `Crack it open for ${ITEMS_PER_BOX} surprises for your octopus: hats, gear and, if the tide\u2019s with you, a sidekick (epic or legendary). Pull something you already have? Sell it back for half its price.`}
               </Text>
 
               <Text style={styles.sectionLabel}>Chances for each pull</Text>
@@ -355,7 +376,7 @@ export default function BlindBoxModal({
             </Pressable>
             <Pressable style={[styles.button, styles.primaryButton]} onPress={onCustomize}>
               <Ionicons name="color-wand-outline" size={16} color={colors.white} />
-              <Text style={styles.primaryText}>Dress up Ocho</Text>
+              <Text style={styles.primaryText}>{box?.value === 'pearl' ? 'Wear it on my profile' : 'Dress up Ocho'}</Text>
             </Pressable>
           </View>
         ) : (
@@ -521,4 +542,9 @@ const styles = StyleSheet.create({
   secondaryButton: { borderWidth: 1.5, borderColor: colors.sandBorder },
   secondaryText: { fontSize: 15, fontWeight: '600', color: colors.ink },
   disabled: { opacity: 0.5 },
+});
+
+const previewStyles = StyleSheet.create({
+  ring: { borderWidth: 3, backgroundColor: colors.coralLight },
+  banner: { borderRadius: 8, borderWidth: 1, borderColor: colors.sandBorder, overflow: 'hidden' },
 });

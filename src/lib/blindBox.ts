@@ -27,8 +27,6 @@ export const RARITY_COLORS: Record<string, { bg: string; fg: string }> = {
   legendary: { bg: '#FCE8B2', fg: '#9A6400' },
 };
 
-const BOX_CATEGORIES = ['octo_accessory', 'octo_item', 'octo_pet'];
-
 // Duplicates sell back for half the item's price
 export const sellValue = (item: ShopItem) => Math.floor(item.price / 2);
 
@@ -37,10 +35,11 @@ export async function loadRarities() {
   return (data ?? []).map((r) => ({ ...r, weight: Number(r.weight) })) as Rarity[];
 }
 
-// Each pull rolls a tier by weight (only tiers with something in them), then
-// an item evenly within it. Mirrors open_blind_box on the server.
-export function tierOdds(items: ShopItem[], rarities: Rarity[]): TierOdds[] {
-  const inBox = items.filter((i) => BOX_CATEGORIES.includes(i.category) && i.in_blind_box);
+// Each pull rolls a tier by weight (only tiers with something in this box),
+// then an item evenly within it. Mirrors open_blind_box on the server.
+// box is the blind box item's value: 'clam' (Ocho's gear) or 'pearl'.
+export function tierOdds(items: ShopItem[], rarities: Rarity[], box = 'clam'): TierOdds[] {
+  const inBox = items.filter((i) => i.in_blind_box && i.box === box);
   const tiers = rarities
     .map((rarity) => ({ rarity, items: inBox.filter((i) => i.rarity === rarity.id) }))
     .filter((t) => t.items.length > 0);

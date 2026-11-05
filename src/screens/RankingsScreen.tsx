@@ -4,7 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
-import { ensureCurrentTheme } from '../lib/themes';
+import { ensureCurrentTheme, themePhase, votingOpensAt } from '../lib/themes';
+import { VoteCategory, loadVoteCategories } from '../lib/voting';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import FormatTag from '../components/FormatTag';
@@ -17,7 +19,10 @@ import SandGrain from '../components/SandGrain';
 type Theme = {
   id: string;
   name: string;
+  end_date: string;
 };
+
+type CategoryLeader = { category: VoteCategory; submission: RankedSubmission; votes: number };
 
 type RankedSubmission = {
   id: string;
@@ -30,8 +35,10 @@ type RankedSubmission = {
 
 type Feed = 'friends' | 'global';
 
-// Weekly prizes for 1st -> 5th, paid by process_due_payouts on the server
+// Weekly prizes for 1st -> 5th, and for each category's winner, paid by
+// process_due_payouts on the server
 const REWARDS = [200, 175, 150, 75, 50];
+const CATEGORY_REWARD = 50;
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -44,6 +51,7 @@ export default function RankingsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [leaders, setLeaders] = useState<CategoryLeader[]>([]);
 
   const loadData = useCallback(async (selectedFeed: Feed) => {
     setErrorMessage(null);
@@ -52,7 +60,7 @@ export default function RankingsScreen() {
     const nowIso = new Date().toISOString();
     const { data: themeData, error: themeError } = await supabase
       .from('themes')
-      .select('id, name')
+      .select('id, name, end_date')
       .lte('start_date', nowIso)
       .gte('end_date', nowIso)
       .order('start_date', { ascending: false })
@@ -95,7 +103,30 @@ export default function RankingsScreen() {
       usernameById = new Map((profileRows ?? []).map((p) => [p.id, p.username]));
     }
 
-    setRankings(rows.map((r) => ({ ...r, username: usernameById.get(r.user_id) ?? 'unknown' })));
+    const ranked = rows.map((r) => ({ ...r, username: usernameById.get(r.user_id) ?? 'unknown' }));
+    setRankings(ranked);
+
+    // Who's leading each category (ties go to whoever posted first, like the payout)
+    if (selectedFeed === 'global') {
+      const [categories, { data: catVotes }] = await Promise.all([
+        loadVoteCategories(),
+        supabase.from('category_votes').select('category, submission_id').eq('theme_id', themeData.id),
+      ]);
+      const byId = new Map(ranked.map((r) => [r.id, r]));
+      setLeaders(
+        categories.flatMap((category) => {
+          const counts = new Map<string, number>();
+          (catVotes ?? [])
+            .filter((v) => v.category === category.id)
+            .forEach((v) => counts.set(v.submission_id, (counts.get(v.submission_id) ?? 0) + 1));
+          const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
+          const submission = top ? byId.get(top[0]) : undefined;
+          return submission ? [{ category, submission, votes: top[1] }] : [];
+        })
+      );
+    } else {
+      setLeaders([]);
+    }
   }, [user]);
 
   // Reload whenever the tab comes into focus (new votes and submissions show
@@ -142,9 +173,14 @@ export default function RankingsScreen() {
         {theme && <Text style={styles.subtitle}>{theme.name}</Text>}
         <Text style={styles.prizeHint}>
           {feed === 'global'
-            ? `Top 5 overall win ${REWARDS.join(' · ')} shutters`
+            ? `Top 5 overall win ${REWARDS.join(' · ')} · each category winner gets ${CATEGORY_REWARD}`
             : 'How you stack up against your friends'}
         </Text>
+        {theme && themePhase(theme.end_date) === 'submit' && (
+          <Text style={styles.phaseNote}>
+            Votes come in on voting day, the theme{'\u2019'}s last day ({votingOpensAt(theme.end_date).toLocaleDateString(undefined, { weekday: 'long' })}).
+          </Text>
+        )}
 
         <View style={styles.toggleRow}>
           <Pressable
@@ -184,6 +220,29 @@ export default function RankingsScreen() {
             contentContainerStyle={{ paddingTop: WAVE_HEIGHT + 4 }}
             keyExtractor={(item) => item.id}
             refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
+            ListHeaderComponent={
+              leaders.length > 0 ? (
+                <View style={styles.leaders}>
+                  <Text style={styles.leadersTitle}>Category leaders</Text>
+                  {leaders.map((l) => (
+                    <Pressable
+                      key={l.category.id}
+                      style={styles.leaderRow}
+                      onPress={() => navigation.push('SubmissionDetail', { submissionId: l.submission.id })}
+                    >
+                      <Ionicons name={l.category.icon as keyof typeof Ionicons.glyphMap} size={16} color={colors.reef} />
+                      <Text style={styles.leaderCategory} numberOfLines={1}>{l.category.label}</Text>
+                      <Image source={{ uri: l.submission.image_url }} style={styles.leaderThumb} />
+                      <Text style={styles.leaderName} numberOfLines={1}>
+                        {l.submission.user_id === user?.id ? 'You' : l.submission.username}
+                      </Text>
+                      <Text style={styles.leaderVotes}>{l.votes}</Text>
+                    </Pressable>
+                  ))}
+                  <Text style={[styles.leadersTitle, { marginTop: 14 }]}>Overall</Text>
+                </View>
+              ) : undefined
+            }
             ListEmptyComponent={
               <View style={styles.centered}>
                 <Text style={styles.emptyText}>
@@ -282,6 +341,14 @@ const styles = StyleSheet.create({
   username: { fontSize: 14, flexShrink: 1 },
   rewardText: { fontSize: 11, color: '#b45309', marginTop: 2 },
   votes: { fontSize: 13, color: colors.muted },
+  phaseNote: { fontSize: 12, color: colors.reefDark, textAlign: 'center', marginTop: 4, paddingHorizontal: 16 },
+  leaders: { marginBottom: 6 },
+  leadersTitle: { fontSize: 12, fontWeight: '700', letterSpacing: 1, color: colors.ink, textTransform: 'uppercase', marginBottom: 6 },
+  leaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, borderBottomWidth: 1, borderColor: colors.sand },
+  leaderCategory: { width: 120, fontSize: 13, fontWeight: '600', color: colors.ink },
+  leaderThumb: { width: 30, height: 30, borderRadius: 5, backgroundColor: colors.sand },
+  leaderName: { flex: 1, fontSize: 13, color: colors.text },
+  leaderVotes: { fontSize: 13, fontWeight: '600', color: colors.reef },
 
   pinnedRow: {
     flexDirection: 'row',

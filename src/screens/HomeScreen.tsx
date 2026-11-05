@@ -23,7 +23,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
-import { ensureCurrentTheme } from '../lib/themes';
+import { ensureCurrentTheme, formatTimeLeft, themePhase, themeStatus, votingOpensAt } from '../lib/themes';
+import { loadVoteCategories, useThemeVotes } from '../lib/voting';
+import VoteSheet from '../components/VoteSheet';
 import { localDateString } from '../lib/date';
 import { useAuth } from '../context/AuthContext';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -75,12 +77,26 @@ type Feed = 'friends' | 'global';
 
 const SUBMISSION_COLUMNS = 'id, user_id, image_url, format, caption, film_stamp, vote_count, created_at';
 
-function formatCountdown(endDate: string): string {
-  const msLeft = new Date(endDate).getTime() - Date.now();
-  if (msLeft <= 0) return 'Voting closed';
-  const days = Math.floor(msLeft / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((msLeft / (1000 * 60 * 60)) % 24);
-  return `Voting ends in ${days}d ${hours}h`;
+// Search order: exact name, then names starting with the query, then a later
+// word starting with it (after _ . - or a digit), then anything containing it
+function searchRank(username: string, query: string) {
+  const name = username.toLowerCase();
+  const q = query.toLowerCase();
+  if (name === q) return 0;
+  if (name.startsWith(q)) return 1;
+  if (new RegExp(`(^|[_.\\-0-9])${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(name)) return 2;
+  return 3;
+}
+
+// Splits a username so the part matching the query can be bolded
+function highlightMatch(username: string, query: string) {
+  const at = query ? username.toLowerCase().indexOf(query.toLowerCase()) : -1;
+  if (at < 0) return [{ text: username, match: false }];
+  return [
+    { text: username.slice(0, at), match: false },
+    { text: username.slice(at, at + query.length), match: true },
+    { text: username.slice(at + query.length), match: false },
+  ].filter((p) => p.text);
 }
 
 const DOUBLE_TAP_WINDOW_MS = 300;
@@ -118,8 +134,8 @@ export default function HomeScreen() {
 
   const [theme, setTheme] = useState<Theme | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [votedIds, setVotedIds] = useState<Set<string>>(new Set());
-  const [pendingVoteIds, setPendingVoteIds] = useState<Set<string>>(new Set());
+  // the photo whose vote sheet is open
+  const [voteTarget, setVoteTarget] = useState<{ id: string; username: string } | null>(null);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [feed, setFeed] = useState<Feed>('friends');
   const [isLoading, setIsLoading] = useState(true);
@@ -319,16 +335,6 @@ export default function HomeScreen() {
         setCommentCounts({});
       }
 
-      if (user && rows.length > 0) {
-        const { data: voteRows } = await supabase
-          .from('votes')
-          .select('submission_id')
-          .eq('user_id', user.id)
-          .in('submission_id', rows.map((s) => s.id));
-        setVotedIds(new Set((voteRows ?? []).map((v) => v.submission_id)));
-      } else {
-        setVotedIds(new Set());
-      }
     },
     [user]
   );
@@ -358,15 +364,6 @@ export default function HomeScreen() {
           });
           return next;
         });
-      }
-
-      if (user && rows.length > 0) {
-        const { data: voteRows } = await supabase
-          .from('votes')
-          .select('submission_id')
-          .eq('user_id', user.id)
-          .in('submission_id', rows.map((s) => s.id));
-        setVotedIds((prev) => new Set([...prev, ...(voteRows ?? []).map((v) => v.submission_id)]));
       }
     }
 
@@ -457,14 +454,24 @@ export default function HomeScreen() {
         .eq('theme_id', endedTheme.id);
 
       const rows = results ?? [];
-      if (rows.length === 0) {
+      const [{ data: categoryResults }, categories] = await Promise.all([
+        supabase
+          .from('theme_category_results')
+          .select('category, submission_id, user_id, vote_count, reward')
+          .eq('theme_id', endedTheme.id),
+        loadVoteCategories(),
+      ]);
+      const categoryRows = categoryResults ?? [];
+      if (rows.length === 0 && categoryRows.length === 0) {
         await AsyncStorage.setItem(seenKey, 'true');
         return false;
       }
 
+      const userIds = [...rows, ...categoryRows].map((r) => r.user_id);
+      const submissionIds = [...rows, ...categoryRows].map((r) => r.submission_id);
       const [{ data: profileRows }, { data: submissionRows }] = await Promise.all([
-        supabase.from('profiles').select('id, username').in('id', rows.map((r) => r.user_id)),
-        supabase.from('submissions').select('id, image_url').in('id', rows.map((r) => r.submission_id)),
+        supabase.from('profiles').select('id, username').in('id', userIds),
+        supabase.from('submissions').select('id, image_url, format').in('id', submissionIds),
       ]);
       const usernameById = new Map((profileRows ?? []).map((p) => [p.id, p.username]));
       const imageById = new Map((submissionRows ?? []).map((s) => [s.id, s.image_url]));
@@ -482,6 +489,22 @@ export default function HomeScreen() {
 
       // Build up to the win: 5th place first
       winnersList.sort((a, b) => b.place - a.place);
+
+      // Category winners come first, then the overall countdown
+      const formatById = new Map((submissionRows ?? []).map((s) => [s.id, s.format]));
+      const labelById = new Map(categories.map((c) => [c.id, c.label]));
+      const categoryWinners: Winner[] = categoryRows.map((r) => ({
+        submissionId: r.submission_id,
+        place: 1,
+        format: (formatById.get(r.submission_id) ?? 'digital') as 'digital' | 'film',
+        isTie: false,
+        username: usernameById.get(r.user_id) ?? 'unknown',
+        imageUrl: imageById.get(r.submission_id) ?? '',
+        voteCount: r.vote_count,
+        reward: r.reward,
+        category: labelById.get(r.category) ?? r.category,
+      }));
+      winnersList.unshift(...categoryWinners);
 
       setWinnersThemeName(endedTheme.name);
       setWinners(winnersList);
@@ -506,19 +529,29 @@ export default function HomeScreen() {
     }
 
     setIsSearching(true);
+    let stale = false;
     const timeout = setTimeout(async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, username, avatar_url')
-        .ilike('username', `%${query}%`)
-        .order('username', { ascending: true })
-        .limit(20);
+      // % and _ are wildcards in ilike, so match them literally
+      const literal = query.replace(/[\\%_]/g, (c) => `\\${c}`);
+      const [starts, contains] = await Promise.all([
+        supabase.from('profiles').select('id, username, avatar_url').ilike('username', `${literal}%`).limit(20),
+        // one letter only looks at the start of names; more widens the net
+        query.length > 1
+          ? supabase.from('profiles').select('id, username, avatar_url').ilike('username', `%${literal}%`).limit(40)
+          : Promise.resolve({ data: [] as typeof searchResults }),
+      ]);
+      if (stale) return;
 
-      if (!error) setSearchResults(data ?? []);
+      const seen = new Set<string>();
+      const merged = [...(starts.data ?? []), ...(contains.data ?? [])].filter((r) => !seen.has(r.id) && seen.add(r.id));
+      setSearchResults(merged.sort((a, b) => searchRank(a.username, query) - searchRank(b.username, query) || a.username.localeCompare(b.username)).slice(0, 20));
       setIsSearching(false);
-    }, 300);
+    }, 250);
 
-    return () => clearTimeout(timeout);
+    return () => {
+      stale = true;
+      clearTimeout(timeout);
+    };
   }, [searchQuery]);
 
   const goToUserProfile = (userId: string) => {
@@ -533,87 +566,36 @@ export default function HomeScreen() {
     setIsRefreshing(false);
   };
 
-  const castVote = useCallback(
-    async (submissionId: string) => {
-      if (!user || pendingVoteIds.has(submissionId) || votedIds.has(submissionId)) return;
-
-      setPendingVoteIds((prev) => new Set(prev).add(submissionId));
-      setVotedIds((prev) => new Set(prev).add(submissionId));
-      setSubmissions((prev) =>
-        prev.map((s) => (s.id === submissionId ? { ...s, vote_count: s.vote_count + 1 } : s))
-      );
-
-      const { error } = await supabase
-        .from('votes')
-        .insert({ user_id: user.id, submission_id: submissionId });
-
-      if (error) {
-        setVotedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(submissionId);
-          return next;
-        });
-        setSubmissions((prev) =>
-          prev.map((s) => (s.id === submissionId ? { ...s, vote_count: s.vote_count - 1 } : s))
-        );
-        console.log('Vote failed:', error.message);
-      }
-
-      setPendingVoteIds((prev) => {
-        const next = new Set(prev);
-        next.delete(submissionId);
-        return next;
-      });
-    },
-    [user, votedIds, pendingVoteIds]
-  );
-
-  const removeVote = useCallback(
-    async (submissionId: string) => {
-      if (!user || pendingVoteIds.has(submissionId)) return;
-
-      setPendingVoteIds((prev) => new Set(prev).add(submissionId));
-      setVotedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(submissionId);
-        return next;
-      });
-      setSubmissions((prev) =>
-        prev.map((s) => (s.id === submissionId ? { ...s, vote_count: s.vote_count - 1 } : s))
-      );
-
-      const { error } = await supabase
-        .from('votes')
-        .delete()
-        .eq('user_id', user.id)
-        .eq('submission_id', submissionId);
-
-      if (error) {
-        setVotedIds((prev) => new Set(prev).add(submissionId));
-        setSubmissions((prev) =>
-          prev.map((s) => (s.id === submissionId ? { ...s, vote_count: s.vote_count + 1 } : s))
-        );
-        console.log('Unvote failed:', error.message);
-      }
-
-      setPendingVoteIds((prev) => {
-        const next = new Set(prev);
-        next.delete(submissionId);
-        return next;
-      });
-    },
-    [user, pendingVoteIds]
-  );
-
   const isOwnSubmission = (submissionId: string) =>
     submissions.find((s) => s.id === submissionId)?.user_id === user?.id;
 
-  const handleHeartTap = (submissionId: string) => {
-    if (isOwnSubmission(submissionId)) {
+  // Voting happens on the theme's last day: one overall vote plus one per
+  // category, picked from the vote sheet
+  const phase = themePhase(theme?.end_date);
+  const votes = useThemeVotes(theme?.id, user?.id, (from, to) =>
+    setSubmissions((prev) =>
+      prev.map((s) =>
+        s.id === from ? { ...s, vote_count: s.vote_count - 1 } : s.id === to ? { ...s, vote_count: s.vote_count + 1 } : s
+      )
+    )
+  );
+
+  const openVoting = (item: Submission) => {
+    if (isOwnSubmission(item.id)) {
       Alert.alert('That\u2019s your own catch', 'You can\u2019t vote for your own photo, but your friends can!');
       return;
     }
-    votedIds.has(submissionId) ? removeVote(submissionId) : castVote(submissionId);
+    if (phase !== 'vote') {
+      const opens = theme ? votingOpensAt(theme.end_date) : null;
+      Alert.alert(
+        'Voting day is coming',
+        opens
+          ? `Voting opens ${opens.toLocaleDateString(undefined, { weekday: 'long' })} at ${opens.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}, the theme\u2019s last day. Until then, scroll, comment and get inspired.`
+          : 'Voting happens on the last day of each theme.'
+      );
+      return;
+    }
+    setVoteTarget({ id: item.id, username: item.username });
   };
 
   // Single tap opens the full detail screen; a second tap within the window
@@ -628,9 +610,9 @@ export default function HomeScreen() {
         clearTimeout(pendingTimeout);
         delete singleTapTimeoutRef.current[submissionId];
       }
-      // Double-tapping your own photo does nothing (no vote, no heart burst)
-      if (!isOwnSubmission(submissionId)) {
-        castVote(submissionId);
+      // Double-tap = your overall vote, on voting day (not your own photo)
+      if (!isOwnSubmission(submissionId) && phase === 'vote') {
+        if (votes.mine.overall !== submissionId) votes.toggle(submissionId, 'overall');
         setBurstId(submissionId);
         setTimeout(() => setBurstId((current) => (current === submissionId ? null : current)), 700);
       }
@@ -751,7 +733,13 @@ export default function HomeScreen() {
                       ) : (
                         <View style={styles.searchResultAvatar} />
                       )}
-                      <Text style={styles.searchResultUsername}>{result.username}</Text>
+                      <Text style={styles.searchResultUsername}>
+                        {highlightMatch(result.username, searchQuery.trim()).map((part, i) => (
+                          <Text key={i} style={part.match ? styles.searchMatch : undefined}>
+                            {part.text}
+                          </Text>
+                        ))}
+                      </Text>
                       <Ionicons name="chevron-forward" size={16} color={colors.faint} />
                     </Pressable>
                   ))
@@ -790,8 +778,14 @@ export default function HomeScreen() {
         >
           <View style={styles.themeBanner}>
             <Text style={styles.themeLabel}>THIS WEEK'S THEME</Text>
-            <Text style={styles.themeName}>{theme?.name ?? 'No active theme'}</Text>
-            {theme && <Text style={styles.themeCountdown}>{formatCountdown(theme.end_date)}</Text>}
+            {theme ? (
+              <Text style={styles.themeName}>{theme.name}</Text>
+            ) : isLoading ? (
+              <ActivityIndicator style={styles.themeLoading} color={colors.deep} />
+            ) : (
+              <Text style={styles.themeName}>No active theme</Text>
+            )}
+            {theme && <Text style={styles.themeCountdown}>{themeStatus(theme.end_date)}</Text>}
             {hasSubmittedThisTheme && (
               <View style={styles.submittedPill}>
                 <Ionicons name="checkmark-circle" size={13} color="#166534" />
@@ -866,7 +860,9 @@ export default function HomeScreen() {
                 </View>
               }
               renderItem={({ item }) => {
-                const hasVoted = votedIds.has(item.id);
+                const overallHere = votes.mine.overall === item.id;
+                // how many of your category votes this photo has
+                const picksHere = Object.entries(votes.mine).filter(([c, id]) => c !== 'overall' && id === item.id).length;
                 return (
                   <View style={styles.card}>
                     <Pressable
@@ -902,7 +898,7 @@ export default function HomeScreen() {
                       )}
                       {burstId === item.id && (
                         <View style={styles.burstOverlay} pointerEvents="none">
-                          <Ionicons name="heart" size={80} color={colors.white} />
+                          <Ionicons name="star" size={80} color={colors.white} />
                         </View>
                       )}
                     </Pressable>
@@ -914,16 +910,28 @@ export default function HomeScreen() {
                     ) : null}
 
                     <View style={styles.actionsRow}>
-                      <Pressable style={styles.actionItem} onPress={() => handleHeartTap(item.id)}>
-                        <Ionicons
-                          name={hasVoted ? 'heart' : 'heart-outline'}
-                          size={20}
-                          color={hasVoted ? '#dc2626' : colors.text}
-                        />
-                        <Text style={[styles.actionText, hasVoted && styles.actionTextActive]}>
-                          {item.vote_count}
-                        </Text>
-                      </Pressable>
+                      {phase === 'vote' ? (
+                        <Pressable
+                          style={[styles.voteButton, (overallHere || picksHere > 0) && styles.voteButtonActive]}
+                          onPress={() => openVoting(item)}
+                        >
+                          <Ionicons
+                            name={overallHere ? 'star' : 'star-outline'}
+                            size={16}
+                            color={overallHere || picksHere > 0 ? colors.white : '#B45309'}
+                          />
+                          <Text style={[styles.voteButtonText, (overallHere || picksHere > 0) && styles.voteButtonTextActive]}>
+                            {overallHere || picksHere > 0
+                              ? `${(overallHere ? 1 : 0) + picksHere} of your votes`
+                              : 'Vote'}
+                          </Text>
+                        </Pressable>
+                      ) : (
+                        <Pressable style={styles.votingSoon} onPress={() => openVoting(item)}>
+                          <Ionicons name="time-outline" size={14} color={colors.muted} />
+                          <Text style={styles.votingSoonText}>Voting on the last day</Text>
+                        </Pressable>
+                      )}
                       <Pressable style={styles.actionItem} onPress={() => openComments(item.id)}>
                         <Ionicons name="chatbubble-outline" size={17} color={colors.text} />
                         <Text style={styles.actionText}>{commentCounts[item.id] ?? 0}</Text>
@@ -1029,6 +1037,15 @@ export default function HomeScreen() {
         exampleImageUrl={theme?.example_image_url}
         onClose={() => setThemeWelcomeVisible(false)}
       />
+      <VoteSheet
+        submissionId={voteTarget?.id ?? null}
+        username={voteTarget?.username ?? ''}
+        categories={votes.categories}
+        mine={votes.mine}
+        timeLeft={theme ? formatTimeLeft(new Date(theme.end_date).getTime() - Date.now()) : ''}
+        onToggle={votes.toggle}
+        onClose={() => setVoteTarget(null)}
+      />
       <ShareCardModal
         visible={!!shareItem}
         imageUrl={shareItem?.image_url ?? null}
@@ -1069,6 +1086,7 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 13 },
   searchWrap: { marginBottom: 4 },
+  searchMatch: { fontWeight: '700', color: colors.deep },
   searchResultsPanel: {
     marginHorizontal: 16,
     marginTop: 6,
@@ -1119,6 +1137,23 @@ const styles = StyleSheet.create({
   themeBanner: { alignItems: 'center', paddingVertical: 16 },
   themeLabel: { fontSize: 11, fontWeight: '600', color: colors.reefDark, letterSpacing: 1, marginBottom: 4 },
   themeName: { ...bubbly, fontSize: 30, textAlign: 'center', paddingHorizontal: 16 },
+  themeLoading: { height: 38 },
+  voteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#F59E0B',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 11,
+    paddingVertical: 4,
+  },
+  voteButtonActive: { backgroundColor: '#F59E0B', borderColor: '#F59E0B' },
+  voteButtonText: { fontSize: 13, fontWeight: '700', color: '#B45309' },
+  voteButtonTextActive: { color: colors.white },
+  votingSoon: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  votingSoonText: { fontSize: 12, color: colors.muted },
   themeCountdown: { fontSize: 12, color: colors.muted, marginTop: 6 },
   submittedPill: {
     flexDirection: 'row',

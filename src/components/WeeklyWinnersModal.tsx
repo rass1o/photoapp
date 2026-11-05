@@ -13,6 +13,7 @@ export type Winner = {
   imageUrl: string;
   voteCount: number;
   reward: number;
+  category?: string; // set for a category winner (e.g. "Most Dramatic"); place is unused then
 };
 
 type Props = {
@@ -68,13 +69,19 @@ export default function WeeklyWinnersModal({ visible, themeName, winners, onClos
           onMomentumScrollEnd={handleScroll}
         >
           {winners.map((w) => (
-            <View key={w.submissionId} style={[styles.page, { width: SCREEN_WIDTH }]}>
-              <View style={[styles.placeBadge, { backgroundColor: PLACE_COLORS[w.place] }]}>
-                <Text style={styles.placeBadgeText}>
-                  {w.isTie ? 'Tied for ' : ''}
-                  {PLACE_LABELS[w.place]} · {FORMAT_LABELS[w.format]}
-                </Text>
-              </View>
+            <View key={`${w.category ?? w.place}-${w.submissionId}`} style={[styles.page, { width: SCREEN_WIDTH }]}>
+              {w.category ? (
+                <View style={[styles.placeBadge, styles.categoryBadge]}>
+                  <Text style={styles.placeBadgeText}>{w.category} · winner</Text>
+                </View>
+              ) : (
+                <View style={[styles.placeBadge, { backgroundColor: PLACE_COLORS[w.place] }]}>
+                  <Text style={styles.placeBadgeText}>
+                    {w.isTie ? 'Tied for ' : ''}
+                    {PLACE_LABELS[w.place]} · {FORMAT_LABELS[w.format]}
+                  </Text>
+                </View>
+              )}
 
               <Image source={{ uri: w.imageUrl }} style={styles.image} resizeMode="contain" />
 
@@ -92,7 +99,7 @@ export default function WeeklyWinnersModal({ visible, themeName, winners, onClos
         <View style={styles.footer}>
           <View style={styles.dots}>
             {winners.map((w, i) => (
-              <View key={w.submissionId} style={[styles.dot, i === pageIndex && styles.dotActive]} />
+              <View key={`${w.category ?? w.place}-${w.submissionId}`} style={[styles.dot, i === pageIndex && styles.dotActive]} />
             ))}
           </View>
 
@@ -118,6 +125,7 @@ const styles = StyleSheet.create({
   page: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
   placeBadge: { borderRadius: 20, paddingHorizontal: 16, paddingVertical: 6, marginBottom: 16 },
   placeBadgeText: { fontSize: 13, fontWeight: '700', color: colors.ink },
+  categoryBadge: { backgroundColor: '#7DD3FC' },
   image: { width: '100%', height: 340, borderRadius: 14, backgroundColor: colors.abyss },
   username: { fontSize: 18, fontWeight: '700', color: colors.white, marginTop: 16 },
   voteCount: { fontSize: 13, color: colors.faint, marginTop: 2 },

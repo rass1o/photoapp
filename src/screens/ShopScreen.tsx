@@ -62,7 +62,8 @@ export default function ShopScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
   const [rarities, setRarities] = useState<Rarity[]>([]);
-  const [blindBoxOpen, setBlindBoxOpen] = useState(false);
+  // which blind box's sheet is open
+  const [openBoxId, setOpenBoxId] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<Duplicate[]>([]);
 
   const [ticketTitle, setTicketTitle] = useState('');
@@ -138,8 +139,9 @@ export default function ShopScreen() {
   };
 
   const ticket = items.find((i) => i.category === 'ticket');
-  const blindBox = items.find((i) => i.category === 'blind_box' && i.is_purchasable);
-  const blindBoxTiers = tierOdds(items, rarities);
+  const blindBoxes = items.filter((i) => i.category === 'blind_box' && i.is_purchasable);
+  const blindBox = blindBoxes.find((b) => b.id === openBoxId) ?? null;
+  const blindBoxTiers = tierOdds(items, rarities, blindBox?.value);
 
   // Opens on the server, then adds new finds to what you own and keeps
   // duplicates around to sell
@@ -283,24 +285,31 @@ export default function ShopScreen() {
             </>
           )}
 
-          {blindBox && (
+          {blindBoxes.length > 0 && (
             <>
-              <SectionHeader icon="gift-outline" label="Blind box" />
-              <Pressable style={styles.clamCard} onPress={() => setBlindBoxOpen(true)}>
-                <Clam size={78} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.clamTitle}>{blindBox.label}</Text>
-                  <Text style={styles.octoBlurb}>
-                    {duplicates.length > 0
-                      ? `${duplicates.length} ${duplicates.length === 1 ? 'duplicate' : 'duplicates'} to sell. Tap to open.`
-                      : '2 surprises for Ocho, from common hats to epic and legendary sidekicks. Tap for the odds.'}
-                  </Text>
-                </View>
-                <View style={styles.clamPrice}>
-                  <Ionicons name="flash" size={12} color={colors.white} />
-                  <Text style={styles.octoButtonText}>{blindBox.price}</Text>
-                </View>
-              </Pressable>
+              <SectionHeader icon="gift-outline" label="Blind boxes" />
+              {blindBoxes.map((box) => (
+                <Pressable key={box.id} style={styles.clamCard} onPress={() => setOpenBoxId(box.id)}>
+                  <Clam size={78} variant={box.value} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.clamTitle}>{box.label}</Text>
+                    <Text style={styles.octoBlurb}>
+                      {box.value === 'pearl'
+                        ? '2 surprises for your profile: designed frames and scene banners. Tap for the odds.'
+                        : '2 surprises for Ocho, from common hats to epic and legendary sidekicks. Tap for the odds.'}
+                    </Text>
+                  </View>
+                  <View style={styles.clamPrice}>
+                    <Ionicons name="flash" size={12} color={colors.white} />
+                    <Text style={styles.octoButtonText}>{box.price}</Text>
+                  </View>
+                </Pressable>
+              ))}
+              {duplicates.length > 0 && (
+                <Text style={styles.duplicatesNote}>
+                  {duplicates.length} {duplicates.length === 1 ? 'duplicate' : 'duplicates'} to sell. Open either clam to sell them.
+                </Text>
+              )}
             </>
           )}
 
@@ -420,7 +429,7 @@ export default function ShopScreen() {
       </View>
 
       <BlindBoxModal
-        box={blindBoxOpen && blindBox ? blindBox : null}
+        box={blindBox}
         tiers={blindBoxTiers}
         ownedIds={ownedIds}
         duplicates={duplicates}
@@ -428,10 +437,13 @@ export default function ShopScreen() {
         balance={profile.currency_balance}
         octopusColor={octopus?.color ?? '#a78bfa'}
         onOpen={openClam}
-        onClose={() => setBlindBoxOpen(false)}
+        onClose={() => setOpenBoxId(null)}
         onCustomize={() => {
-          setBlindBoxOpen(false);
-          navigation.push('Octopus');
+          const pearl = blindBox?.value === 'pearl';
+          setOpenBoxId(null);
+          // Frames and banners are worn from your profile; Ocho's gear from his closet
+          if (pearl) navigation.navigate('MainTabs', { screen: 'Profile' });
+          else navigation.push('Octopus');
         }}
       />
     </SafeAreaView>
@@ -504,7 +516,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.sand,
     borderRadius: 12,
     padding: 12,
-    marginBottom: 18,
+    marginBottom: 12,
   },
   octoName: { fontSize: 15, fontWeight: '700', color: colors.deep },
   clamCard: {
@@ -518,6 +530,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 18,
   },
+  duplicatesNote: { fontSize: 12, color: colors.muted, marginTop: -4, marginBottom: 12, marginLeft: 4 },
   clamTitle: { ...bubbly, fontSize: 18 },
   clamPrice: {
     flexDirection: 'row',
