@@ -642,60 +642,70 @@ function GoopSplash() {
   return <G>{[drop(22, 70), drop(32, 64, 2), drop(70, 64, 2), drop(82, 70), drop(50, 66, 1.8)]}</G>;
 }
 
-// Mand: a sleepy red panda curled up with a ringed tail, dozing under
-// floating Z's. Closed and open eyes are both drawn; one shows at a time.
+// Mand: a sleepy red panda lying curled up like a cat, head resting on his
+// paws, ringed tail wrapped round the front. The head (with its eyes) lifts
+// on its own when he wakes, so it's drawn apart from the body.
 const PANDA = '#C4511F';
 const PANDA_DARK = '#7A3415';
 const PANDA_LEGS = '#3B2318';
 const PANDA_WHITE = '#FFF7ED';
+const MAND_NECK = { x: 42, y: 74 }; // where the head turns from
 
-function MandTail() {
+function MandBody() {
   return (
-    <G strokeLinecap="round" fill="none">
-      <Path d="M62,88 C90,88 98,64 86,50" stroke={OUTLINE} strokeWidth={16} />
-      <Path d="M62,88 C90,88 98,64 86,50" stroke={PANDA} strokeWidth={11} />
-      <Path d="M62,88 C90,88 98,64 86,50" stroke={PANDA_DARK} strokeWidth={11} strokeDasharray="5 7" strokeLinecap="butt" />
+    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
+      <Ellipse cx={58} cy={74} rx={34} ry={16} fill={PANDA} />
+      <Path d="M34,66 C46,58 72,58 86,66" stroke={PANDA_DARK} strokeWidth={2} fill="none" opacity={0.5} />
+      {/* front paws tucked under his chin */}
+      <Ellipse cx={26} cy={86} rx={8} ry={4.5} fill={PANDA_LEGS} />
+      <Ellipse cx={40} cy={88} rx={8} ry={4.5} fill={PANDA_LEGS} />
     </G>
   );
 }
 
-function Mand() {
+function MandTail() {
+  return (
+    <G strokeLinecap="round" fill="none">
+      <Path d="M88,72 C100,92 60,98 30,92" stroke={OUTLINE} strokeWidth={15} />
+      <Path d="M88,72 C100,92 60,98 30,92" stroke={PANDA} strokeWidth={10} />
+      <Path d="M88,72 C100,92 60,98 30,92" stroke={PANDA_DARK} strokeWidth={10} strokeDasharray="5 7" strokeLinecap="butt" />
+    </G>
+  );
+}
+
+function MandHead() {
   return (
     <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
-      <Ellipse cx={50} cy={72} rx={22} ry={19} fill={PANDA} />
-      <Ellipse cx={50} cy={78} rx={12} ry={12} fill="#5B2E1A" strokeWidth={0} />
-      <Ellipse cx={40} cy={89} rx={7} ry={4.5} fill={PANDA_LEGS} />
-      <Ellipse cx={60} cy={89} rx={7} ry={4.5} fill={PANDA_LEGS} />
       {/* ears */}
-      <Path d="M30,34 L31,15 L45,26 Z" fill={PANDA} />
-      <Path d="M70,34 L69,15 L55,26 Z" fill={PANDA} />
-      <Path d="M33,29 L34,19 L42,25 Z" fill={PANDA_WHITE} strokeWidth={0} />
-      <Path d="M67,29 L66,19 L58,25 Z" fill={PANDA_WHITE} strokeWidth={0} />
-      <Ellipse cx={50} cy={42} rx={22} ry={19} fill={PANDA} />
+      <Path d="M16,60 L14,45 L27,53 Z" fill={PANDA} />
+      <Path d="M44,58 L46,43 L34,52 Z" fill={PANDA} />
+      <Path d="M18,56 L17,48 L24,53 Z" fill={PANDA_WHITE} strokeWidth={0} />
+      <Path d="M42,54 L43,47 L37,52 Z" fill={PANDA_WHITE} strokeWidth={0} />
+      <Ellipse cx={30} cy={66} rx={17} ry={15} fill={PANDA} />
       {/* white face markings and tear stripes */}
-      <Ellipse cx={37} cy={48} rx={7} ry={5} fill={PANDA_WHITE} strokeWidth={0} />
-      <Ellipse cx={63} cy={48} rx={7} ry={5} fill={PANDA_WHITE} strokeWidth={0} />
-      <Ellipse cx={50} cy={50} rx={8} ry={6} fill={PANDA_WHITE} strokeWidth={0} />
-      <Circle cx={42} cy={33} r={3} fill={PANDA_WHITE} strokeWidth={0} />
-      <Circle cx={58} cy={33} r={3} fill={PANDA_WHITE} strokeWidth={0} />
-      <Path d="M42,42 C41,45 40,48 37,51 M58,42 C59,45 60,48 63,51" stroke="#8B3A16" strokeWidth={2} fill="none" />
-      <Ellipse cx={50} cy={47} rx={3} ry={2.2} fill="#2B1A12" />
-      <Path d="M50,49 Q48,52 46,51 M50,49 Q52,52 54,51" stroke="#2B1A12" strokeWidth={1.4} fill="none" />
+      <Ellipse cx={21} cy={71} rx={5.5} ry={4} fill={PANDA_WHITE} strokeWidth={0} />
+      <Ellipse cx={39} cy={71} rx={5.5} ry={4} fill={PANDA_WHITE} strokeWidth={0} />
+      <Ellipse cx={30} cy={73} rx={6.5} ry={5} fill={PANDA_WHITE} strokeWidth={0} />
+      <Circle cx={25} cy={58} r={2.4} fill={PANDA_WHITE} strokeWidth={0} />
+      <Circle cx={35} cy={58} r={2.4} fill={PANDA_WHITE} strokeWidth={0} />
+      <Path d="M24,66 C23,69 22,71 20,73 M36,66 C37,69 38,71 40,73" stroke="#8B3A16" strokeWidth={1.8} fill="none" />
+      <Ellipse cx={30} cy={70} rx={2.4} ry={1.8} fill="#2B1A12" />
+      <Path d="M30,71.5 Q28.5,74 27,73 M30,71.5 Q31.5,74 33,73" stroke="#2B1A12" strokeWidth={1.2} fill="none" />
     </G>
   );
 }
 
 function MandSleepyEyes() {
-  return <Path d="M38,40 Q42,43 46,40 M54,40 Q58,43 62,40" stroke="#2B1A12" strokeWidth={2} strokeLinecap="round" fill="none" />;
+  return <Path d="M21,64 Q24,66.5 27,64 M33,64 Q36,66.5 39,64" stroke="#2B1A12" strokeWidth={1.8} strokeLinecap="round" fill="none" />;
 }
 
 function MandEyes() {
   return (
     <G>
-      <Circle cx={42} cy={40} r={3} fill="#111" />
-      <Circle cx={58} cy={40} r={3} fill="#111" />
-      <Circle cx={43} cy={39} r={1} fill={colors.white} />
-      <Circle cx={59} cy={39} r={1} fill={colors.white} />
+      <Circle cx={24} cy={64} r={2.5} fill="#111" />
+      <Circle cx={36} cy={64} r={2.5} fill="#111" />
+      <Circle cx={24.8} cy={63.2} r={0.8} fill={colors.white} />
+      <Circle cx={36.8} cy={63.2} r={0.8} fill={colors.white} />
     </G>
   );
 }
@@ -714,10 +724,78 @@ function Zee({ x, y, w }: { x: number; y: number; w: number }) {
   );
 }
 const ZEES = [
-  { x: 66, y: 20, w: 5 },
-  { x: 74, y: 11, w: 7 },
-  { x: 84, y: 1, w: 9 },
+  { x: 44, y: 42, w: 5 },
+  { x: 52, y: 32, w: 7 },
+  { x: 62, y: 20, w: 9 },
 ];
+
+// Soupy: a happy fawn pug in a white hoodie and angular shades, with a
+// pickaxe strapped across his back. Shades lift off so he can wink.
+const PUG = '#D9B48F';
+const PUG_MASK = '#3B2A20';
+const HOODIE = '#F8FAFC';
+
+function SoupyPickaxe() {
+  return (
+    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
+      <Path d="M26,90 L80,22" stroke={OUTLINE} strokeWidth={7} />
+      <Path d="M26,90 L80,22" stroke="#8B5A3C" strokeWidth={3.5} />
+      <Path d="M64,14 C76,10 90,16 96,28 C88,22 78,20 72,24 L68,22 C70,18 68,16 64,14 Z" fill="#94A3B8" />
+      <Path d="M72,24 C78,20 88,22 96,28" stroke="#CBD5E1" strokeWidth={1.5} fill="none" />
+    </G>
+  );
+}
+
+function Soupy() {
+  return (
+    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
+      {/* hoodie body, hood behind the head */}
+      <Ellipse cx={50} cy={75} rx={23} ry={20} fill={HOODIE} />
+      <Path d="M27,44 C24,18 76,18 73,44 C73,50 27,50 27,44 Z" fill={HOODIE} />
+      <Path d="M31,42 C30,24 70,24 69,42" stroke="#CBD5E1" strokeWidth={3} fill="none" />
+      <Path d="M38,82 L62,82 L60,92 L40,92 Z" fill="#E2E8F0" strokeWidth={2} />
+      <Path d="M44,60 L43,70 M56,60 L57,70" stroke="#CBD5E1" strokeWidth={2} />
+      <Circle cx={43} cy={71} r={1.6} fill="#CBD5E1" strokeWidth={1} />
+      <Circle cx={57} cy={71} r={1.6} fill="#CBD5E1" strokeWidth={1} />
+      <Ellipse cx={39} cy={95} rx={7} ry={4} fill={PUG} />
+      <Ellipse cx={61} cy={95} rx={7} ry={4} fill={PUG} />
+      {/* head */}
+      <Path d="M31,32 L27,42 L36,38 Z M69,32 L73,42 L64,38 Z" fill={PUG_MASK} />
+      <Ellipse cx={50} cy={44} rx={20} ry={18} fill={PUG} />
+      <Path d="M43,31 Q50,28 57,31 M45,35 Q50,33 55,35" stroke="#B08860" strokeWidth={1.5} fill="none" />
+      <Ellipse cx={50} cy={50} rx={10} ry={6.5} fill={PUG_MASK} />
+      <Ellipse cx={50} cy={48} rx={3.6} ry={2.4} fill="#111" />
+      {/* big happy grin with a tongue */}
+      <Path d="M42,55 Q50,65 58,55 Q50,58 42,55 Z" fill="#7F1D1D" strokeWidth={1.8} />
+      <Path d="M46.5,58 Q50,66 53.5,58 Q50,59.5 46.5,58 Z" fill="#F472B6" strokeWidth={1.3} />
+      <Ellipse cx={36} cy={51} rx={3.5} ry={2} fill="#FB7185" opacity={0.5} strokeWidth={0} />
+      <Ellipse cx={64} cy={51} rx={3.5} ry={2} fill="#FB7185" opacity={0.5} strokeWidth={0} />
+    </G>
+  );
+}
+
+// Under the shades, seen when he lifts them to wink
+function SoupyEye({ x }: { x: number }) {
+  return (
+    <G>
+      <Circle cx={x} cy={43} r={3.2} fill="#111" />
+      <Circle cx={x + 1} cy={42} r={1} fill={colors.white} />
+    </G>
+  );
+}
+
+function SoupyShades() {
+  return (
+    <G stroke={OUTLINE} strokeWidth={2} strokeLinejoin="round">
+      <Path d="M28,37 L72,37" strokeWidth={3} />
+      <Path d="M30,37 L48,37 L46,46 Q38,50 32,45 Z" fill="#111827" />
+      <Path d="M70,37 L52,37 L54,46 Q62,50 68,45 Z" fill="#111827" />
+      <Path d="M33,39 L44,39 M56,39 L67,39" stroke="#2DD4BF" strokeWidth={1.6} opacity={0.8} />
+    </G>
+  );
+}
+
+const SOUPY_GLARE = ['M34,46 L38,39', 'M38,47 L43,38', 'M42,46 L45,40'];
 
 export const PET_NAMES: Record<string, string> = {
   merlin: 'Merlin',
@@ -731,6 +809,7 @@ export const PET_NAMES: Record<string, string> = {
   harold: 'Harold',
   goop: 'Goop',
   mand: 'Mand',
+  soupy: 'Soupy',
 };
 
 const CAT_KINDS = ['merlin', 'tuxie', 'ginger'] as const;
@@ -810,11 +889,23 @@ function Still({ kind }: { kind: string }) {
       </G>
     );
   }
+  if (kind === 'soupy') {
+    return (
+      <G>
+        <SoupyPickaxe />
+        <Soupy />
+        <SoupyEye x={41} />
+        <SoupyEye x={59} />
+        <SoupyShades />
+      </G>
+    );
+  }
   if (kind === 'mand') {
     return (
       <G>
+        <MandBody />
+        <MandHead />
         <MandTail />
-        <Mand />
         <MandSleepyEyes />
         {ZEES.map((z) => (
           <Zee key={z.x} {...z} />
@@ -1546,12 +1637,14 @@ function GoopLive({ frame, active }: LiveProps) {
   );
 }
 
-// Mand snoozes under floating Z's, now and then wakes to look around
+// Mand snoozes curled up under floating Z's; now and then he lifts his head,
+// looks around, and settles back down
 function MandLive({ frame, active }: LiveProps) {
+  const lift = useSharedValue(0); // 0 resting on his paws, 1 head up
   const awake = useSharedValue(0);
   const peek = useSharedValue(0);
   const zt = useSharedValue(0);
-  const base = useBase(active, [awake, peek, zt]);
+  const base = useBase(active, [lift, awake, peek, zt]);
   const { breathe, sway } = base;
   const { s } = frame;
 
@@ -1562,17 +1655,24 @@ function MandLive({ frame, active }: LiveProps) {
   }, [active, zt]);
 
   useEvery(active, () => {
-    awake.value = withSequence(to(1, 250), withDelay(2600, to(0, 450)));
-    peek.value = withDelay(400, withSequence(to(-1, 300), withDelay(500, to(1, 500)), withDelay(500, to(0, 300))));
-    return 3400;
+    lift.value = withSequence(to(1, 500), withDelay(2400, to(0, 600)));
+    awake.value = withSequence(withDelay(250, to(1, 200)), withDelay(2300, to(0, 300)));
+    peek.value = withDelay(700, withSequence(to(-1, 350), withDelay(450, to(1, 550)), withDelay(450, to(0, 350))));
+    return 3600;
   });
 
-  const tail = useAnimatedStyle(() => ({ transform: [{ rotate: `${sway.value * 4}deg` }] }));
-  const sleepy = useAnimatedStyle(() => ({ opacity: 1 - awake.value }));
+  // the head and both sets of eyes move together
+  const headTransform = () => {
+    'worklet';
+    return [{ translateY: -5 * lift.value * s }, { rotate: `${16 * lift.value + 7 * peek.value * lift.value}deg` }];
+  };
+  const head = useAnimatedStyle(() => ({ transform: headTransform() }));
+  const sleepy = useAnimatedStyle(() => ({ opacity: 1 - awake.value, transform: headTransform() }));
   const eyes = useAnimatedStyle(() => ({
     opacity: awake.value,
-    transform: [{ translateX: peek.value * 2 * s }],
+    transform: [...headTransform(), { translateX: peek.value * 1.5 * s }],
   }));
+  const tail = useAnimatedStyle(() => ({ transform: [{ rotate: `${sway.value * 3}deg` }] }));
   // each Z drifts up and fades on its own beat while he sleeps
   const z0 = useAnimatedStyle(() => {
     const p = zt.value % 1;
@@ -1586,26 +1686,85 @@ function MandLive({ frame, active }: LiveProps) {
     const p = (zt.value + 0.66) % 1;
     return { opacity: Math.sin(Math.PI * p) * (1 - awake.value), transform: [{ translateY: -6 * p * s }] };
   });
+  const neck: [number, number] = [MAND_NECK.x, MAND_NECK.y];
 
   return (
     <Body frame={frame} breathe={breathe}>
-      <Layer frame={frame} origin={[62, 88]} style={tail}>
-        <MandTail />
-      </Layer>
       <Layer frame={frame}>
-        <Mand />
+        <MandBody />
       </Layer>
-      <Layer frame={frame} style={sleepy}>
+      <Layer frame={frame} origin={neck} style={head}>
+        <MandHead />
+      </Layer>
+      <Layer frame={frame} origin={neck} style={sleepy}>
         <MandSleepyEyes />
       </Layer>
-      <Layer frame={frame} style={eyes}>
+      <Layer frame={frame} origin={neck} style={eyes}>
         <MandEyes />
+      </Layer>
+      <Layer frame={frame} origin={[88, 72]} style={tail}>
+        <MandTail />
       </Layer>
       {[z0, z1, z2].map((style, i) => (
         <Layer key={i} frame={frame} style={style}>
           <Zee {...ZEES[i]} />
         </Layer>
       ))}
+    </Body>
+  );
+}
+
+// Soupy's shades glint, then he pushes them up and winks at you
+function SoupyLive({ frame, active }: LiveProps) {
+  const glare = useSharedValue(0);
+  const raise = useSharedValue(0);
+  const wink = useSharedValue(0);
+  const wag = useSharedValue(0);
+  const base = useBase(active, [glare, raise, wink, wag]);
+  const { breathe, blink, lookX, lookY } = base;
+  const eyes = useEyes(base, frame, [1.4, 1]);
+  const { s } = frame;
+
+  useEvery(active, () => {
+    if (Math.random() < 0.35) {
+      // a happy little wiggle
+      wag.value = withSequence(to(-1, 120), to(1, 160), to(-1, 160), to(1, 160), to(0, 120));
+      return 900;
+    }
+    sweep(glare);
+    raise.value = withDelay(700, withSequence(to(1, 300), withDelay(1000, to(0, 300))));
+    wink.value = withDelay(1150, withSequence(to(1, 110), withDelay(220, to(0, 150))));
+    return 2400;
+  });
+
+  const wiggle = useAnimatedStyle(() => ({ transform: [{ rotate: `${wag.value * 4}deg` }] }));
+  const shades = useAnimatedStyle(() => ({ transform: [{ translateY: -14 * raise.value * s }] }));
+  const winking = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: lookX.value * 1.4 * s },
+      { translateY: lookY.value * s },
+      { scaleY: 1 - 0.9 * Math.max(wink.value, blink.value) },
+    ],
+  }));
+
+  return (
+    <Body frame={frame} breathe={breathe}>
+      <Layer frame={frame} origin={[50, 92]} style={wiggle}>
+        <SoupyPickaxe />
+      </Layer>
+      <Layer frame={frame} origin={[50, 92]} style={wiggle}>
+        <Soupy />
+      </Layer>
+      <Layer frame={frame} origin={[41, 43]} style={eyes.pupils}>
+        <SoupyEye x={41} />
+      </Layer>
+      <Layer frame={frame} origin={[59, 43]} style={winking}>
+        <SoupyEye x={59} />
+      </Layer>
+      <Layer frame={frame} style={shades}>
+        <SoupyShades />
+      </Layer>
+      <GlareLayers frame={frame} p={glare} streaks={SOUPY_GLARE} right={20} />
     </Body>
   );
 }
@@ -1622,6 +1781,7 @@ const LIVE: Record<string, (props: LiveProps) => ReactNode> = {
   harold: HaroldLive,
   goop: GoopLive,
   mand: MandLive,
+  soupy: SoupyLive,
 };
 
 type Props = { kind: string; size?: number; animated?: boolean };
