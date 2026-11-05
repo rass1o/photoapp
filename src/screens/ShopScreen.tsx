@@ -227,7 +227,7 @@ export default function ShopScreen() {
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: bannerColor(shown.banner) }]} edges={['top']}>
       <View>
-        <BannerArt value={shown.banner} bleedTop={insets.top} />
+        <BannerArt value={shown.banner} bleedTop={insets.top} animated />
         <View style={styles.topBar}>
           <Text style={styles.title}>Shop</Text>
           <View style={styles.balancePill}>

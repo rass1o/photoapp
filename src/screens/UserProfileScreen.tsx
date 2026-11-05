@@ -187,10 +187,11 @@ export default function UserProfileScreen({ route, navigation }: Props) {
 
   return (
     <View style={[styles.screen, { backgroundColor: bannerColor(profile.banner_color) }]}>
-      <SafeAreaView edges={['top', 'bottom']} style={styles.flex}>
+      {/* top only: the sand sheet runs to the bottom edge, so no banner color shows under it */}
+      <SafeAreaView edges={['top']} style={styles.flex}>
         <BackBar />
         <View style={styles.header}>
-          <BannerArt value={profile.banner_color} bleedTop={insets.top + 44} />
+          <BannerArt value={profile.banner_color} bleedTop={insets.top + 44} animated />
           <View>
             <View style={[styles.avatar, { borderColor: frameColor(profile.avatar_frame_color) }]}>
               {profile.avatar_url ? (
@@ -292,7 +293,7 @@ export default function UserProfileScreen({ route, navigation }: Props) {
             keyExtractor={(g) => g.id}
             numColumns={3}
             columnWrapperStyle={{ gap: 6 }}
-            contentContainerStyle={{ paddingTop: WAVE_HEIGHT + 2, paddingBottom: 20 }}
+            contentContainerStyle={{ paddingTop: WAVE_HEIGHT + 2, paddingBottom: insets.bottom + 20 }}
             ListHeaderComponent={
               <View>
                 {showcaseUrls.length > 0 && (

@@ -1,5 +1,9 @@
 import { ReactElement } from 'react';
 import { StyleSheet } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
+import AnimatedBanner, { ANIMATED_BANNERS } from './AnimatedBanner';
+import { useScreenFocused } from '../lib/useScreenFocused';
+import { useSettings } from '../context/SettingsContext';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
 // Designed profile banners. A banner's value is either a plain color (the
@@ -108,6 +112,38 @@ const SCENES: Record<string, Scene> = {
       </G>
     ),
   },
+  jellyfish: {
+    color: '#C9D6F5',
+    top: '#EEE6FD',
+    art: () => (
+      <G>
+        <Path d="M40,0 L90,0 L30,260 L0,260 Z M260,0 L300,0 L340,260 L290,260 Z" fill="#FFFFFF" opacity={0.18} />
+        {[
+          { x: 70, y: 110, s: 1.2, c: '#F0ABFC' },
+          { x: 330, y: 90, s: 1, c: '#C4B5FD' },
+          { x: 250, y: 190, s: 0.7, c: '#FBCFE8' },
+        ].map((j) => (
+          <G key={j.x} transform={`translate(${j.x},${j.y}) scale(${j.s})`}>
+            <Path
+              d="M-14,2 C-18,14 -10,24 -14,38 M-5,3 C-9,18 -1,28 -5,46 M5,3 C1,18 9,28 5,46 M14,2 C10,14 18,24 14,38"
+              stroke={j.c}
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              fill="none"
+              opacity={0.7}
+            />
+            <Path d="M-22,0 C-22,-26 22,-26 22,0 Q16,5 11,0 Q5,5 0,0 Q-5,5 -11,0 Q-16,5 -22,0 Z" fill={j.c} opacity={0.6} />
+          </G>
+        ))}
+        <G fill="#FFFFFF" opacity={0.5}>
+          <Circle cx={30} cy={200} r={4} />
+          <Circle cx={150} cy={140} r={3} />
+          <Circle cx={200} cy={230} r={5} />
+          <Circle cx={370} cy={180} r={3} />
+        </G>
+      </G>
+    ),
+  },
 };
 
 // The banner's main color: the header background and the wave below it
@@ -118,9 +154,25 @@ export function bannerColor(value: string | null | undefined) {
 
 // The scene behind a profile header (fills its parent; bleedTop extends it up
 // behind whatever sits above, like the status bar). Plain colors draw nothing.
-export default function BannerArt({ value, bleedTop = 0 }: { value: string | null | undefined; bleedTop?: number }) {
+// animated: legendary scenes move (on full-size headers; tiles stay still),
+// unless the screen is hidden, motion is reduced, or animations are off.
+export default function BannerArt({
+  value,
+  bleedTop = 0,
+  animated = false,
+}: {
+  value: string | null | undefined;
+  bleedTop?: number;
+  animated?: boolean;
+}) {
+  const focused = useScreenFocused();
+  const reduceMotion = useReducedMotion();
+  const { settings } = useSettings();
   const scene = value ? SCENES[value] : undefined;
-  if (!scene) return null;
+  if (!scene || !value) return null;
+  if (animated && focused && !reduceMotion && settings.animations && ANIMATED_BANNERS.includes(value)) {
+    return <AnimatedBanner value={value} bleedTop={bleedTop} />;
+  }
   return (
     <Svg
       style={[StyleSheet.absoluteFill, { top: -bleedTop }]}

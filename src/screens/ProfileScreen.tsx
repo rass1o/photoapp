@@ -417,7 +417,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: bannerColor(profile.banner_color) }]} edges={['top']}>
       <View style={styles.header}>
-        <BannerArt value={profile.banner_color} bleedTop={insets.top} />
+        <BannerArt value={profile.banner_color} bleedTop={insets.top} animated />
         <Pressable style={styles.settingsButton} onPress={() => navigation.push('Settings')} hitSlop={10}>
           <Ionicons name="settings-outline" size={22} color={colors.ink} />
         </Pressable>
@@ -507,23 +507,6 @@ export default function ProfileScreen() {
                   <CustomizeButton icon="image-outline" label="Banner" onPress={() => setLockerCategory('banner')} />
                   <CustomizeButton icon="ribbon-outline" label="Badge" onPress={() => setLockerCategory('badge')} />
                   <CustomizeButton icon="create-outline" label="Edit bio" onPress={startEditBio} accent />
-                </View>
-              )}
-
-              <SectionHeader icon="people-outline" label="Friends" {...fold('friends')} />
-              {isOpen('friends') && (
-                <View style={styles.customizeGrid}>
-                  <CustomizeButton
-                    icon="people-outline"
-                    label={`Friends · ${friends.length}`}
-                    onPress={() => setFriendsTab('friends')}
-                  />
-                  <CustomizeButton
-                    icon="person-add-outline"
-                    label={friendRequests.length > 0 ? `Requests · ${friendRequests.length}` : 'Requests'}
-                    onPress={() => setFriendsTab('requests')}
-                    accent={friendRequests.length > 0}
-                  />
                 </View>
               )}
 

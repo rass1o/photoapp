@@ -300,7 +300,7 @@ export default function BlindBoxModal({
             <>
               <Text style={styles.description}>
                 {box?.value === 'pearl'
-                  ? `Crack it open for ${ITEMS_PER_BOX} surprises for your profile: designed avatar frames and scene banners, up to the legendary Sunset sail. Pull something you already have? Sell it back for half its price.`
+                  ? `Crack it open for ${ITEMS_PER_BOX} surprises for your profile: designed avatar frames and scene banners, up to two animated legendary banners. Pull something you already have? Sell it back for half its price.`
                   : `Crack it open for ${ITEMS_PER_BOX} surprises for your octopus: hats, gear and, if the tide\u2019s with you, a sidekick (epic or legendary). Pull something you already have? Sell it back for half its price.`}
               </Text>
 

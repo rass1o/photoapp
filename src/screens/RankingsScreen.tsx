@@ -42,6 +42,12 @@ const REWARDS = [750, 500, 300];
 const CATEGORY_REWARD = 200;
 const ENTRY_REWARD = 150; // for everyone who enters
 
+const MEDALS = [
+  { label: '1st', bg: '#FEF3C7', border: '#D4A017' },
+  { label: '2nd', bg: '#EEF2F6', border: '#94A3B8' },
+  { label: '3rd', bg: '#FCE7D6', border: '#B45309' },
+];
+
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function RankingsScreen() {
@@ -166,7 +172,8 @@ export default function RankingsScreen() {
 
   // Ties share a rank and skip the next one (10, 10, 7 votes -> 1, 1, 3),
   // matching how payouts place them. In Friends, ranks are among your friends.
-  const byVotes = !!theme && themePhase(theme.end_date) !== 'submit';
+  const phase = theme ? themePhase(theme.end_date) : 'ended';
+  const byVotes = !!theme && phase !== 'submit';
   const score = (r: RankedSubmission) => (byVotes ? r.vote_count : r.like_count);
   const ranks = rankings.map((r) => 1 + rankings.filter((o) => score(o) > score(r)).length);
 
@@ -179,16 +186,49 @@ export default function RankingsScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Rankings</Text>
         {theme && <Text style={styles.subtitle}>{theme.name}</Text>}
-        <Text style={styles.prizeHint}>
-          {feed === 'global'
-            ? `Top 3 overall win ${REWARDS.join(' · ')} · category winners ${CATEGORY_REWARD} · everyone who enters ${ENTRY_REWARD}`
-            : 'How you stack up against your friends'}
-        </Text>
-        {theme && themePhase(theme.end_date) === 'submit' && (
-          <Text style={styles.phaseNote}>
-            Ranked by likes for now. Votes take over on voting day, the theme{'\u2019'}s last day ({votingOpensAt(theme.end_date).toLocaleDateString(undefined, { weekday: 'long' })}).
-          </Text>
+        {/* what's up for grabs, and how the list is ranked right now (both feeds) */}
+        <View style={styles.prizeCard}>
+          <View style={styles.medalRow}>
+            {REWARDS.map((reward, i) => (
+              <View key={i} style={[styles.medal, { backgroundColor: MEDALS[i].bg, borderColor: MEDALS[i].border }]}>
+                <Ionicons name="trophy" size={14} color={MEDALS[i].border} />
+                <Text style={styles.medalPlace}>{MEDALS[i].label}</Text>
+                <View style={styles.medalAmountRow}>
+                  <Ionicons name="flash" size={11} color={colors.ink} />
+                  <Text style={styles.medalAmount}>{reward}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+          <View style={styles.extraRow}>
+            <View style={styles.extraChip}>
+              <Ionicons name="ribbon" size={13} color={colors.reef} />
+              <Text style={styles.extraText}>Each category winner {CATEGORY_REWARD}</Text>
+            </View>
+            <View style={styles.extraChip}>
+              <Ionicons name="enter" size={13} color={colors.reef} />
+              <Text style={styles.extraText}>Entering {ENTRY_REWARD}</Text>
+            </View>
+          </View>
+        </View>
+
+        {theme && (
+          <View style={[styles.phaseBanner, phase === 'vote' && styles.phaseBannerVote]}>
+            <Ionicons
+              name={phase === 'submit' ? 'heart' : phase === 'vote' ? 'star' : 'flag'}
+              size={15}
+              color={phase === 'submit' ? '#dc2626' : phase === 'vote' ? '#B45309' : colors.deep}
+            />
+            <Text style={styles.phaseText}>
+              {phase === 'submit'
+                ? `Ranked by likes until voting day, ${votingOpensAt(theme.end_date).toLocaleDateString(undefined, { weekday: 'long' })}`
+                : phase === 'vote'
+                  ? 'Voting day! Ranked by overall votes'
+                  : 'Final results'}
+            </Text>
+          </View>
         )}
+        {feed === 'friends' && <Text style={styles.friendsNote}>Ranks here are among you and your friends</Text>}
 
         <View style={styles.toggleRow}>
           <Pressable
@@ -316,13 +356,52 @@ const styles = StyleSheet.create({
   sheet: { flex: 1, backgroundColor: colors.shell, paddingHorizontal: 16 },
   title: { ...bubbly, fontSize: 28 },
   subtitle: { fontSize: 13, color: colors.muted },
-  prizeHint: { fontSize: 12, color: colors.reefDark, fontWeight: '500', marginTop: 2, marginBottom: 12 },
+  prizeCard: {
+    backgroundColor: colors.shell,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.sandBorder,
+    padding: 10,
+    marginTop: 10,
+  },
+  medalRow: { flexDirection: 'row', gap: 8 },
+  medal: { flex: 1, alignItems: 'center', borderRadius: 10, borderWidth: 2, paddingVertical: 6 },
+  medalPlace: { fontSize: 12, fontWeight: '700', color: colors.ink, marginTop: 1 },
+  medalAmountRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  medalAmount: { ...bubbly, fontSize: 18, textShadowOffset: { width: 0, height: 1 } },
+  extraRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 8 },
+  extraChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.reefLight,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  extraText: { fontSize: 12, fontWeight: '600', color: colors.reefDark },
+  phaseBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    alignSelf: 'center',
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    marginTop: 10,
+  },
+  phaseBannerVote: { backgroundColor: '#FEF3C7', borderWidth: 1.5, borderColor: '#F59E0B' },
+  phaseText: { fontSize: 13, fontWeight: '700', color: colors.ink },
+  friendsNote: { fontSize: 12, color: colors.reefDark, textAlign: 'center', marginTop: 6 },
 
   toggleRow: {
     flexDirection: 'row',
     backgroundColor: colors.sandTrack,
     borderRadius: 20,
     padding: 3,
+    marginTop: 12,
     marginBottom: 6,
   },
   toggle: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 18 },
@@ -354,7 +433,6 @@ const styles = StyleSheet.create({
   votes: { fontSize: 13, color: colors.muted },
   scores: { alignItems: 'flex-end', gap: 1 },
   scoreMain: { color: colors.ink, fontWeight: '600' },
-  phaseNote: { fontSize: 12, color: colors.reefDark, textAlign: 'center', marginTop: 4, paddingHorizontal: 16 },
   leaders: { marginBottom: 6 },
   leadersTitle: { fontSize: 12, fontWeight: '700', letterSpacing: 1, color: colors.ink, textTransform: 'uppercase', marginBottom: 6 },
   leaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6, borderBottomWidth: 1, borderColor: colors.sand },

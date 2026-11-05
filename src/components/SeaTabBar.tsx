@@ -120,7 +120,9 @@ export default function SeaTabBar({ state, descriptors, navigation }: BottomTabB
 }
 
 const styles = StyleSheet.create({
-  bar: { position: 'relative', backgroundColor: 'transparent' },
+  // Pulled up over the bottom of the screen so the wave itself is the border
+  // (the screen's own sand shows between the crests, no flat strip)
+  bar: { position: 'relative', backgroundColor: 'transparent', marginTop: -WAVE_TOP },
   row: { flex: 1, flexDirection: 'row', paddingTop: WAVE_TOP + 6 },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'flex-start' },
   pill: { width: 46, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
