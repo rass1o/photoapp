@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react';
 import { View, StyleSheet, Pressable, ScrollView, Image, ActivityIndicator, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import FrameDecoration, { frameColor } from '../components/AvatarFrame';
+import BannerArt, { bannerColor } from '../components/BannerArt';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -40,7 +42,6 @@ type Suggestion = {
 const PROFILE_SECTIONS: Array<{ category: ProfileCategory; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
   { category: 'frame', label: 'Frames', icon: 'ellipse-outline' },
   { category: 'banner', label: 'Banners', icon: 'image-outline' },
-  { category: 'badge', label: 'Badges', icon: 'ribbon-outline' },
 ];
 
 const STATUS_STYLES: Record<Suggestion['status'], { bg: string; fg: string; label: string }> = {
@@ -50,6 +51,7 @@ const STATUS_STYLES: Record<Suggestion['status'], { bg: string; fg: string; labe
 };
 
 export default function ShopScreen() {
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -221,38 +223,44 @@ export default function ShopScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: shown.banner }]} edges={['top']}>
-      <View style={styles.topBar}>
-        <Text style={styles.title}>Shop</Text>
-        <View style={styles.balancePill}>
-          <Ionicons name="flash" size={13} color="#92400e" />
-          <Text style={styles.balanceText}>{profile.currency_balance} shutters</Text>
+    <SafeAreaView style={[styles.screen, { backgroundColor: bannerColor(shown.banner) }]} edges={['top']}>
+      <View>
+        <BannerArt value={shown.banner} bleedTop={insets.top} />
+        <View style={styles.topBar}>
+          <Text style={styles.title}>Shop</Text>
+          <View style={styles.balancePill}>
+            <Ionicons name="flash" size={13} color="#92400e" />
+            <Text style={styles.balanceText}>{profile.currency_balance} shutters</Text>
+          </View>
         </View>
-      </View>
 
-      <View style={styles.header}>
-        <View style={[styles.avatar, { borderColor: shown.frame }]}>
-          {profile.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
-          ) : (
-            <Text style={styles.avatarInitials}>{profile.username.slice(0, 2).toUpperCase()}</Text>
+        <View style={styles.header}>
+          <View>
+            <View style={[styles.avatar, { borderColor: frameColor(shown.frame) }]}>
+              {profile.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarInitials}>{profile.username.slice(0, 2).toUpperCase()}</Text>
+              )}
+            </View>
+            <FrameDecoration value={shown.frame} size={68} />
+          </View>
+          <Text style={styles.username}>{profile.username}</Text>
+          <View style={styles.badgePill}>
+            <Ionicons name={shown.badge as keyof typeof Ionicons.glyphMap} size={13} color="#92400e" />
+            <Text style={styles.badgePillText}>{shownBadgeLabel}</Text>
+          </View>
+          {isPreviewing && (
+            <Pressable onPress={() => setPreview({})}>
+              <Text style={styles.resetPreview}>Previewing · tap to reset</Text>
+            </Pressable>
           )}
         </View>
-        <Text style={styles.username}>{profile.username}</Text>
-        <View style={styles.badgePill}>
-          <Ionicons name={shown.badge as keyof typeof Ionicons.glyphMap} size={13} color="#92400e" />
-          <Text style={styles.badgePillText}>{shownBadgeLabel}</Text>
-        </View>
-        {isPreviewing && (
-          <Pressable onPress={() => setPreview({})}>
-            <Text style={styles.resetPreview}>Previewing · tap to reset</Text>
-          </Pressable>
-        )}
       </View>
 
       <View style={styles.sheet}>
         <SandGrain />
-        <Wave water={shown.banner} />
+        <Wave water={bannerColor(shown.banner)} />
         <ScrollView
           contentContainerStyle={{ paddingTop: WAVE_HEIGHT + 2, paddingBottom: 24 }}
           showsVerticalScrollIndicator={false}

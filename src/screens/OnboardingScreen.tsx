@@ -96,7 +96,8 @@ const SLIDES: Slide[] = [
     title: 'Spend them in the Shop',
     body: 'Shutters buy things that show off your style:',
     bullets: [
-      'Avatar frames, banners and badges for your profile',
+      'Avatar frames (cat ears, starfish, a camera on top…) and banners for your profile',
+      'Badges aren\u2019t for sale: earn them with long streaks, wins and more, then show them off',
       'Colors, hats, glasses, props and new lines for Ocho. Prices go up with rarity',
       'Film stamps to tag the stock you shot on',
       'Theme tickets to pitch next week\u2019s theme',

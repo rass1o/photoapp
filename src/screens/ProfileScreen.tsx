@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Pressable, ActivityIndicator, Image, FlatList, Alert, LayoutAnimation } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -30,6 +30,9 @@ import { colors, bubbly } from '../theme';
 import Wave, { WAVE_HEIGHT } from '../components/Wave';
 import SandGrain from '../components/SandGrain';
 import StreakBanner from '../components/StreakBanner';
+import FrameDecoration, { frameColor } from '../components/AvatarFrame';
+import BannerArt, { bannerColor } from '../components/BannerArt';
+import BadgeEarnedModal from '../components/BadgeEarnedModal';
 import { liveDailyStreak } from '../lib/streaks';
 
 type Profile = {
@@ -119,6 +122,8 @@ export default function ProfileScreen() {
   const [shopItems, setShopItems] = useState<ShopItem[]>([]);
   const [ownedIds, setOwnedIds] = useState<Set<string>>(new Set());
   const [lockerCategory, setLockerCategory] = useState<ProfileCategory | null>(null);
+  const [earnedBadges, setEarnedBadges] = useState<ShopItem[]>([]);
+  const insets = useSafeAreaInsets();
   const [octopus, setOctopus] = useState<{ data: OctopusData; line: string } | null>(null);
   const [friends, setFriends] = useState<FriendProfile[]>([]);
   const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
@@ -158,9 +163,14 @@ export default function ProfileScreen() {
       .order('created_at', { ascending: true });
     setGoals(goalsData ?? []);
 
+    // Hand out any badges earned since last time, then celebrate them
+    const { data: newBadgeIds } = await supabase.rpc('check_my_badges');
     const shop = await loadShop(user.id);
     setShopItems(shop.items);
     setOwnedIds(shop.ownedIds);
+    if (Array.isArray(newBadgeIds) && newBadgeIds.length > 0) {
+      setEarnedBadges(shop.items.filter((i) => newBadgeIds.includes(i.id)));
+    }
 
     const octo = await loadOctopus(user.id);
     setOctopus(octo.octopus ? { data: octo.octopus, line: octo.line } : null);
@@ -391,13 +401,14 @@ export default function ProfileScreen() {
   const showcaseUrls = [profile.showcase_url_1, profile.showcase_url_2, profile.showcase_url_3];
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: profile.banner_color }]} edges={['top']}>
+    <SafeAreaView style={[styles.screen, { backgroundColor: bannerColor(profile.banner_color) }]} edges={['top']}>
       <View style={styles.header}>
+        <BannerArt value={profile.banner_color} bleedTop={insets.top} />
         <Pressable style={styles.settingsButton} onPress={() => navigation.push('Settings')} hitSlop={10}>
           <Ionicons name="settings-outline" size={22} color={colors.ink} />
         </Pressable>
         <View style={styles.avatarWrap}>
-          <Pressable onPress={pickAvatar} style={[styles.avatar, { borderColor: profile.avatar_frame_color }]}>
+          <Pressable onPress={pickAvatar} style={[styles.avatar, { borderColor: frameColor(profile.avatar_frame_color) }]}>
             {isUploadingAvatar ? (
               <ActivityIndicator color={colors.coral} />
             ) : profile.avatar_url ? (
@@ -406,6 +417,7 @@ export default function ProfileScreen() {
               <Text style={styles.avatarInitials}>{profile.username.slice(0, 2).toUpperCase()}</Text>
             )}
           </Pressable>
+          <FrameDecoration value={profile.avatar_frame_color} size={68} />
           {/* outside the round photo, which clips anything past its edge */}
           <Pressable style={styles.avatarEditBadge} onPress={pickAvatar} hitSlop={8}>
             <Ionicons name="camera" size={13} color={colors.white} />
@@ -450,7 +462,7 @@ export default function ProfileScreen() {
 
       <View style={styles.sheet}>
         <SandGrain />
-        <Wave water={profile.banner_color} />
+        <Wave water={bannerColor(profile.banner_color)} />
         <FlatList
           data={isOpen('gallery') ? gallery.slice(0, GALLERY_PREVIEW) : []}
           keyExtractor={(g) => g.id}
@@ -656,9 +668,20 @@ export default function ProfileScreen() {
         />
       </View>
 
+      <BadgeEarnedModal
+        badges={earnedBadges}
+        onWear={(badge) => updateProfile({ badge: badge.value })}
+        onClose={() => setEarnedBadges([])}
+      />
+
       <LockerModal
         category={lockerCategory}
         ownedItems={shopItems.filter((i) => i.category === lockerCategory && isOwned(i, ownedIds))}
+        lockedItems={
+          lockerCategory === 'badge'
+            ? shopItems.filter((i) => i.category === 'badge' && !isOwned(i, ownedIds) && i.unlock_hint !== 'Retired')
+            : []
+        }
         equippedValue={lockerCategory ? profile[PROFILE_COLUMN[lockerCategory]] : null}
         onEquip={equipFromLocker}
         onClose={() => setLockerCategory(null)}

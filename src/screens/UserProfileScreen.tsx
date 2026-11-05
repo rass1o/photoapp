@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { View, StyleSheet, Image, Pressable, FlatList, ActivityIndicator, Modal, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import FrameDecoration, { frameColor } from '../components/AvatarFrame';
+import BannerArt, { bannerColor } from '../components/BannerArt';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -56,6 +58,7 @@ type CameraItem = {
 };
 
 export default function UserProfileScreen({ route, navigation }: Props) {
+  const insets = useSafeAreaInsets();
   const { userId } = route.params;
   const { user } = useAuth();
   const isMe = user?.id === userId;
@@ -183,16 +186,20 @@ export default function UserProfileScreen({ route, navigation }: Props) {
   );
 
   return (
-    <View style={[styles.screen, { backgroundColor: profile.banner_color }]}>
+    <View style={[styles.screen, { backgroundColor: bannerColor(profile.banner_color) }]}>
       <SafeAreaView edges={['top', 'bottom']} style={styles.flex}>
         <BackBar />
         <View style={styles.header}>
-          <View style={[styles.avatar, { borderColor: profile.avatar_frame_color }]}>
-            {profile.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
-            ) : (
-              <Text style={styles.avatarInitials}>{profile.username.slice(0, 2).toUpperCase()}</Text>
-            )}
+          <BannerArt value={profile.banner_color} bleedTop={insets.top + 44} />
+          <View>
+            <View style={[styles.avatar, { borderColor: frameColor(profile.avatar_frame_color) }]}>
+              {profile.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
+              ) : (
+                <Text style={styles.avatarInitials}>{profile.username.slice(0, 2).toUpperCase()}</Text>
+              )}
+            </View>
+            <FrameDecoration value={profile.avatar_frame_color} size={68} />
           </View>
           <Text style={styles.username}>{profile.username}</Text>
           <Text style={styles.bio}>{profile.bio || 'No bio yet'}</Text>
@@ -279,7 +286,7 @@ export default function UserProfileScreen({ route, navigation }: Props) {
 
         <View style={styles.sheet}>
           <SandGrain />
-          <Wave water={profile.banner_color} />
+          <Wave water={bannerColor(profile.banner_color)} />
           <FlatList
             data={gallery.slice(0, GALLERY_PREVIEW)}
             keyExtractor={(g) => g.id}

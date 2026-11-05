@@ -22,12 +22,14 @@ import { readImage } from '../lib/upload';
 import { localDateString } from '../lib/date';
 import { useAuth } from '../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ShopItem, isOwned, loadShop } from '../lib/shop';
 import FilmStamp from '../components/FilmStamp';
 import SectionHeader from '../components/SectionHeader';
 import SandGrain from '../components/SandGrain';
 import StreakCalendar from '../components/StreakCalendar';
 import OchoCelebration from '../components/OchoCelebration';
+import StreakLostModal, { LostStreaks } from '../components/StreakLostModal';
 import StreakBanner from '../components/StreakBanner';
 import { STREAK_BONUS, STREAK_BONUS_EVERY, liveDailyStreak } from '../lib/streaks';
 import { Text, TextInput } from '../components/Themed';
@@ -71,6 +73,7 @@ export default function CameraScreen() {
 
   const [cheatSheetVisible, setCheatSheetVisible] = useState(false);
   const [calendarKey, setCalendarKey] = useState(0);
+  const [lostStreaks, setLostStreaks] = useState<LostStreaks | null>(null);
   const [celebration, setCelebration] = useState<
     | { kind: 'weekly'; themeName: string; streak: number }
     | { kind: 'daily'; streak: number; reward: number; bonus: number }
@@ -90,7 +93,48 @@ export default function CameraScreen() {
       weekly: data?.streak_count ?? 0,
     };
     setStreaks(next);
+    checkLostStreaks(data);
     return next;
+  };
+
+  // A streak only resets on your next post, so spot one that's already
+  // broken and break the news once (remembered per broken streak)
+  const checkLostStreaks = async (
+    data: { streak_count: number | null; daily_streak_count: number | null; last_daily_submission_date: string | null } | null
+  ) => {
+    if (!user || !data) return;
+    const lostDaily =
+      (data.daily_streak_count ?? 0) >= 2 &&
+      liveDailyStreak(data.daily_streak_count, data.last_daily_submission_date) === 0
+        ? data.daily_streak_count ?? 0
+        : 0;
+
+    let lostWeekly = 0;
+    let lastThemeId = '';
+    if ((data.streak_count ?? 0) >= 2) {
+      const { data: lastTheme } = await supabase
+        .from('themes')
+        .select('id')
+        .lt('end_date', new Date().toISOString())
+        .order('end_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (lastTheme) {
+        lastThemeId = String(lastTheme.id);
+        const { count } = await supabase
+          .from('submissions')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('theme_id', lastTheme.id);
+        if (!count) lostWeekly = data.streak_count ?? 0;
+      }
+    }
+    if (!lostDaily && !lostWeekly) return;
+
+    const key = `streakLostSeen:${user.id}:${lostDaily ? data.last_daily_submission_date : ''}:${lostWeekly ? lastThemeId : ''}`;
+    if (await AsyncStorage.getItem(key)) return;
+    AsyncStorage.setItem(key, '1');
+    setLostStreaks({ daily: lostDaily, weekly: lostWeekly });
   };
 
   const checkExistingSubmission = async (themeId: string) => {
@@ -517,6 +561,8 @@ export default function CameraScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <StreakLostModal lost={lostStreaks} onClose={() => setLostStreaks(null)} />
 
       <OchoCelebration
         visible={!!celebration}

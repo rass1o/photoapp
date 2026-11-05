@@ -16,6 +16,7 @@ const TITLES: Record<ProfileCategory, string> = {
 type Props = {
   category: ProfileCategory | null; // null = closed
   ownedItems: ShopItem[]; // already filtered to this category and owned
+  lockedItems?: ShopItem[]; // not owned yet but earnable (badges), shown with how to get them
   equippedValue: string | null;
   onEquip: (item: ShopItem) => void;
   onClose: () => void;
@@ -23,7 +24,17 @@ type Props = {
 };
 
 // Bottom sheet listing everything you own in one category, tap to wear it
-export default function LockerModal({ category, ownedItems, equippedValue, onEquip, onClose, onOpenShop }: Props) {
+export default function LockerModal({
+  category,
+  ownedItems,
+  lockedItems = [],
+  equippedValue,
+  onEquip,
+  onClose,
+  onOpenShop,
+}: Props) {
+  // Badges are earned, not bought
+  const earned = category === 'badge';
   return (
     <Modal visible={category !== null} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} />
@@ -55,17 +66,31 @@ export default function LockerModal({ category, ownedItems, equippedValue, onEqu
                 />
               );
             })}
+          {category &&
+            lockedItems.map((item) => (
+              <ShopTile
+                key={item.id}
+                label={item.label}
+                swatch={<CosmeticSwatch category={category} value={item.value} />}
+                status="locked"
+                hint={item.unlock_hint}
+              />
+            ))}
         </ScrollView>
 
         <Text style={styles.hint}>
-          {ownedItems.length <= 1
-            ? 'Your locker’s looking a little shallow.'
-            : 'Tap anything to wear it.'}
+          {earned
+            ? 'Badges are earned by shooting, streaking and winning. Tap one you have to wear it.'
+            : ownedItems.length <= 1
+              ? 'Your locker’s looking a little shallow.'
+              : 'Tap anything to wear it.'}
         </Text>
-        <Pressable style={styles.shopButton} onPress={onOpenShop}>
-          <Ionicons name="storefront-outline" size={16} color={colors.white} />
-          <Text style={styles.shopButtonText}>Find more in the Shop</Text>
-        </Pressable>
+        {!earned && (
+          <Pressable style={styles.shopButton} onPress={onOpenShop}>
+            <Ionicons name="storefront-outline" size={16} color={colors.white} />
+            <Text style={styles.shopButtonText}>Find more in the Shop</Text>
+          </Pressable>
+        )}
       </SafeAreaView>
     </Modal>
   );

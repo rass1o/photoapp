@@ -20,6 +20,7 @@ import FilmStamp from '../components/FilmStamp';
 import FormatTag from '../components/FormatTag';
 import BackBar from '../components/BackBar';
 import ShareCardModal from '../components/ShareCardModal';
+import { frameColor } from '../components/AvatarFrame';
 import SandGrain from '../components/SandGrain';
 import { Text, TextInput } from '../components/Themed';
 import { colors } from '../theme';
@@ -193,7 +194,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
               style={styles.userRow}
               onPress={() => navigation.push('UserProfile', { userId: submission.user_id })}
             >
-              <View style={[styles.avatar, { borderColor: submission.avatar_frame_color }]}>
+              <View style={[styles.avatar, { borderColor: frameColor(submission.avatar_frame_color) }]}>
                 {submission.avatar_url && (
                   <Image source={{ uri: submission.avatar_url }} style={styles.avatarImage} />
                 )}
