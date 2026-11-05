@@ -22,6 +22,7 @@ import BackBar from '../components/BackBar';
 import ShareCardModal from '../components/ShareCardModal';
 import VoteSheet from '../components/VoteSheet';
 import { useThemeVotes } from '../lib/voting';
+import { useLikes } from '../lib/likes';
 import { formatTimeLeft, themePhase } from '../lib/themes';
 import { frameColor } from '../components/AvatarFrame';
 import SandGrain from '../components/SandGrain';
@@ -37,6 +38,7 @@ type Submission = {
   image_url: string;
   format: 'digital' | 'film';
   vote_count: number;
+  like_count: number;
   caption: string;
   film_stamp: string | null;
   username: string;
@@ -67,7 +69,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
   const load = async () => {
     const { data: subData, error } = await supabase
       .from('submissions')
-      .select('id, user_id, theme_id, image_url, format, vote_count, caption, film_stamp')
+      .select('id, user_id, theme_id, image_url, format, vote_count, like_count, caption, film_stamp')
       .eq('id', submissionId)
       .single();
 
@@ -116,6 +118,19 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
   }, [submissionId]);
 
   const phase = themePhase(themeEnd);
+  const likes = useLikes(user?.id, (_id, delta) =>
+    setSubmission((prev) => (prev ? { ...prev, like_count: prev.like_count + delta } : prev))
+  );
+  const toggleLike = () => {
+    if (!user || !submission) return;
+    if (submission.user_id === user.id) {
+      Alert.alert('That\u2019s your own catch', 'Your friends can like it, though!');
+      return;
+    }
+    if (phase === 'ended') return;
+    likes.toggle(submission.id);
+  };
+  const liked = !!submission && likes.liked.has(submission.id);
   const votes = useThemeVotes(submission?.theme_id, user?.id, (from, to) =>
     setSubmission((prev) =>
       prev ? { ...prev, vote_count: prev.vote_count + (to === prev.id ? 1 : 0) - (from === prev.id ? 1 : 0) } : prev
@@ -227,6 +242,10 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
             </View>
 
             <View style={styles.actionsRow}>
+              <Pressable style={styles.actionItem} onPress={toggleLike}>
+                <Ionicons name={liked ? 'heart' : 'heart-outline'} size={22} color={liked ? '#dc2626' : colors.text} />
+                <Text style={[styles.actionText, liked && styles.likedText]}>{submission.like_count}</Text>
+              </Pressable>
               <Pressable style={styles.actionItem} onPress={openVoting}>
                 <Ionicons
                   name={overallHere ? 'star' : 'star-outline'}
@@ -316,6 +335,7 @@ const styles = StyleSheet.create({
   actionItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   actionText: { fontSize: 15, color: colors.text },
   actionTextActive: { color: '#B45309', fontWeight: '600' },
+  likedText: { color: '#dc2626', fontWeight: '600' },
   caption: { fontSize: 14, color: colors.text, paddingHorizontal: 16, paddingBottom: 12, lineHeight: 19 },
   captionUsername: { fontWeight: '600', color: colors.ink },
 

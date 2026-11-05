@@ -24,7 +24,7 @@ type Slide = {
   visual?: Visual;
 };
 
-const PRIZES = [200, 175, 150, 75, 50];
+const PRIZES = [750, 500, 300];
 
 const SLIDES: Slide[] = [
   {
@@ -52,7 +52,8 @@ const SLIDES: Slide[] = [
       'A theme is announced at the start of the week',
       'Submit one photo for it, tagged as Digital or Film. Submissions close a day before the theme ends',
       'That last day is voting day: scroll the whole feed and cast 6 votes, your overall favorite plus one each for Most Dramatic, Most Creative, Best Use of Light, Best Composition and Best Story',
-      'When voting ends, the overall top 5 and each category\u2019s winner earn shutters (more on that soon)',
+      'Like photos any time with a heart: they\u2019re saved on your profile so you can find them again on voting day',
+      'When voting ends, the overall top 3 and each category\u2019s winner earn shutters (more on that soon)',
     ],
   },
   {
@@ -72,8 +73,9 @@ const SLIDES: Slide[] = [
     title: 'Shutters & prizes',
     body: 'Shutters are ShuttInk\u2019s currency. You earn them by shooting:',
     bullets: [
-      'Each week\u2019s overall top 5 win 200, 175, 150, 75 and 50 shutters (ties share the spot), and each category winner gets 50',
-      'Every daily photo earns 1 shutter',
+      'Each week\u2019s overall top 3 win 750, 500 and 300 shutters (ties share the spot), and each category winner gets 200',
+      'Just entering the weekly theme earns 150 shutters',
+      'Every daily photo earns 25 shutters',
       `Plus +${STREAK_BONUS} every ${STREAK_BONUS_EVERY} days you keep your day streak going`,
       'Feeling lucky? A clam blind box in the Shop holds 2 surprises for Ocho, with a shot at an epic or legendary sidekick. Duplicates sell back for half',
     ],
@@ -85,7 +87,7 @@ const SLIDES: Slide[] = [
     body: 'Two streaks show on your profile for everyone to see:',
     bullets: [
       'Day streak: post a daily photo (any subject, no theme) every day in a row. Miss a day and it starts over',
-      `Every ${STREAK_BONUS_EVERY} days in a row pays a +${STREAK_BONUS} shutter bonus, on top of the usual 1 per daily photo`,
+      `Every ${STREAK_BONUS_EVERY} days in a row pays a +${STREAK_BONUS} shutter bonus, on top of the usual 25 per daily photo`,
       'Week streak: enter the weekly theme week after week',
       'The calendar on the Submit tab shows every day you posted',
     ],

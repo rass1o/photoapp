@@ -41,7 +41,7 @@ type Theme = {
   end_date: string;
 };
 
-const DAILY_SUBMISSION_REWARD = 1;
+const DAILY_SUBMISSION_REWARD = 25;
 
 const CHEAT_SHEET_ROWS = [
   { setting: 'Wide aperture (f/1.8–f/2.8)', effect: 'Blurry background, more light in — good for portraits, low light' },
@@ -76,7 +76,7 @@ export default function CameraScreen() {
   const [calendarKey, setCalendarKey] = useState(0);
   const [lostStreaks, setLostStreaks] = useState<LostStreaks | null>(null);
   const [celebration, setCelebration] = useState<
-    | { kind: 'weekly'; themeName: string; streak: number }
+    | { kind: 'weekly'; themeName: string; streak: number; reward: number }
     | { kind: 'daily'; streak: number; reward: number; bonus: number }
     | null
   >(null);
@@ -326,7 +326,8 @@ export default function CameraScreen() {
       setFilmStamp(null);
       // The weekly streak is bumped by a trigger when the submission lands
       const { weekly } = await loadStreaks();
-      setCelebration({ kind: 'weekly', themeName: theme.name, streak: weekly });
+      // the server pays 150 for entering (pay_theme_entry)
+      setCelebration({ kind: 'weekly', themeName: theme.name, streak: weekly, reward: 150 });
     } catch (err) {
       console.log('Submission failed:', err);
       Alert.alert('Something went wrong', err instanceof Error ? err.message : 'Please try again.');
@@ -550,7 +551,7 @@ export default function CameraScreen() {
               <>
                 <Text style={styles.dailySubtitle}>
                   No theme, no pressure — just a photo of whatever you're up to, visible to
-                  everyone. +{DAILY_SUBMISSION_REWARD} shutter and keeps your daily streak going, with a
+                  everyone. +{DAILY_SUBMISSION_REWARD} shutters and keeps your daily streak going, with a
                   +{STREAK_BONUS} bonus every {STREAK_BONUS_EVERY} days in a row.
                 </Text>
 
@@ -583,7 +584,7 @@ export default function CameraScreen() {
         kind={celebration?.kind ?? 'daily'}
         themeName={celebration?.kind === 'weekly' ? celebration.themeName : undefined}
         streak={celebration?.streak}
-        reward={celebration?.kind === 'daily' ? celebration.reward : undefined}
+        reward={celebration?.reward}
         bonus={celebration?.kind === 'daily' ? celebration.bonus : undefined}
         onClose={() => setCelebration(null)}
       />

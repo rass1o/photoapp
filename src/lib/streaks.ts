@@ -3,7 +3,7 @@ import { localDateString } from './date';
 // Every STREAK_BONUS_EVERY days in a row, the daily photo pays STREAK_BONUS
 // extra shutters (see record_daily_post)
 export const STREAK_BONUS_EVERY = 5;
-export const STREAK_BONUS = 20;
+export const STREAK_BONUS = 100;
 
 // The stored daily streak only resets on your next post, so treat it as
 // broken once a whole day has gone by without one

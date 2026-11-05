@@ -30,6 +30,7 @@ type RankedSubmission = {
   image_url: string;
   format: 'digital' | 'film';
   vote_count: number;
+  like_count: number;
   username: string;
 };
 
@@ -37,8 +38,9 @@ type Feed = 'friends' | 'global';
 
 // Weekly prizes for 1st -> 5th, and for each category's winner, paid by
 // process_due_payouts on the server
-const REWARDS = [200, 175, 150, 75, 50];
-const CATEGORY_REWARD = 50;
+const REWARDS = [750, 500, 300];
+const CATEGORY_REWARD = 200;
+const ENTRY_REWARD = 150; // for everyone who enters
 
 type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -81,12 +83,16 @@ export default function RankingsScreen() {
 
     let query = supabase
       .from('submissions')
-      .select('id, user_id, image_url, format, vote_count')
+      .select('id, user_id, image_url, format, vote_count, like_count')
       .eq('theme_id', themeData.id);
     if (selectedFeed === 'friends' && user) {
       query = query.in('user_id', [user.id, ...(await loadFriendIds(user.id))]);
     }
-    const { data, error } = await query.order('vote_count', { ascending: false });
+    // Ranked by likes until voting day, then by the overall votes that pay out
+    const byVotes = themePhase(themeData.end_date) !== 'submit';
+    const { data, error } = await query
+      .order(byVotes ? 'vote_count' : 'like_count', { ascending: false })
+      .order(byVotes ? 'like_count' : 'vote_count', { ascending: false });
 
     if (error) {
       setErrorMessage(error.message);
@@ -160,7 +166,9 @@ export default function RankingsScreen() {
 
   // Ties share a rank and skip the next one (10, 10, 7 votes -> 1, 1, 3),
   // matching how payouts place them. In Friends, ranks are among your friends.
-  const ranks = rankings.map((r) => 1 + rankings.filter((o) => o.vote_count > r.vote_count).length);
+  const byVotes = !!theme && themePhase(theme.end_date) !== 'submit';
+  const score = (r: RankedSubmission) => (byVotes ? r.vote_count : r.like_count);
+  const ranks = rankings.map((r) => 1 + rankings.filter((o) => score(o) > score(r)).length);
 
   const myRankIndex = rankings.findIndex((r) => r.user_id === user?.id);
   const myRanking = myRankIndex >= 0 ? rankings[myRankIndex] : null;
@@ -173,12 +181,12 @@ export default function RankingsScreen() {
         {theme && <Text style={styles.subtitle}>{theme.name}</Text>}
         <Text style={styles.prizeHint}>
           {feed === 'global'
-            ? `Top 5 overall win ${REWARDS.join(' · ')} · each category winner gets ${CATEGORY_REWARD}`
+            ? `Top 3 overall win ${REWARDS.join(' · ')} · category winners ${CATEGORY_REWARD} · everyone who enters ${ENTRY_REWARD}`
             : 'How you stack up against your friends'}
         </Text>
         {theme && themePhase(theme.end_date) === 'submit' && (
           <Text style={styles.phaseNote}>
-            Votes come in on voting day, the theme{'\u2019'}s last day ({votingOpensAt(theme.end_date).toLocaleDateString(undefined, { weekday: 'long' })}).
+            Ranked by likes for now. Votes take over on voting day, the theme{'\u2019'}s last day ({votingOpensAt(theme.end_date).toLocaleDateString(undefined, { weekday: 'long' })}).
           </Text>
         )}
 
@@ -256,7 +264,7 @@ export default function RankingsScreen() {
               const isMe = item.user_id === user?.id;
               const rank = ranks[index];
               // Prize spots only highlight in Global, since payouts are global
-              const isPrize = feed === 'global' && rank <= REWARDS.length && item.vote_count > 0;
+              const isPrize = feed === 'global' && byVotes && rank <= REWARDS.length && item.vote_count > 0;
               const isTie = ranks.filter((r) => r === rank).length > 1;
               return (
                 <View style={[styles.row, isMe && styles.rowMe]}>
@@ -279,7 +287,10 @@ export default function RankingsScreen() {
                     </View>
                     {isPrize && <Text style={styles.rewardText}>+{REWARDS[rank - 1]} shutters</Text>}
                   </Pressable>
-                  <Text style={styles.votes}>{item.vote_count} votes</Text>
+                  <View style={styles.scores}>
+                    <Text style={[styles.votes, !byVotes && styles.scoreMain]}>{'\u2665'} {item.like_count}</Text>
+                    {byVotes && <Text style={[styles.votes, styles.scoreMain]}>{'\u2605'} {item.vote_count}</Text>}
+                  </View>
                 </View>
               );
             }}
@@ -291,7 +302,7 @@ export default function RankingsScreen() {
             <Text style={styles.pinnedRank}>#{myRank}</Text>
             <Image source={{ uri: myRanking.image_url }} style={styles.thumb} />
             <Text style={styles.pinnedUsername}>You</Text>
-            <Text style={styles.pinnedVotes}>{myRanking.vote_count} votes</Text>
+            <Text style={styles.pinnedVotes}>{byVotes ? `${myRanking.vote_count} votes` : `${myRanking.like_count} likes`}</Text>
           </View>
         )}
       </View>
@@ -341,6 +352,8 @@ const styles = StyleSheet.create({
   username: { fontSize: 14, flexShrink: 1 },
   rewardText: { fontSize: 11, color: '#b45309', marginTop: 2 },
   votes: { fontSize: 13, color: colors.muted },
+  scores: { alignItems: 'flex-end', gap: 1 },
+  scoreMain: { color: colors.ink, fontWeight: '600' },
   phaseNote: { fontSize: 12, color: colors.reefDark, textAlign: 'center', marginTop: 4, paddingHorizontal: 16 },
   leaders: { marginBottom: 6 },
   leadersTitle: { fontSize: 12, fontWeight: '700', letterSpacing: 1, color: colors.ink, textTransform: 'uppercase', marginBottom: 6 },

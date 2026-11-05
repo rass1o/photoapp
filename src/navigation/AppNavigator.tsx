@@ -1,9 +1,8 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
 import type { NavigatorScreenParams } from '@react-navigation/native';
-import { colors, fonts } from '../theme';
 import { useNotifications } from '../context/NotificationsContext';
+import SeaTabBar from '../components/SeaTabBar';
 
 import HomeScreen from '../screens/HomeScreen';
 import CameraScreen from '../screens/CameraScreen';
@@ -37,40 +36,22 @@ export type RootStackParamList = {
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-type IoniconName = keyof typeof Ionicons.glyphMap;
-
 function MainTabs() {
   const { unread } = useNotifications();
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: colors.reef,
-        tabBarInactiveTintColor: colors.faint,
-        tabBarStyle: { backgroundColor: colors.shell, borderTopColor: colors.sandBorder },
-        tabBarLabelStyle: { fontFamily: fonts.semibold, fontSize: 11 },
-        tabBarIcon: ({ color, size }) => {
-          const icons: Record<keyof RootTabParamList, IoniconName> = {
-            Home: 'home-outline',
-            Submit: 'camera-outline',
-            Rankings: 'trophy-outline',
-            Shop: 'storefront-outline',
-            Profile: 'person-outline',
-          };
-          return <Ionicons name={icons[route.name]} size={size} color={color} />;
-        },
-      })}
+      // A custom deep-sea bar: wavy top, glowing active tab, raised Submit
+      tabBar={(props) => <SeaTabBar {...props} />}
+      screenOptions={{ headerShown: false }}
     >
       <Tab.Screen
         name="Home"
         component={HomeScreen}
-        options={{
-          tabBarBadge: unread > 0 ? (unread > 9 ? '9+' : unread) : undefined,
-          tabBarBadgeStyle: { backgroundColor: colors.coral, fontFamily: fonts.semibold, fontSize: 10 },
-        }}
+        options={{ tabBarBadge: unread > 0 ? (unread > 9 ? '9+' : unread) : undefined }}
       />
-      <Tab.Screen name="Submit" component={CameraScreen} />
       <Tab.Screen name="Rankings" component={RankingsScreen} />
+      {/* in the middle, under the raised camera button */}
+      <Tab.Screen name="Submit" component={CameraScreen} />
       <Tab.Screen name="Shop" component={ShopScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>

@@ -20,15 +20,20 @@ stocks and digital shooters can see what film looks like.
 - You get **one submission per theme**, so pick your best shot.
 - Tag the photo as **Film** or **Digital**. Film shooters can add a **film
   stamp** for the stock they used (Portra 400, HP5 and so on).
-- Other people like photos during the week. When the theme ends, the **global
-  top 5** earn shutters: 200, 175, 150, 75 and 50 for 1st through 5th.
+- Entering earns **150 shutters**. People like photos with a heart all week
+  (likes are saved on your profile and clear when the theme ends).
+- Submissions close a day before the theme ends; that last day is **voting
+  day**. Everyone gets 6 votes: an overall favorite plus one each for Most
+  Dramatic, Most Creative, Best Use of Light, Best Composition and Best Story.
+- The **overall top 3** win 750, 500 and 300 shutters, and each **category
+  winner** wins 200.
 - Submitting to back-to-back themes builds your **weekly streak**.
 
 ### Daily photo
 - Snap or upload one photo a day of whatever you're up to. It has no theme
   and no pressure.
-- Each daily photo earns **+1 shutter** and grows your **daily streak**. Every
-  5 days in a row pays a **+20 shutter bonus**. The day resets at your local
+- Each daily photo earns **+25 shutters** and grows your **daily streak**. Every
+  5 days in a row pays a **+100 shutter bonus**. The day resets at your local
   midnight.
 - Both streaks are shown front and center on your profile, so you and
   everyone visiting can see them, with a calendar of your daily posts on the

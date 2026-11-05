@@ -16,7 +16,8 @@ type Props = {
 };
 
 const TYPE_ICON: Record<AppNotification['type'], { name: keyof typeof Ionicons.glyphMap; color: string }> = {
-  vote: { name: 'heart', color: '#dc2626' },
+  like: { name: 'heart', color: '#dc2626' },
+  vote: { name: 'star', color: '#F59E0B' },
   comment: { name: 'chatbubble', color: colors.reef },
   friend_request: { name: 'person-add', color: colors.deep },
   friend_accepted: { name: 'people', color: '#047857' },
@@ -24,8 +25,10 @@ const TYPE_ICON: Record<AppNotification['type'], { name: keyof typeof Ionicons.g
 
 function message(n: AppNotification) {
   switch (n.type) {
-    case 'vote':
+    case 'like':
       return ' liked your photo';
+    case 'vote':
+      return ' voted for your photo';
     case 'comment':
       return ' commented: ';
     case 'friend_request':

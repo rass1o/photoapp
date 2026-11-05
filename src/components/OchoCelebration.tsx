@@ -179,7 +179,7 @@ export default function OchoCelebration({ visible, kind, themeName, streak, rewa
             </View>
           ) : null}
           {bonus ? <Text style={styles.bonus}>Streak bonus! +{bonus} shutters</Text> : null}
-          {reward ? <Text style={styles.reward}>{bonus ? `+${reward} shutters total` : `+${reward} shutter`}</Text> : null}
+          {reward ? <Text style={styles.reward}>{bonus ? `+${reward} shutters total` : `+${reward} ${reward === 1 ? 'shutter' : 'shutters'}`}</Text> : null}
           <View style={styles.speechTail} />
         </Animated.View>
 

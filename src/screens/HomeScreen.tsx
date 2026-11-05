@@ -25,6 +25,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { ensureCurrentTheme, formatTimeLeft, themePhase, themeStatus, votingOpensAt } from '../lib/themes';
 import { loadVoteCategories, useThemeVotes } from '../lib/voting';
+import { useLikes } from '../lib/likes';
 import VoteSheet from '../components/VoteSheet';
 import { localDateString } from '../lib/date';
 import { useAuth } from '../context/AuthContext';
@@ -59,6 +60,7 @@ type Submission = {
   caption: string;
   film_stamp: string | null;
   vote_count: number;
+  like_count: number;
   created_at: string;
   username: string;
   avatar_url: string | null;
@@ -75,7 +77,7 @@ type Comment = {
 
 type Feed = 'friends' | 'global';
 
-const SUBMISSION_COLUMNS = 'id, user_id, image_url, format, caption, film_stamp, vote_count, created_at';
+const SUBMISSION_COLUMNS = 'id, user_id, image_url, format, caption, film_stamp, vote_count, like_count, created_at';
 
 // Search order: exact name, then names starting with the query, then a later
 // word starting with it (after _ . - or a digit), then anything containing it
@@ -580,6 +582,25 @@ export default function HomeScreen() {
     )
   );
 
+  // Hearts: any time during the theme, kept on your profile to vote from later
+  const likes = useLikes(user?.id, (id, delta) =>
+    setSubmissions((prev) => prev.map((s) => (s.id === id ? { ...s, like_count: s.like_count + delta } : s)))
+  );
+  // Likes made or removed elsewhere (a photo's page, your profile) show up here too
+  useFocusEffect(
+    useCallback(() => {
+      likes.reload();
+    }, [likes.reload])
+  );
+
+  const handleHeartTap = (item: Submission) => {
+    if (isOwnSubmission(item.id)) {
+      Alert.alert('That\u2019s your own catch', 'Your friends can like it, though!');
+      return;
+    }
+    likes.toggle(item.id);
+  };
+
   const openVoting = (item: Submission) => {
     if (isOwnSubmission(item.id)) {
       Alert.alert('That\u2019s your own catch', 'You can\u2019t vote for your own photo, but your friends can!');
@@ -610,9 +631,9 @@ export default function HomeScreen() {
         clearTimeout(pendingTimeout);
         delete singleTapTimeoutRef.current[submissionId];
       }
-      // Double-tap = your overall vote, on voting day (not your own photo)
-      if (!isOwnSubmission(submissionId) && phase === 'vote') {
-        if (votes.mine.overall !== submissionId) votes.toggle(submissionId, 'overall');
+      // Double-tap likes the photo (not your own)
+      if (!isOwnSubmission(submissionId) && phase !== 'ended') {
+        likes.like(submissionId);
         setBurstId(submissionId);
         setTimeout(() => setBurstId((current) => (current === submissionId ? null : current)), 700);
       }
@@ -898,7 +919,7 @@ export default function HomeScreen() {
                       )}
                       {burstId === item.id && (
                         <View style={styles.burstOverlay} pointerEvents="none">
-                          <Ionicons name="star" size={80} color={colors.white} />
+                          <Ionicons name="heart" size={80} color={colors.white} />
                         </View>
                       )}
                     </Pressable>
@@ -910,6 +931,16 @@ export default function HomeScreen() {
                     ) : null}
 
                     <View style={styles.actionsRow}>
+                      <Pressable style={styles.actionItem} onPress={() => handleHeartTap(item)}>
+                        <Ionicons
+                          name={likes.liked.has(item.id) ? 'heart' : 'heart-outline'}
+                          size={20}
+                          color={likes.liked.has(item.id) ? '#dc2626' : colors.text}
+                        />
+                        <Text style={[styles.actionText, likes.liked.has(item.id) && styles.actionTextActive]}>
+                          {item.like_count}
+                        </Text>
+                      </Pressable>
                       {phase === 'vote' ? (
                         <Pressable
                           style={[styles.voteButton, (overallHere || picksHere > 0) && styles.voteButtonActive]}
@@ -929,7 +960,7 @@ export default function HomeScreen() {
                       ) : (
                         <Pressable style={styles.votingSoon} onPress={() => openVoting(item)}>
                           <Ionicons name="time-outline" size={14} color={colors.muted} />
-                          <Text style={styles.votingSoonText}>Voting on the last day</Text>
+                          <Text style={styles.votingSoonText}>Voting day soon</Text>
                         </Pressable>
                       )}
                       <Pressable style={styles.actionItem} onPress={() => openComments(item.id)}>

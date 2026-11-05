@@ -123,6 +123,7 @@ export default function ProfileScreen() {
   const [ownedIds, setOwnedIds] = useState<Set<string>>(new Set());
   const [lockerCategory, setLockerCategory] = useState<ProfileCategory | null>(null);
   const [earnedBadges, setEarnedBadges] = useState<ShopItem[]>([]);
+  const [likedPhotos, setLikedPhotos] = useState<{ id: string; image_url: string }[]>([]);
   const insets = useSafeAreaInsets();
   const [octopus, setOctopus] = useState<{ data: OctopusData; line: string } | null>(null);
   const [friends, setFriends] = useState<FriendProfile[]>([]);
@@ -148,6 +149,19 @@ export default function ProfileScreen() {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
     setGallery(galleryData ?? []);
+
+    // Photos you've liked this theme (likes clear when a theme ends)
+    const { data: likedData } = await supabase
+      .from('likes')
+      .select('submission_id, submissions(id, image_url)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    setLikedPhotos(
+      (likedData ?? []).flatMap((l) => {
+        const sub = l.submissions as unknown as { id: string; image_url: string } | null;
+        return sub ? [sub] : [];
+      })
+    );
 
     const { data: cameraData } = await supabase
       .from('camera_collection')
@@ -618,6 +632,30 @@ export default function ProfileScreen() {
                 </>
               )}
 
+              <SectionHeader icon="heart-outline" label={`Liked · ${likedPhotos.length}`} {...fold('liked')} />
+              {isOpen('liked') && (
+                <View style={styles.likedSection}>
+                  <Text style={styles.likedHint}>
+                    Photos you{'\u2019'}ve liked this week, saved so you can find them on voting day. They clear when the theme ends.
+                  </Text>
+                  {likedPhotos.length === 0 ? (
+                    <Text style={styles.emptyText}>Nothing liked yet. Tap the heart on photos you love.</Text>
+                  ) : (
+                    <View style={styles.likedGrid}>
+                      {likedPhotos.map((p) => (
+                        <Pressable
+                          key={p.id}
+                          style={styles.likedTile}
+                          onPress={() => navigation.push('SubmissionDetail', { submissionId: p.id })}
+                        >
+                          <Image source={{ uri: p.image_url }} style={styles.galleryImage} />
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
+
               <SectionHeader icon="grid-outline" label="Gallery" {...fold('gallery')} />
             </View>
           }
@@ -882,6 +920,10 @@ const styles = StyleSheet.create({
   emptyText: { color: colors.faint, fontSize: 13, textAlign: 'center', paddingVertical: 10 },
   galleryTile: { flex: 1 / 3, aspectRatio: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.sand },
   galleryImage: { width: '100%', height: '100%' },
+  likedSection: { marginBottom: 14 },
+  likedHint: { fontSize: 12, color: colors.muted, marginBottom: 8 },
+  likedGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  likedTile: { width: '31.9%', aspectRatio: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.sand },
 
   octopusSection: { marginTop: 18 },
   octopusButton: {
