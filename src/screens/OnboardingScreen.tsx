@@ -73,7 +73,8 @@ const SLIDES: Slide[] = [
     title: 'Shutters & prizes',
     body: 'Shutters are ShuttInk\u2019s currency. You earn them by shooting:',
     bullets: [
-      'Each week\u2019s overall top 3 win 750, 500 and 300 shutters (ties share the spot), and each category winner gets 200',
+      'Each week\u2019s overall top 3 win 750, 500 and 300 shutters (ties share the spot), and each category winner gets 500',
+      'The most-liked photo when voting opens wins 200',
       'Just entering the weekly theme earns 150 shutters',
       'Every daily photo earns 25 shutters',
       `Plus +${STREAK_BONUS} every ${STREAK_BONUS_EVERY} days you keep your day streak going`,

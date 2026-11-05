@@ -456,14 +456,25 @@ export default function HomeScreen() {
         .eq('theme_id', endedTheme.id);
 
       const rows = results ?? [];
-      const [{ data: categoryResults }, categories] = await Promise.all([
+      const [{ data: categoryResults }, categories, { data: likeResult }] = await Promise.all([
         supabase
           .from('theme_category_results')
           .select('category, submission_id, user_id, vote_count, reward')
           .eq('theme_id', endedTheme.id),
         loadVoteCategories(),
+        supabase.from('theme_like_results').select('submission_id, user_id, like_count, reward').eq('theme_id', endedTheme.id),
       ]);
-      const categoryRows = categoryResults ?? [];
+      // the most-liked photo shows as one more "category", first in line
+      const categoryRows = [
+        ...(likeResult ?? []).map((r) => ({
+          category: 'most_liked',
+          submission_id: r.submission_id,
+          user_id: r.user_id,
+          vote_count: r.like_count,
+          reward: r.reward,
+        })),
+        ...(categoryResults ?? []),
+      ];
       if (rows.length === 0 && categoryRows.length === 0) {
         await AsyncStorage.setItem(seenKey, 'true');
         return false;
@@ -494,7 +505,7 @@ export default function HomeScreen() {
 
       // Category winners come first, then the overall countdown
       const formatById = new Map((submissionRows ?? []).map((s) => [s.id, s.format]));
-      const labelById = new Map(categories.map((c) => [c.id, c.label]));
+      const labelById = new Map([['most_liked', 'Most liked'], ...categories.map((c) => [c.id, c.label] as [string, string])]);
       const categoryWinners: Winner[] = categoryRows.map((r) => ({
         submissionId: r.submission_id,
         place: 1,
@@ -505,6 +516,7 @@ export default function HomeScreen() {
         voteCount: r.vote_count,
         reward: r.reward,
         category: labelById.get(r.category) ?? r.category,
+        countsLikes: r.category === 'most_liked',
       }));
       winnersList.unshift(...categoryWinners);
 

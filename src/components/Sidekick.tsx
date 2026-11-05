@@ -563,6 +563,162 @@ function HaroldEyes() {
   );
 }
 
+// Goop: a happy capybara in his kiddie pool, with an orange on his head.
+// Back of the pool, legs, body, head and the front water are separate parts
+// so his feet can stomp and splash under the surface.
+const CAPY = '#A47148';
+const CAPY_DARK = '#7A4F2E';
+
+function GoopPoolBack() {
+  return (
+    <G stroke={OUTLINE} strokeWidth={2.5}>
+      <Ellipse cx={50} cy={84} rx={46} ry={12} fill="#7DD3FC" />
+      <Ellipse cx={50} cy={84} rx={46} ry={12} fill="none" stroke="#F472B6" strokeWidth={5} />
+      <Ellipse cx={50} cy={84} rx={46} ry={12} fill="none" />
+    </G>
+  );
+}
+
+function GoopLegs({ front }: { front: boolean }) {
+  const xs = front ? [58, 68] : [30, 40];
+  return (
+    <G stroke={OUTLINE} strokeWidth={2.5}>
+      {xs.map((x) => (
+        <Rect key={x} x={x} y={64} width={9} height={22} rx={4} fill={front ? CAPY : CAPY_DARK} />
+      ))}
+    </G>
+  );
+}
+
+function GoopBody() {
+  return (
+    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round">
+      <Ellipse cx={48} cy={58} rx={28} ry={18} fill={CAPY} />
+      <Path d="M26,52 C34,44 56,42 70,48" stroke={CAPY_DARK} strokeWidth={2} fill="none" opacity={0.6} />
+    </G>
+  );
+}
+
+function GoopHead() {
+  return (
+    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
+      <Path d="M64,42 C63,31 75,26 86,30 C95,33 97,44 93,52 C88,59 74,60 68,56 C64,53 64,47 64,42 Z" fill={CAPY} />
+      <Ellipse cx={70} cy={30} rx={4} ry={3} fill={CAPY_DARK} />
+      <Ellipse cx={90} cy={45} rx={6} ry={7} fill={CAPY_DARK} strokeWidth={2} />
+      <Circle cx={92} cy={42} r={1.2} fill="#111" stroke="none" />
+      {/* happy closed eyes */}
+      <Path d="M75,39 Q79,34 83,39" strokeWidth={2} fill="none" />
+      <Ellipse cx={78} cy={46} rx={4} ry={2.4} fill="#FB7185" opacity={0.5} stroke="none" />
+      <Path d="M84,52 Q87,54 90,52" strokeWidth={1.6} fill="none" />
+      {/* his orange */}
+      <Circle cx={78} cy={25} r={6} fill="#FB923C" />
+      <Path d="M78,19 Q82,15 85,17 Q82,20 78,19 Z" fill="#4ADE80" strokeWidth={1.5} />
+    </G>
+  );
+}
+
+// The near half of the water, over his feet, so they sit under the surface
+function GoopPoolFront() {
+  return (
+    <G>
+      <Path d="M4,84 Q50,104 96,84 Q50,92 4,84 Z" fill="#38BDF8" opacity={0.85} />
+      <Path d="M4,84 Q50,98 96,84" stroke="#F472B6" strokeWidth={5} fill="none" />
+      <Path d="M4,84 Q50,98 96,84" stroke={OUTLINE} strokeWidth={2.5} fill="none" />
+      <Path d="M30,84 Q36,82 42,84 M58,85 Q64,83 70,85" stroke="#FFFFFF" strokeWidth={1.8} fill="none" opacity={0.8} />
+    </G>
+  );
+}
+
+function GoopSplash() {
+  const drop = (x: number, y: number, r = 2.6) => (
+    <Path
+      key={`${x},${y}`}
+      d={`M${x},${y - r * 1.8} C${x + r},${y - r * 0.4} ${x + r},${y + r} ${x},${y + r} C${x - r},${y + r} ${x - r},${y - r * 0.4} ${x},${y - r * 1.8} Z`}
+      fill="#7DD3FC"
+      stroke={OUTLINE}
+      strokeWidth={1.2}
+    />
+  );
+  return <G>{[drop(22, 70), drop(32, 64, 2), drop(70, 64, 2), drop(82, 70), drop(50, 66, 1.8)]}</G>;
+}
+
+// Mand: a sleepy red panda curled up with a ringed tail, dozing under
+// floating Z's. Closed and open eyes are both drawn; one shows at a time.
+const PANDA = '#C4511F';
+const PANDA_DARK = '#7A3415';
+const PANDA_LEGS = '#3B2318';
+const PANDA_WHITE = '#FFF7ED';
+
+function MandTail() {
+  return (
+    <G strokeLinecap="round" fill="none">
+      <Path d="M62,88 C90,88 98,64 86,50" stroke={OUTLINE} strokeWidth={16} />
+      <Path d="M62,88 C90,88 98,64 86,50" stroke={PANDA} strokeWidth={11} />
+      <Path d="M62,88 C90,88 98,64 86,50" stroke={PANDA_DARK} strokeWidth={11} strokeDasharray="5 7" strokeLinecap="butt" />
+    </G>
+  );
+}
+
+function Mand() {
+  return (
+    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
+      <Ellipse cx={50} cy={72} rx={22} ry={19} fill={PANDA} />
+      <Ellipse cx={50} cy={78} rx={12} ry={12} fill="#5B2E1A" strokeWidth={0} />
+      <Ellipse cx={40} cy={89} rx={7} ry={4.5} fill={PANDA_LEGS} />
+      <Ellipse cx={60} cy={89} rx={7} ry={4.5} fill={PANDA_LEGS} />
+      {/* ears */}
+      <Path d="M30,34 L31,15 L45,26 Z" fill={PANDA} />
+      <Path d="M70,34 L69,15 L55,26 Z" fill={PANDA} />
+      <Path d="M33,29 L34,19 L42,25 Z" fill={PANDA_WHITE} strokeWidth={0} />
+      <Path d="M67,29 L66,19 L58,25 Z" fill={PANDA_WHITE} strokeWidth={0} />
+      <Ellipse cx={50} cy={42} rx={22} ry={19} fill={PANDA} />
+      {/* white face markings and tear stripes */}
+      <Ellipse cx={37} cy={48} rx={7} ry={5} fill={PANDA_WHITE} strokeWidth={0} />
+      <Ellipse cx={63} cy={48} rx={7} ry={5} fill={PANDA_WHITE} strokeWidth={0} />
+      <Ellipse cx={50} cy={50} rx={8} ry={6} fill={PANDA_WHITE} strokeWidth={0} />
+      <Circle cx={42} cy={33} r={3} fill={PANDA_WHITE} strokeWidth={0} />
+      <Circle cx={58} cy={33} r={3} fill={PANDA_WHITE} strokeWidth={0} />
+      <Path d="M42,42 C41,45 40,48 37,51 M58,42 C59,45 60,48 63,51" stroke="#8B3A16" strokeWidth={2} fill="none" />
+      <Ellipse cx={50} cy={47} rx={3} ry={2.2} fill="#2B1A12" />
+      <Path d="M50,49 Q48,52 46,51 M50,49 Q52,52 54,51" stroke="#2B1A12" strokeWidth={1.4} fill="none" />
+    </G>
+  );
+}
+
+function MandSleepyEyes() {
+  return <Path d="M38,40 Q42,43 46,40 M54,40 Q58,43 62,40" stroke="#2B1A12" strokeWidth={2} strokeLinecap="round" fill="none" />;
+}
+
+function MandEyes() {
+  return (
+    <G>
+      <Circle cx={42} cy={40} r={3} fill="#111" />
+      <Circle cx={58} cy={40} r={3} fill="#111" />
+      <Circle cx={43} cy={39} r={1} fill={colors.white} />
+      <Circle cx={59} cy={39} r={1} fill={colors.white} />
+    </G>
+  );
+}
+
+// One Z, top-left corner at (x, y), w wide
+function Zee({ x, y, w }: { x: number; y: number; w: number }) {
+  return (
+    <Path
+      d={`M${x},${y} L${x + w},${y} L${x},${y + w * 1.1} L${x + w},${y + w * 1.1}`}
+      stroke="#6366F1"
+      strokeWidth={2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="none"
+    />
+  );
+}
+const ZEES = [
+  { x: 66, y: 20, w: 5 },
+  { x: 74, y: 11, w: 7 },
+  { x: 84, y: 1, w: 9 },
+];
+
 export const PET_NAMES: Record<string, string> = {
   merlin: 'Merlin',
   susie: 'Susie',
@@ -573,6 +729,8 @@ export const PET_NAMES: Record<string, string> = {
   tuxie: 'Tuxie',
   ginger: 'Ginger',
   harold: 'Harold',
+  goop: 'Goop',
+  mand: 'Mand',
 };
 
 const CAT_KINDS = ['merlin', 'tuxie', 'ginger'] as const;
@@ -637,6 +795,30 @@ function Still({ kind }: { kind: string }) {
         <LeilaEyeWhites />
         <LeilaPupils />
         <LeilaArm />
+      </G>
+    );
+  }
+  if (kind === 'goop') {
+    return (
+      <G>
+        <GoopPoolBack />
+        <GoopLegs front={false} />
+        <GoopLegs front />
+        <GoopBody />
+        <GoopHead />
+        <GoopPoolFront />
+      </G>
+    );
+  }
+  if (kind === 'mand') {
+    return (
+      <G>
+        <MandTail />
+        <Mand />
+        <MandSleepyEyes />
+        {ZEES.map((z) => (
+          <Zee key={z.x} {...z} />
+        ))}
       </G>
     );
   }
@@ -1308,6 +1490,126 @@ function HaroldLive({ frame, active }: LiveProps) {
   );
 }
 
+// Goop stomps his feet and splashes in his pool, and looks around happily
+function GoopLive({ frame, active }: LiveProps) {
+  const front = useSharedValue(0);
+  const back = useSharedValue(0);
+  const splash = useSharedValue(0);
+  const base = useBase(active, [front, back, splash]);
+  const { breathe, lookX, sway } = base;
+  const { s } = frame;
+
+  useEvery(active, () => {
+    const stomps = 3;
+    front.value = withRepeat(withSequence(to(1, 130), to(0, 130)), stomps);
+    back.value = withDelay(130, withRepeat(withSequence(to(1, 130), to(0, 130)), stomps));
+    splash.value = withDelay(120, withRepeat(withSequence(snap(0), to(1, 260, Easing.out(Easing.quad))), stomps * 2, false));
+    return stomps * 260 + 700;
+  });
+
+  const frontLegs = useAnimatedStyle(() => ({ transform: [{ translateY: -5 * front.value * s }] }));
+  const backLegs = useAnimatedStyle(() => ({ transform: [{ translateY: -5 * back.value * s }] }));
+  const body = useAnimatedStyle(() => ({ transform: [{ translateY: -1.5 * (front.value + back.value) * s }] }));
+  const head = useAnimatedStyle(() => ({
+    transform: [{ translateY: -1.5 * (front.value + back.value) * s }, { rotate: `${lookX.value * 9}deg` }],
+  }));
+  const drops = useAnimatedStyle(() => ({
+    opacity: interpolate(splash.value, [0, 0.15, 1], [0, 1, 0]),
+    transform: [{ translateY: -10 * splash.value * s }, { scale: 0.8 + 0.4 * splash.value }],
+  }));
+  const ripple = useAnimatedStyle(() => ({ transform: [{ scaleX: 1 + 0.015 * sway.value }] }));
+
+  return (
+    <Body frame={frame} breathe={breathe}>
+      <Layer frame={frame}>
+        <GoopPoolBack />
+      </Layer>
+      <Layer frame={frame} style={backLegs}>
+        <GoopLegs front={false} />
+      </Layer>
+      <Layer frame={frame} style={frontLegs}>
+        <GoopLegs front />
+      </Layer>
+      <Layer frame={frame} style={body}>
+        <GoopBody />
+      </Layer>
+      <Layer frame={frame} origin={[66, 50]} style={head}>
+        <GoopHead />
+      </Layer>
+      <Layer frame={frame} origin={[50, 86]} style={ripple}>
+        <GoopPoolFront />
+      </Layer>
+      <Layer frame={frame} origin={[50, 72]} style={drops}>
+        <GoopSplash />
+      </Layer>
+    </Body>
+  );
+}
+
+// Mand snoozes under floating Z's, now and then wakes to look around
+function MandLive({ frame, active }: LiveProps) {
+  const awake = useSharedValue(0);
+  const peek = useSharedValue(0);
+  const zt = useSharedValue(0);
+  const base = useBase(active, [awake, peek, zt]);
+  const { breathe, sway } = base;
+  const { s } = frame;
+
+  useEffect(() => {
+    if (!active) return;
+    zt.value = withRepeat(withTiming(1, { duration: 3000, easing: Easing.linear }), -1, false);
+    // useBase resets zt when it stops
+  }, [active, zt]);
+
+  useEvery(active, () => {
+    awake.value = withSequence(to(1, 250), withDelay(2600, to(0, 450)));
+    peek.value = withDelay(400, withSequence(to(-1, 300), withDelay(500, to(1, 500)), withDelay(500, to(0, 300))));
+    return 3400;
+  });
+
+  const tail = useAnimatedStyle(() => ({ transform: [{ rotate: `${sway.value * 4}deg` }] }));
+  const sleepy = useAnimatedStyle(() => ({ opacity: 1 - awake.value }));
+  const eyes = useAnimatedStyle(() => ({
+    opacity: awake.value,
+    transform: [{ translateX: peek.value * 2 * s }],
+  }));
+  // each Z drifts up and fades on its own beat while he sleeps
+  const z0 = useAnimatedStyle(() => {
+    const p = zt.value % 1;
+    return { opacity: Math.sin(Math.PI * p) * (1 - awake.value), transform: [{ translateY: -6 * p * s }] };
+  });
+  const z1 = useAnimatedStyle(() => {
+    const p = (zt.value + 0.33) % 1;
+    return { opacity: Math.sin(Math.PI * p) * (1 - awake.value), transform: [{ translateY: -6 * p * s }] };
+  });
+  const z2 = useAnimatedStyle(() => {
+    const p = (zt.value + 0.66) % 1;
+    return { opacity: Math.sin(Math.PI * p) * (1 - awake.value), transform: [{ translateY: -6 * p * s }] };
+  });
+
+  return (
+    <Body frame={frame} breathe={breathe}>
+      <Layer frame={frame} origin={[62, 88]} style={tail}>
+        <MandTail />
+      </Layer>
+      <Layer frame={frame}>
+        <Mand />
+      </Layer>
+      <Layer frame={frame} style={sleepy}>
+        <MandSleepyEyes />
+      </Layer>
+      <Layer frame={frame} style={eyes}>
+        <MandEyes />
+      </Layer>
+      {[z0, z1, z2].map((style, i) => (
+        <Layer key={i} frame={frame} style={style}>
+          <Zee {...ZEES[i]} />
+        </Layer>
+      ))}
+    </Body>
+  );
+}
+
 const LIVE: Record<string, (props: LiveProps) => ReactNode> = {
   merlin: MerlinLive,
   tuxie: TuxieLive,
@@ -1318,6 +1620,8 @@ const LIVE: Record<string, (props: LiveProps) => ReactNode> = {
   leila: LeilaLive,
   gibson: GibsonLive,
   harold: HaroldLive,
+  goop: GoopLive,
+  mand: MandLive,
 };
 
 type Props = { kind: string; size?: number; animated?: boolean };

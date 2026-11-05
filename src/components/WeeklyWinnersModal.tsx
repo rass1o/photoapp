@@ -14,6 +14,7 @@ export type Winner = {
   voteCount: number;
   reward: number;
   category?: string; // set for a category winner (e.g. "Most Dramatic"); place is unused then
+  countsLikes?: boolean; // voteCount is likes (the most-liked prize)
 };
 
 type Props = {
@@ -86,7 +87,9 @@ export default function WeeklyWinnersModal({ visible, themeName, winners, onClos
               <Image source={{ uri: w.imageUrl }} style={styles.image} resizeMode="contain" />
 
               <Text style={styles.username}>{w.username}</Text>
-              <Text style={styles.voteCount}>{w.voteCount} votes</Text>
+              <Text style={styles.voteCount}>
+                {w.voteCount} {w.countsLikes ? 'likes' : 'votes'}
+              </Text>
 
               <View style={styles.rewardPill}>
                 <Ionicons name="flash" size={14} color="#92400e" />

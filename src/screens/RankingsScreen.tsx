@@ -39,7 +39,8 @@ type Feed = 'friends' | 'global';
 // Weekly prizes for 1st -> 5th, and for each category's winner, paid by
 // process_due_payouts on the server
 const REWARDS = [750, 500, 300];
-const CATEGORY_REWARD = 200;
+const CATEGORY_REWARD = 500;
+const MOST_LIKED_REWARD = 200; // most likes when voting opens
 const ENTRY_REWARD = 150; // for everyone who enters
 
 const MEDALS = [
@@ -204,6 +205,10 @@ export default function RankingsScreen() {
             <View style={styles.extraChip}>
               <Ionicons name="ribbon" size={13} color={colors.reef} />
               <Text style={styles.extraText}>Each category winner {CATEGORY_REWARD}</Text>
+            </View>
+            <View style={styles.extraChip}>
+              <Ionicons name="heart" size={13} color="#dc2626" />
+              <Text style={styles.extraText}>Most liked {MOST_LIKED_REWARD}</Text>
             </View>
             <View style={styles.extraChip}>
               <Ionicons name="enter" size={13} color={colors.reef} />

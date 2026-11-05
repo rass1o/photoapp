@@ -26,7 +26,7 @@ stocks and digital shooters can see what film looks like.
   day**. Everyone gets 6 votes: an overall favorite plus one each for Most
   Dramatic, Most Creative, Best Use of Light, Best Composition and Best Story.
 - The **overall top 3** win 750, 500 and 300 shutters, and each **category
-  winner** wins 200.
+  winner** wins 500. The photo with the most likes when voting opens wins 200.
 - Submitting to back-to-back themes builds your **weekly streak**.
 
 ### Daily photo
