@@ -682,30 +682,31 @@ function MandHead() {
       <Path d="M18,56 L17,48 L24,53 Z" fill={PANDA_WHITE} strokeWidth={0} />
       <Path d="M42,54 L43,47 L37,52 Z" fill={PANDA_WHITE} strokeWidth={0} />
       <Ellipse cx={30} cy={66} rx={17} ry={15} fill={PANDA} />
-      {/* white face markings and tear stripes */}
-      <Ellipse cx={21} cy={71} rx={5.5} ry={4} fill={PANDA_WHITE} strokeWidth={0} />
-      <Ellipse cx={39} cy={71} rx={5.5} ry={4} fill={PANDA_WHITE} strokeWidth={0} />
-      <Ellipse cx={30} cy={73} rx={6.5} ry={5} fill={PANDA_WHITE} strokeWidth={0} />
-      <Circle cx={25} cy={58} r={2.4} fill={PANDA_WHITE} strokeWidth={0} />
-      <Circle cx={35} cy={58} r={2.4} fill={PANDA_WHITE} strokeWidth={0} />
-      <Path d="M24,66 C23,69 22,71 20,73 M36,66 C37,69 38,71 40,73" stroke="#8B3A16" strokeWidth={1.8} fill="none" />
-      <Ellipse cx={30} cy={70} rx={2.4} ry={1.8} fill="#2B1A12" />
-      <Path d="M30,71.5 Q28.5,74 27,73 M30,71.5 Q31.5,74 33,73" stroke="#2B1A12" strokeWidth={1.2} fill="none" />
+      {/* white brows, cheeks and muzzle, with tear stripes running from
+          under each eye down beside the muzzle */}
+      <Ellipse cx={22} cy={57.5} rx={2.8} ry={1.8} fill={PANDA_WHITE} strokeWidth={0} />
+      <Ellipse cx={38} cy={57.5} rx={2.8} ry={1.8} fill={PANDA_WHITE} strokeWidth={0} />
+      <Ellipse cx={18.5} cy={70} rx={3.6} ry={3.3} fill={PANDA_WHITE} strokeWidth={0} />
+      <Ellipse cx={41.5} cy={70} rx={3.6} ry={3.3} fill={PANDA_WHITE} strokeWidth={0} />
+      <Ellipse cx={30} cy={73} rx={7.5} ry={5.5} fill={PANDA_WHITE} strokeWidth={0} />
+      <Path d="M22,66 Q21.5,71 23.5,76 M38,66 Q38.5,71 36.5,76" stroke="#8B3A16" strokeWidth={2} fill="none" />
+      <Ellipse cx={30} cy={70.5} rx={2.6} ry={1.9} fill="#2B1A12" />
+      <Path d="M30,72.2 Q28.5,74.5 26.8,73.6 M30,72.2 Q31.5,74.5 33.2,73.6" stroke="#2B1A12" strokeWidth={1.2} fill="none" />
     </G>
   );
 }
 
 function MandSleepyEyes() {
-  return <Path d="M21,64 Q24,66.5 27,64 M33,64 Q36,66.5 39,64" stroke="#2B1A12" strokeWidth={1.8} strokeLinecap="round" fill="none" />;
+  return <Path d="M18.5,62.5 Q22,65.5 25.5,62.5 M34.5,62.5 Q38,65.5 41.5,62.5" stroke="#2B1A12" strokeWidth={1.8} strokeLinecap="round" fill="none" />;
 }
 
 function MandEyes() {
   return (
     <G>
-      <Circle cx={24} cy={64} r={2.5} fill="#111" />
-      <Circle cx={36} cy={64} r={2.5} fill="#111" />
-      <Circle cx={24.8} cy={63.2} r={0.8} fill={colors.white} />
-      <Circle cx={36.8} cy={63.2} r={0.8} fill={colors.white} />
+      <Circle cx={22} cy={63} r={2.6} fill="#111" />
+      <Circle cx={38} cy={63} r={2.6} fill="#111" />
+      <Circle cx={22.9} cy={62.1} r={0.85} fill={colors.white} />
+      <Circle cx={38.9} cy={62.1} r={0.85} fill={colors.white} />
     </G>
   );
 }
@@ -1737,7 +1738,6 @@ function SoupyLive({ frame, active }: LiveProps) {
     return 2400;
   });
 
-  const wiggle = useAnimatedStyle(() => ({ transform: [{ rotate: `${wag.value * 4}deg` }] }));
   const shades = useAnimatedStyle(() => ({ transform: [{ translateY: -14 * raise.value * s }] }));
   const winking = useAnimatedStyle(() => ({
     transform: [
@@ -1748,11 +1748,12 @@ function SoupyLive({ frame, active }: LiveProps) {
   }));
 
   return (
-    <Body frame={frame} breathe={breathe}>
-      <Layer frame={frame} origin={[50, 92]} style={wiggle}>
+    // the wiggle tilts the whole of him, so the shades and glare go along
+    <Body frame={frame} breathe={breathe} tilt={wag}>
+      <Layer frame={frame}>
         <SoupyPickaxe />
       </Layer>
-      <Layer frame={frame} origin={[50, 92]} style={wiggle}>
+      <Layer frame={frame}>
         <Soupy />
       </Layer>
       <Layer frame={frame} origin={[41, 43]} style={eyes.pupils}>

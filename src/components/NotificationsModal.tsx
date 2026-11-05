@@ -35,8 +35,14 @@ function message(n: AppNotification) {
       return ' sent you a friend request';
     case 'friend_accepted':
       return ' accepted your friend request. You’re in the same school now!';
+    default:
+      return ' did something new';
   }
 }
+
+// A type this version doesn't know yet gets a plain bell instead of crashing
+// the sheet (old builds crashed here when likes came back)
+const FALLBACK_ICON = { name: 'notifications' as const, color: colors.deep };
 
 // Bottom sheet inbox: likes, comments and friend activity, newest first.
 // Opening it marks everything read; unread rows keep their dot while open.
@@ -109,7 +115,7 @@ export default function NotificationsModal({ visible, onClose, onOpenSubmission,
               </Text>
             }
             renderItem={({ item: n }) => {
-              const icon = TYPE_ICON[n.type];
+              const icon = TYPE_ICON[n.type] ?? FALLBACK_ICON;
               const busy = busyIds.has(n.id);
               return (
                 <Pressable style={[styles.row, !n.read && styles.rowUnread]} onPress={() => openItem(n)}>
@@ -118,7 +124,7 @@ export default function NotificationsModal({ visible, onClose, onOpenSubmission,
                       <Image source={{ uri: n.actor.avatar_url }} style={styles.avatar} />
                     ) : (
                       <View style={styles.avatar}>
-                        <Text style={styles.initials}>{n.actor.username.slice(0, 2).toUpperCase()}</Text>
+                        <Text style={styles.initials}>{(n.actor.username ?? '?').slice(0, 2).toUpperCase()}</Text>
                       </View>
                     )}
                     <View style={styles.typeBadge}>
