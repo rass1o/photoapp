@@ -642,14 +642,13 @@ function GoopSplash() {
   return <G>{[drop(22, 70), drop(32, 64, 2), drop(70, 64, 2), drop(82, 70), drop(50, 66, 1.8)]}</G>;
 }
 
-// Mand: a sleepy red panda lying curled up like a cat, head resting on his
-// paws, ringed tail wrapped round the front. The head (with its eyes) lifts
-// on its own when he wakes, so it's drawn apart from the body.
+// Manda: a sleepy red panda lying curled up like a cat, head resting on her
+// paws, ringed tail wrapped round the front. She never wakes up; now and
+// then she dreams of a big piece of meat in a thought cloud.
 const PANDA = '#C4511F';
 const PANDA_DARK = '#7A3415';
 const PANDA_LEGS = '#3B2318';
 const PANDA_WHITE = '#FFF7ED';
-const MAND_NECK = { x: 42, y: 74 }; // where the head turns from
 
 function MandBody() {
   return (
@@ -700,13 +699,47 @@ function MandSleepyEyes() {
   return <Path d="M18.5,62.5 Q22,65.5 25.5,62.5 M34.5,62.5 Q38,65.5 41.5,62.5" stroke="#2B1A12" strokeWidth={1.8} strokeLinecap="round" fill="none" />;
 }
 
-function MandEyes() {
+// Her dream: two little bubbles rising from her head into a puffy cloud
+// with a bone-in ham inside. Each puff is drawn outlined first, then filled
+// again on top, so the cloud has one clean outer edge.
+const DREAM_PUFFS = [
+  { cx: 60, cy: 25, r: 8 },
+  { cx: 70, cy: 17, r: 10 },
+  { cx: 82, cy: 20, r: 9 },
+  { cx: 88, cy: 30, r: 7.5 },
+  { cx: 77, cy: 35, r: 8.5 },
+  { cx: 64, cy: 33, r: 7.5 },
+];
+
+function MandDreamBubbles() {
+  return (
+    <G stroke={OUTLINE} strokeWidth={1.8} fill={colors.white}>
+      <Circle cx={47} cy={50} r={2.2} />
+      <Circle cx={52.5} cy={43} r={3.4} />
+    </G>
+  );
+}
+
+function MandDream() {
   return (
     <G>
-      <Circle cx={22} cy={63} r={2.6} fill="#111" />
-      <Circle cx={38} cy={63} r={2.6} fill="#111" />
-      <Circle cx={22.9} cy={62.1} r={0.85} fill={colors.white} />
-      <Circle cx={38.9} cy={62.1} r={0.85} fill={colors.white} />
+      {DREAM_PUFFS.map((p, i) => (
+        <Circle key={`o${i}`} {...p} fill={colors.white} stroke={OUTLINE} strokeWidth={2.5} />
+      ))}
+      {DREAM_PUFFS.map((p, i) => (
+        <Circle key={`f${i}`} {...p} fill={colors.white} />
+      ))}
+      <Ellipse cx={74} cy={26} rx={21} ry={12} fill={colors.white} />
+      {/* the ham: a bone poking out of a big round roast */}
+      <G stroke={OUTLINE} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round">
+        <Path d="M77,22 L84,16" stroke={OUTLINE} strokeWidth={6} />
+        <Path d="M77,22 L84,16" stroke="#FFF7ED" strokeWidth={3} />
+        <Circle cx={84} cy={13.5} r={2.6} fill="#FFF7ED" />
+        <Circle cx={86.8} cy={16.4} r={2.6} fill="#FFF7ED" />
+        <Path d="M60,30 C58,20 68,15 76,19 C82,22 82,30 76,34 C70,38 61,36 60,30 Z" fill="#C2552C" />
+        <Path d="M63,24 C66,19 72,18 76,21" stroke="#E8875A" strokeWidth={2.5} fill="none" />
+        <Path d="M64,31 C67,33 71,33 74,31" stroke="#8A3518" strokeWidth={1.5} fill="none" />
+      </G>
     </G>
   );
 }
@@ -809,7 +842,7 @@ export const PET_NAMES: Record<string, string> = {
   ginger: 'Ginger',
   harold: 'Harold',
   goop: 'Goop',
-  mand: 'Mand',
+  mand: 'Manda',
   soupy: 'Soupy',
 };
 
@@ -1638,14 +1671,12 @@ function GoopLive({ frame, active }: LiveProps) {
   );
 }
 
-// Mand snoozes curled up under floating Z's; now and then he lifts his head,
-// looks around, and settles back down
+// Manda sleeps the whole time with Z's drifting up; every so often the Z's
+// give way to a dream of a big piece of meat
 function MandLive({ frame, active }: LiveProps) {
-  const lift = useSharedValue(0); // 0 resting on his paws, 1 head up
-  const awake = useSharedValue(0);
-  const peek = useSharedValue(0);
+  const dream = useSharedValue(0); // 0 just Z's, 1 the dream cloud is up
   const zt = useSharedValue(0);
-  const base = useBase(active, [lift, awake, peek, zt]);
+  const base = useBase(active, [dream, zt]);
   const { breathe, sway } = base;
   const { s } = frame;
 
@@ -1656,52 +1687,39 @@ function MandLive({ frame, active }: LiveProps) {
   }, [active, zt]);
 
   useEvery(active, () => {
-    lift.value = withSequence(to(1, 500), withDelay(2400, to(0, 600)));
-    awake.value = withSequence(withDelay(250, to(1, 200)), withDelay(2300, to(0, 300)));
-    peek.value = withDelay(700, withSequence(to(-1, 350), withDelay(450, to(1, 550)), withDelay(450, to(0, 350))));
-    return 3600;
+    // only dream some of the time; otherwise keep snoozing
+    if (Math.random() < 0.55) return 2000;
+    dream.value = withSequence(to(1, 900), withDelay(2800, to(0, 700)));
+    return 4400;
   });
 
-  // the head and both sets of eyes move together
-  const headTransform = () => {
-    'worklet';
-    return [{ translateY: -5 * lift.value * s }, { rotate: `${16 * lift.value + 7 * peek.value * lift.value}deg` }];
-  };
-  const head = useAnimatedStyle(() => ({ transform: headTransform() }));
-  const sleepy = useAnimatedStyle(() => ({ opacity: 1 - awake.value, transform: headTransform() }));
-  const eyes = useAnimatedStyle(() => ({
-    opacity: awake.value,
-    transform: [...headTransform(), { translateX: peek.value * 1.5 * s }],
-  }));
+  // the bubbles rise first, then the cloud puffs up out of them
+  const bubbles = useAnimatedStyle(() => ({ opacity: interpolate(dream.value, [0, 0.35], [0, 1], 'clamp') }));
+  const cloud = useAnimatedStyle(() => {
+    const p = interpolate(dream.value, [0.3, 1], [0, 1], 'clamp');
+    return { opacity: p, transform: [{ scale: 0.55 + 0.45 * p }, { translateY: (1 - p) * 4 * s }] };
+  });
   const tail = useAnimatedStyle(() => ({ transform: [{ rotate: `${sway.value * 3}deg` }] }));
-  // each Z drifts up and fades on its own beat while he sleeps
+  // each Z drifts up and fades on its own beat, and hides while she dreams
   const z0 = useAnimatedStyle(() => {
     const p = zt.value % 1;
-    return { opacity: Math.sin(Math.PI * p) * (1 - awake.value), transform: [{ translateY: -6 * p * s }] };
+    return { opacity: Math.sin(Math.PI * p) * (1 - dream.value), transform: [{ translateY: -6 * p * s }] };
   });
   const z1 = useAnimatedStyle(() => {
     const p = (zt.value + 0.33) % 1;
-    return { opacity: Math.sin(Math.PI * p) * (1 - awake.value), transform: [{ translateY: -6 * p * s }] };
+    return { opacity: Math.sin(Math.PI * p) * (1 - dream.value), transform: [{ translateY: -6 * p * s }] };
   });
   const z2 = useAnimatedStyle(() => {
     const p = (zt.value + 0.66) % 1;
-    return { opacity: Math.sin(Math.PI * p) * (1 - awake.value), transform: [{ translateY: -6 * p * s }] };
+    return { opacity: Math.sin(Math.PI * p) * (1 - dream.value), transform: [{ translateY: -6 * p * s }] };
   });
-  const neck: [number, number] = [MAND_NECK.x, MAND_NECK.y];
 
   return (
     <Body frame={frame} breathe={breathe}>
       <Layer frame={frame}>
         <MandBody />
-      </Layer>
-      <Layer frame={frame} origin={neck} style={head}>
         <MandHead />
-      </Layer>
-      <Layer frame={frame} origin={neck} style={sleepy}>
         <MandSleepyEyes />
-      </Layer>
-      <Layer frame={frame} origin={neck} style={eyes}>
-        <MandEyes />
       </Layer>
       <Layer frame={frame} origin={[88, 72]} style={tail}>
         <MandTail />
@@ -1711,6 +1729,12 @@ function MandLive({ frame, active }: LiveProps) {
           <Zee {...ZEES[i]} />
         </Layer>
       ))}
+      <Layer frame={frame} style={bubbles}>
+        <MandDreamBubbles />
+      </Layer>
+      <Layer frame={frame} origin={[52, 44]} style={cloud}>
+        <MandDream />
+      </Layer>
     </Body>
   );
 }
