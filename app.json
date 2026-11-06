@@ -1,5 +1,8 @@
 {
   "name": "ShuttInk",
+  "slug": "shuttink",
+  "version": "1.0.0",
+  "orientation": "portrait",
   "icon": "./assets/icon.png",
   "splash": {
     "image": "./assets/splash-icon.png",
@@ -33,9 +36,6 @@
     }
   },
   "owner": "shuttink-sample",
-  "runtimeVersion": {
-    "policy": "sdkVersion"
-  },
   "updates": {
     "url": "https://u.expo.dev/db93b5fd-a9f3-47c0-b0ff-44406b5fd945"
   },
@@ -43,7 +43,14 @@
     "adaptiveIcon": {
       "foregroundImage": "./assets/adaptive-icon.png",
       "backgroundColor": "#1D6FA3"
-    }
+    },
+    "package": "app.shuttink"
   },
-  "ios": {}
+  "ios": {
+    "bundleIdentifier": "app.shuttink",
+    "supportsTablet": false,
+    "config": {
+      "usesNonExemptEncryption": false
+    }
+  }
 }
