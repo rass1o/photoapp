@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, StyleSheet, Modal, Pressable, FlatList, Image, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, Modal, Pressable, FlatList, Image, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from './Themed';
@@ -7,6 +7,8 @@ import { AppNotification, loadNotifications, timeAgo } from '../lib/notification
 import { respondToRequest } from '../lib/friends';
 import { useNotifications } from '../context/NotificationsContext';
 import { colors, bubbly } from '../theme';
+import { OchoPlain } from './OchoArt';
+import OchoLoader from './OchoLoader';
 
 type Props = {
   visible: boolean;
@@ -21,6 +23,7 @@ const TYPE_ICON: Record<AppNotification['type'], { name: keyof typeof Ionicons.g
   comment: { name: 'chatbubble', color: colors.reef },
   friend_request: { name: 'person-add', color: colors.deep },
   friend_accepted: { name: 'people', color: '#047857' },
+  report_update: { name: 'search', color: colors.reef },
 };
 
 function message(n: AppNotification) {
@@ -35,6 +38,8 @@ function message(n: AppNotification) {
       return ' sent you a friend request';
     case 'friend_accepted':
       return ' accepted your friend request. You’re in the same school now!';
+    case 'report_update':
+      return '';
     default:
       return ' did something new';
   }
@@ -86,6 +91,7 @@ export default function NotificationsModal({ visible, onClose, onOpenSubmission,
   };
 
   const openItem = (n: AppNotification) => {
+    if (n.type === 'report_update') return;
     if (n.submissionId) onOpenSubmission(n.submissionId);
     else onOpenProfile(n.actor.id);
   };
@@ -103,7 +109,9 @@ export default function NotificationsModal({ visible, onClose, onOpenSubmission,
         </View>
 
         {isLoading ? (
-          <ActivityIndicator style={{ marginVertical: 30 }} color={colors.deep} />
+          <View style={{ marginVertical: 20 }}>
+            <OchoLoader size={52} message="Ocho is checking the mail…" />
+          </View>
         ) : (
           <FlatList
             data={items}
@@ -111,7 +119,7 @@ export default function NotificationsModal({ visible, onClose, onOpenSubmission,
             contentContainerStyle={{ paddingBottom: 16 }}
             ListEmptyComponent={
               <Text style={styles.emptyText}>
-                All quiet on the seafloor. Likes, comments and friend requests will wash up here.
+                All quiet on the seafloor. Likes, comments, friend requests and updates from Ocho will wash up here.
               </Text>
             }
             renderItem={({ item: n }) => {
@@ -119,8 +127,12 @@ export default function NotificationsModal({ visible, onClose, onOpenSubmission,
               const busy = busyIds.has(n.id);
               return (
                 <Pressable style={[styles.row, !n.read && styles.rowUnread]} onPress={() => openItem(n)}>
-                  <Pressable onPress={() => onOpenProfile(n.actor.id)}>
-                    {n.actor.avatar_url ? (
+                  <Pressable onPress={() => n.type !== 'report_update' && onOpenProfile(n.actor.id)}>
+                    {n.type === 'report_update' ? (
+                      <View style={[styles.avatar, styles.ochoAvatar]}>
+                        <OchoPlain size={30} />
+                      </View>
+                    ) : n.actor.avatar_url ? (
                       <Image source={{ uri: n.actor.avatar_url }} style={styles.avatar} />
                     ) : (
                       <View style={styles.avatar}>
@@ -134,8 +146,9 @@ export default function NotificationsModal({ visible, onClose, onOpenSubmission,
 
                   <View style={styles.textCol}>
                     <Text style={styles.text} numberOfLines={3}>
-                      <Text style={styles.username}>{n.actor.username}</Text>
+                      <Text style={styles.username}>{n.type === 'report_update' ? 'Ocho' : n.actor.username}</Text>
                       {message(n)}
+                      {n.type === 'report_update' && n.body ? ` ${n.body.replace(/^Ocho /, '')}` : null}
                       {n.type === 'comment' && n.body ? <Text style={styles.quote}>{`“${n.body}”`}</Text> : null}
                       <Text style={styles.time}>{`  ${timeAgo(n.createdAt)}`}</Text>
                     </Text>
@@ -221,6 +234,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   initials: { fontSize: 12, fontWeight: '600', color: colors.coral },
+  ochoAvatar: { backgroundColor: colors.reefLight, overflow: 'hidden' },
   typeBadge: {
     position: 'absolute',
     right: -3,

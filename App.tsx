@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DefaultTheme, Theme } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import {
   useFonts,
   Fredoka_400Regular,
@@ -15,8 +15,11 @@ import AppNavigator from './src/navigation/AppNavigator';
 import AuthScreen from './src/screens/AuthScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import FriendRequestPopup from './src/components/FriendRequestPopup';
+import LaunchScreen, { LAUNCH_BG } from './src/components/LaunchScreen';
+import TermsGate from './src/components/TermsGate';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { NotificationsProvider } from './src/context/NotificationsContext';
+import { ModerationProvider } from './src/context/ModerationContext';
 import { ReplayIntroContext, SettingsProvider, useSettings } from './src/context/SettingsContext';
 import { colors } from './src/theme';
 
@@ -70,28 +73,34 @@ function Root() {
   };
 
   const checkingOnboarding = !!user && onboarding?.userId !== user.id;
-
   // If the font fails to load, carry on with the system font rather than hang
-  if (isLoading || checkingOnboarding || (!fontsLoaded && !fontError)) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color={colors.deep} />
-      </View>
-    );
-  }
+  const fontsReady = fontsLoaded || !!fontError;
+  const ready = !isLoading && !checkingOnboarding && fontsReady;
+  // The animated launch screen sits on top until everything's ready
+  const [launching, setLaunching] = useState(true);
 
-  if (user && !onboarding?.seen) {
-    return <OnboardingScreen onDone={finishOnboarding} />;
+  let content = null;
+  if (ready) {
+    content =
+      user && !onboarding?.seen ? (
+        <OnboardingScreen onDone={finishOnboarding} />
+      ) : (
+        <ReplayIntroContext.Provider value={replayIntro}>
+          <NavigationContainer theme={NAV_THEME}>
+            {user ? <AppNavigator /> : <AuthScreen />}
+            {user && settings.friendPopups && <FriendRequestPopup />}
+            <StatusBar style={launching ? 'light' : 'auto'} />
+          </NavigationContainer>
+        </ReplayIntroContext.Provider>
+      );
   }
 
   return (
-    <ReplayIntroContext.Provider value={replayIntro}>
-      <NavigationContainer theme={NAV_THEME}>
-        {user ? <AppNavigator /> : <AuthScreen />}
-        {user && settings.friendPopups && <FriendRequestPopup />}
-        <StatusBar style="auto" />
-      </NavigationContainer>
-    </ReplayIntroContext.Provider>
+    <View style={styles.root}>
+      {content}
+      {ready && !launching && user && <TermsGate userId={user.id} email={user.email} />}
+      {launching && <LaunchScreen ready={ready} fontsReady={fontsReady} onDone={() => setLaunching(false)} />}
+    </View>
   );
 }
 
@@ -101,7 +110,9 @@ export default function App() {
       <SettingsProvider>
         <AuthProvider>
           <NotificationsProvider>
-            <Root />
+            <ModerationProvider>
+              <Root />
+            </ModerationProvider>
           </NotificationsProvider>
         </AuthProvider>
       </SettingsProvider>
@@ -110,5 +121,5 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.sea },
+  root: { flex: 1, backgroundColor: LAUNCH_BG },
 });

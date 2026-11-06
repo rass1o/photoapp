@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, FlatList, StyleSheet, Pressable, Image, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, FlatList, StyleSheet, Pressable, Image, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -12,9 +12,11 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import FormatTag from '../components/FormatTag';
 import { loadFriendIds, onFriendsChanged } from '../lib/friends';
 import { Text } from '../components/Themed';
+import { CoverableImage } from '../components/ModerationCovers';
 import { colors, bubbly } from '../theme';
 import Wave, { WAVE_HEIGHT } from '../components/Wave';
 import SandGrain from '../components/SandGrain';
+import OchoLoader from '../components/OchoLoader';
 
 type Theme = {
   id: string;
@@ -261,7 +263,7 @@ export default function RankingsScreen() {
 
         {isLoading ? (
           <View style={styles.centered}>
-            <ActivityIndicator color={colors.deep} />
+            <OchoLoader message="Ocho is counting the votes…" />
           </View>
         ) : errorMessage ? (
           <View style={styles.centered}>
@@ -285,7 +287,7 @@ export default function RankingsScreen() {
                     >
                       <Ionicons name={l.category.icon as keyof typeof Ionicons.glyphMap} size={16} color={colors.reef} />
                       <Text style={styles.leaderCategory} numberOfLines={1}>{l.category.label}</Text>
-                      <Image source={{ uri: l.submission.image_url }} style={styles.leaderThumb} />
+                      <CoverableImage uri={l.submission.image_url} id={l.submission.id} ownerId={l.submission.user_id} style={styles.leaderThumb} tiny />
                       <Text style={styles.leaderName} numberOfLines={1}>
                         {l.submission.user_id === user?.id ? 'You' : l.submission.username}
                       </Text>
@@ -318,7 +320,7 @@ export default function RankingsScreen() {
                     {rank}
                   </Text>
                   <Pressable onPress={() => navigation.push('SubmissionDetail', { submissionId: item.id })}>
-                    <Image source={{ uri: item.image_url }} style={styles.thumb} />
+                    <CoverableImage uri={item.image_url} id={item.id} ownerId={item.user_id} style={styles.thumb} tiny />
                   </Pressable>
                   <Pressable
                     style={{ flex: 1 }}
@@ -345,7 +347,7 @@ export default function RankingsScreen() {
         {myRanking && myRank !== null && myRank > REWARDS.length && (
           <View style={styles.pinnedRow}>
             <Text style={styles.pinnedRank}>#{myRank}</Text>
-            <Image source={{ uri: myRanking.image_url }} style={styles.thumb} />
+            <CoverableImage uri={myRanking.image_url} id={myRanking.id} ownerId={myRanking.user_id} style={styles.thumb} tiny />
             <Text style={styles.pinnedUsername}>You</Text>
             <Text style={styles.pinnedVotes}>{byVotes ? `${myRanking.vote_count} votes` : `${myRanking.like_count} likes`}</Text>
           </View>

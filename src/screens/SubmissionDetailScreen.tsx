@@ -26,6 +26,9 @@ import { useLikes } from '../lib/likes';
 import { formatTimeLeft, themePhase } from '../lib/themes';
 import { frameColor } from '../components/AvatarFrame';
 import SandGrain from '../components/SandGrain';
+import OchoLoader from '../components/OchoLoader';
+import { BlockedCover, CoveredComment, ReviewCover } from '../components/ModerationCovers';
+import { useModeration } from '../context/ModerationContext';
 import { Text, TextInput } from '../components/Themed';
 import { colors } from '../theme';
 
@@ -117,6 +120,9 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
     load();
   }, [submissionId]);
 
+  const moderation = useModeration();
+  const visibleComments = comments.filter((c) => !moderation.isBlocked(c.user_id));
+
   const phase = themePhase(themeEnd);
   const likes = useLikes(user?.id, (_id, delta) =>
     setSubmission((prev) => (prev ? { ...prev, like_count: prev.like_count + delta } : prev))
@@ -179,7 +185,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
       <SafeAreaView style={styles.page} edges={['top', 'bottom']}>
         <BackBar />
         <View style={styles.centered}>
-          <ActivityIndicator color={colors.deep} />
+          <OchoLoader message="Ocho is fetching this photo…" />
         </View>
       </SafeAreaView>
     );
@@ -196,6 +202,21 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
     );
   }
 
+  if (moderation.isBlocked(submission.user_id)) {
+    return (
+      <SafeAreaView style={styles.page} edges={['top', 'bottom']}>
+        <BackBar />
+        <BlockedCover
+          username={submission.username}
+          onUnblock={() => moderation.confirmUnblock(submission.user_id, submission.username)}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  const cover = moderation.coverFor(submission.id, submission.user_id);
+  const isMine = submission.user_id === user?.id;
+
   return (
     <SafeAreaView style={styles.page} edges={['top']}>
       <SandGrain />
@@ -206,7 +227,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
       >
       <FlatList
         style={styles.flex}
-        data={comments}
+        data={visibleComments}
         keyExtractor={(c) => c.id}
         ListHeaderComponent={
           <View>
@@ -221,6 +242,22 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
               </View>
               <Text style={styles.username}>{submission.username}</Text>
               <FormatTag format={submission.format} />
+              {!isMine && (
+                <Pressable
+                  style={styles.menuButton}
+                  hitSlop={10}
+                  onPress={() =>
+                    moderation.openContentMenu({
+                      kind: 'photo',
+                      id: submission.id,
+                      userId: submission.user_id,
+                      username: submission.username,
+                    })
+                  }
+                >
+                  <Ionicons name="ellipsis-horizontal" size={20} color={colors.muted} />
+                </Pressable>
+              )}
             </Pressable>
 
             <View>
@@ -239,6 +276,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
                   <FilmStamp stock={submission.film_stamp} />
                 </View>
               )}
+              {cover && <ReviewCover kind={cover} />}
             </View>
 
             <View style={styles.actionsRow}>
@@ -277,12 +315,22 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
           </View>
         }
         ListEmptyComponent={<Text style={styles.emptyText}>No comments yet. Don't be shellfish, say something nice.</Text>}
-        renderItem={({ item }) => (
-          <View style={styles.commentRow}>
-            <Text style={styles.commentUsername}>{item.username}</Text>
-            <Text style={styles.commentBody}>{item.body}</Text>
-          </View>
-        )}
+        renderItem={({ item }) => {
+          const commentCover = moderation.coverFor(item.id, item.user_id);
+          // long-press someone else's comment to report it or block them
+          return (
+            <Pressable
+              style={styles.commentRow}
+              onLongPress={() =>
+                item.user_id !== user?.id &&
+                moderation.openContentMenu({ kind: 'comment', id: item.id, userId: item.user_id, username: item.username })
+              }
+            >
+              <Text style={styles.commentUsername}>{item.username}</Text>
+              {commentCover ? <CoveredComment kind={commentCover} /> : <Text style={styles.commentBody}>{item.body}</Text>}
+            </Pressable>
+          );
+        }}
         contentContainerStyle={{ paddingBottom: 20 }}
       />
 
@@ -325,6 +373,7 @@ const styles = StyleSheet.create({
   emptyText: { color: colors.faint, fontSize: 13, textAlign: 'center', padding: 20 },
 
   userRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 16 },
+  menuButton: { marginLeft: 'auto', paddingHorizontal: 6 },
   avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: colors.coralLight, borderWidth: 2, overflow: 'hidden' },
   avatarImage: { width: '100%', height: '100%' },
   username: { fontSize: 15, fontWeight: '600', color: colors.ink },

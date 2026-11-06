@@ -27,6 +27,9 @@ import Wave, { WAVE_HEIGHT } from '../components/Wave';
 import SandGrain from '../components/SandGrain';
 import StreakBanner from '../components/StreakBanner';
 import { liveDailyStreak } from '../lib/streaks';
+import OchoLoader from '../components/OchoLoader';
+import { BlockedCover, ReviewCover } from '../components/ModerationCovers';
+import { useModeration } from '../context/ModerationContext';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 
@@ -62,6 +65,7 @@ export default function UserProfileScreen({ route, navigation }: Props) {
   const { userId } = route.params;
   const { user } = useAuth();
   const isMe = user?.id === userId;
+  const moderation = useModeration();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [cameras, setCameras] = useState<CameraItem[]>([]);
@@ -164,7 +168,7 @@ export default function UserProfileScreen({ route, navigation }: Props) {
       <SafeAreaView style={styles.page} edges={['top', 'bottom']}>
         <BackBar />
         <View style={styles.centered}>
-          <ActivityIndicator color={colors.deep} />
+          <OchoLoader message="Ocho is swimming to their profile…" />
         </View>
       </SafeAreaView>
     );
@@ -181,6 +185,27 @@ export default function UserProfileScreen({ route, navigation }: Props) {
     );
   }
 
+  // Blocked: Ocho stands guard over the whole profile
+  if (!isMe && moderation.isBlocked(userId)) {
+    return (
+      <SafeAreaView style={styles.page} edges={['top', 'bottom']}>
+        <BackBar />
+        <BlockedCover username={profile.username} onUnblock={() => moderation.confirmUnblock(userId, profile.username)} />
+      </SafeAreaView>
+    );
+  }
+
+  // Report the account, or block them
+  const openAccountMenu = () =>
+    Alert.alert(profile.username, undefined, [
+      {
+        text: 'Report account',
+        onPress: () => moderation.openReport({ kind: 'account', id: userId, userId, username: profile.username }),
+      },
+      { text: `Block ${profile.username}`, style: 'destructive', onPress: () => moderation.confirmBlock(userId, profile.username) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+
   const showcaseUrls = [profile.showcase_url_1, profile.showcase_url_2, profile.showcase_url_3].filter(
     (url): url is string => !!url
   );
@@ -189,7 +214,15 @@ export default function UserProfileScreen({ route, navigation }: Props) {
     <View style={[styles.screen, { backgroundColor: bannerColor(profile.banner_color) }]}>
       {/* top only: the sand sheet runs to the bottom edge, so no banner color shows under it */}
       <SafeAreaView edges={['top']} style={styles.flex}>
-        <BackBar />
+        <BackBar
+          right={
+            !isMe && (
+              <Pressable onPress={openAccountMenu} hitSlop={10} accessibilityLabel="Report or block">
+                <Ionicons name="ellipsis-horizontal-circle" size={26} color={colors.deep} />
+              </Pressable>
+            )
+          }
+        />
         <View style={styles.header}>
           <BannerArt value={profile.banner_color} bleedTop={insets.top + 44} animated />
           <View>
@@ -360,6 +393,7 @@ export default function UserProfileScreen({ route, navigation }: Props) {
                 onPress={() => navigation.push('SubmissionDetail', { submissionId: item.id })}
               >
                 <Image source={{ uri: item.image_url }} style={styles.galleryImage} />
+                {moderation.coverFor(item.id, userId) && <ReviewCover kind={moderation.coverFor(item.id, userId)!} compact />}
               </Pressable>
             )}
           />

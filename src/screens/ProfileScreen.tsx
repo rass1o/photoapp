@@ -26,6 +26,7 @@ import {
   respondToRequest,
 } from '../lib/friends';
 import { Text, TextInput } from '../components/Themed';
+import { CoverableImage } from '../components/ModerationCovers';
 import { colors, bubbly } from '../theme';
 import Wave, { WAVE_HEIGHT } from '../components/Wave';
 import SandGrain from '../components/SandGrain';
@@ -34,6 +35,7 @@ import FrameDecoration, { frameColor } from '../components/AvatarFrame';
 import BannerArt, { bannerColor } from '../components/BannerArt';
 import BadgeEarnedModal from '../components/BadgeEarnedModal';
 import { liveDailyStreak } from '../lib/streaks';
+import OchoLoader from '../components/OchoLoader';
 
 type Profile = {
   id: string;
@@ -123,7 +125,7 @@ export default function ProfileScreen() {
   const [ownedIds, setOwnedIds] = useState<Set<string>>(new Set());
   const [lockerCategory, setLockerCategory] = useState<ProfileCategory | null>(null);
   const [earnedBadges, setEarnedBadges] = useState<ShopItem[]>([]);
-  const [likedPhotos, setLikedPhotos] = useState<{ id: string; image_url: string }[]>([]);
+  const [likedPhotos, setLikedPhotos] = useState<{ id: string; image_url: string; user_id: string }[]>([]);
   const insets = useSafeAreaInsets();
   const [octopus, setOctopus] = useState<{ data: OctopusData; line: string } | null>(null);
   const [friends, setFriends] = useState<FriendProfile[]>([]);
@@ -153,12 +155,12 @@ export default function ProfileScreen() {
     // Photos you've liked this theme (likes clear when a theme ends)
     const { data: likedData } = await supabase
       .from('likes')
-      .select('submission_id, submissions(id, image_url)')
+      .select('submission_id, submissions(id, image_url, user_id)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
     setLikedPhotos(
       (likedData ?? []).flatMap((l) => {
-        const sub = l.submissions as unknown as { id: string; image_url: string } | null;
+        const sub = l.submissions as unknown as { id: string; image_url: string; user_id: string } | null;
         return sub ? [sub] : [];
       })
     );
@@ -406,7 +408,7 @@ export default function ProfileScreen() {
   if (isLoading || !profile) {
     return (
       <SafeAreaView style={[styles.screen, { alignItems: 'center', justifyContent: 'center' }]}>
-        <ActivityIndicator color={colors.deep} />
+        <OchoLoader message="Ocho is tidying up your profile…" />
       </SafeAreaView>
     );
   }
@@ -631,7 +633,7 @@ export default function ProfileScreen() {
                           style={styles.likedTile}
                           onPress={() => navigation.push('SubmissionDetail', { submissionId: p.id })}
                         >
-                          <Image source={{ uri: p.image_url }} style={styles.galleryImage} />
+                          <CoverableImage uri={p.image_url} id={p.id} ownerId={p.user_id} style={styles.galleryImage} />
                         </Pressable>
                       ))}
                     </View>
@@ -648,7 +650,7 @@ export default function ProfileScreen() {
               style={styles.galleryTile}
               onPress={() => navigation.push('SubmissionDetail', { submissionId: item.id })}
             >
-              <Image source={{ uri: item.image_url }} style={styles.galleryImage} />
+              <CoverableImage uri={item.image_url} id={item.id} ownerId={user?.id} style={styles.galleryImage} />
             </Pressable>
           )}
           ListFooterComponent={

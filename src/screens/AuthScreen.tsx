@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Linking,
   View,
   Pressable,
   StyleSheet,
@@ -7,6 +8,9 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { TERMS_AGREED_KEY, TERMS_URL } from '../components/TermsGate';
 import { useAuth } from '../context/AuthContext';
 import { Text, TextInput } from '../components/Themed';
 import PasswordRules from '../components/PasswordRules';
@@ -22,6 +26,7 @@ export default function AuthScreen() {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Set once an account is made but waiting on its emailed 6-digit code
@@ -93,6 +98,10 @@ export default function AuthScreen() {
       setError('Enter a username');
       return;
     }
+    if (mode === 'signUp' && !agreed) {
+      setError('Agree to the Terms of Use to make an account');
+      return;
+    }
 
     setError('');
     setIsSubmitting(true);
@@ -102,8 +111,10 @@ export default function AuthScreen() {
         askForCode(email.trim());
         resend(email.trim());
       }
-    } else if ((await signUp(email.trim(), username.trim(), password)) === 'confirm') {
-      askForCode(email.trim());
+    } else {
+      // Remember they agreed, so it's recorded once they're signed in
+      await AsyncStorage.setItem(TERMS_AGREED_KEY(email.trim()), 'true').catch(() => {});
+      if ((await signUp(email.trim(), username.trim(), password)) === 'confirm') askForCode(email.trim());
     }
     setIsSubmitting(false);
   };
@@ -303,6 +314,19 @@ export default function AuthScreen() {
 
               {mode === 'signUp' && <PasswordRules password={password} />}
 
+              {mode === 'signUp' && (
+                <Pressable style={styles.agreeRow} onPress={() => setAgreed((a) => !a)} hitSlop={6}>
+                  <Ionicons name={agreed ? 'checkbox' : 'square-outline'} size={20} color={agreed ? colors.reef : colors.faint} />
+                  <Text style={styles.agreeText}>
+                    I agree to the{' '}
+                    <Text style={styles.agreeLink} onPress={() => Linking.openURL(TERMS_URL)}>
+                      Terms of Use
+                    </Text>
+                    . No bullying, hate, nudity or other abusive content, ever.
+                  </Text>
+                </Pressable>
+              )}
+
               {displayError ? <Text style={styles.error}>{displayError}</Text> : null}
 
               <Pressable
@@ -381,6 +405,9 @@ const styles = StyleSheet.create({
   confirmEmail: { fontWeight: '600', color: colors.ink },
   confirmNote: { fontSize: 12, color: colors.reef, textAlign: 'center', marginBottom: 4 },
   linkButton: { alignSelf: 'center', paddingVertical: 10 },
+  agreeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 4, marginBottom: 8 },
+  agreeText: { flex: 1, fontSize: 12.5, color: colors.text, lineHeight: 18 },
+  agreeLink: { color: colors.reef, fontWeight: '600', textDecorationLine: 'underline' },
   linkButtonTight: { alignSelf: 'center', paddingVertical: 4 },
   backLinkText: { fontSize: 13, color: colors.muted },
   centered: { textAlign: 'center' },

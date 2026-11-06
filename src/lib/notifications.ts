@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 
-export type NotificationType = 'vote' | 'like' | 'comment' | 'friend_request' | 'friend_accepted';
+export type NotificationType = 'vote' | 'like' | 'comment' | 'friend_request' | 'friend_accepted' | 'report_update';
 
 export type AppNotification = {
   id: string;

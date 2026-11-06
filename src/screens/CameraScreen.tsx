@@ -34,6 +34,7 @@ import StreakBanner from '../components/StreakBanner';
 import { STREAK_BONUS, STREAK_BONUS_EVERY, liveDailyStreak } from '../lib/streaks';
 import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
+import OchoLoader from '../components/OchoLoader';
 
 type Theme = {
   id: string;
@@ -394,7 +395,9 @@ export default function CameraScreen() {
   if (isLoadingTheme) {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator style={{ marginTop: 40 }} color={colors.deep} />
+        <View style={{ marginTop: 40 }}>
+          <OchoLoader message="Ocho is getting the camera ready…" />
+        </View>
       </SafeAreaView>
     );
   }
@@ -541,7 +544,7 @@ export default function CameraScreen() {
             {user && <StreakCalendar userId={user.id} refreshKey={calendarKey} />}
 
             {isCheckingDaily ? (
-              <ActivityIndicator color={colors.deep} style={{ marginTop: 10 }} />
+              <OchoLoader size={44} compact />
             ) : dailyAlreadySubmitted ? (
               <View style={styles.dailyDoneRow}>
                 <Ionicons name="checkmark-circle" size={16} color="#166534" />

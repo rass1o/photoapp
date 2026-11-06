@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, StyleSheet, Image, Pressable, FlatList, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Image, Pressable, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -7,7 +7,9 @@ import { supabase } from '../lib/supabase';
 import BackBar from '../components/BackBar';
 import SandGrain from '../components/SandGrain';
 import { Text } from '../components/Themed';
+import { CoverableImage } from '../components/ModerationCovers';
 import { colors } from '../theme';
+import OchoLoader from '../components/OchoLoader';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Gallery'>;
 
@@ -67,7 +69,9 @@ export default function GalleryScreen({ route, navigation }: Props) {
       </View>
 
       {isLoading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} color={colors.deep} />
+        <View style={{ marginTop: 40 }}>
+          <OchoLoader message="Ocho is laying out the photos…" />
+        </View>
       ) : (
         <FlatList
           data={shown}
@@ -81,7 +85,7 @@ export default function GalleryScreen({ route, navigation }: Props) {
               style={styles.tile}
               onPress={() => navigation.push('SubmissionDetail', { submissionId: item.id })}
             >
-              <Image source={{ uri: item.image_url }} style={styles.image} />
+              <CoverableImage uri={item.image_url} id={item.id} ownerId={userId} style={styles.image} />
             </Pressable>
           )}
         />

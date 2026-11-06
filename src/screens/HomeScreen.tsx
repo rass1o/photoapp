@@ -43,6 +43,9 @@ import Wave, { WAVE_HEIGHT } from '../components/Wave';
 import SandGrain from '../components/SandGrain';
 import Wordmark from '../components/Wordmark';
 import ShareCardModal from '../components/ShareCardModal';
+import OchoLoader from '../components/OchoLoader';
+import { CoveredComment, ReviewCover } from '../components/ModerationCovers';
+import { useModeration } from '../context/ModerationContext';
 
 type Theme = {
   id: string;
@@ -219,9 +222,9 @@ export default function HomeScreen() {
 
   // Daily freelance photos strip (BeReal-style, no theme, just today's posts)
   const [dailyPhotos, setDailyPhotos] = useState<
-    Array<{ id: string; image_url: string; username: string }>
+    Array<{ id: string; user_id: string; image_url: string; username: string }>
   >([]);
-  const [dailyViewerUrl, setDailyViewerUrl] = useState<string | null>(null);
+  const [dailyViewer, setDailyViewer] = useState<{ id: string; user_id: string; image_url: string; username: string } | null>(null);
 
   // Weekly winners reveal
   const [winnersVisible, setWinnersVisible] = useState(false);
@@ -411,6 +414,7 @@ export default function HomeScreen() {
     setDailyPhotos(
       rows.map((r) => ({
         id: r.id,
+        user_id: r.user_id,
         image_url: r.image_url,
         username: usernameById.get(r.user_id) ?? 'unknown',
       }))
@@ -593,6 +597,12 @@ export default function HomeScreen() {
       )
     )
   );
+
+  // Blocked accounts drop out of the feed, the daily strip and comments
+  const moderation = useModeration();
+  const visibleSubmissions = submissions.filter((s) => !moderation.isBlocked(s.user_id));
+  const visibleDaily = dailyPhotos.filter((d) => !moderation.isBlocked(d.user_id));
+  const visibleComments = comments.filter((c) => !moderation.isBlocked(c.user_id));
 
   // Hearts: any time during the theme, kept on your profile to vote from later
   const likes = useLikes(user?.id, (id, delta) =>
@@ -782,13 +792,16 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {dailyPhotos.length > 0 && (
+        {visibleDaily.length > 0 && (
           <View style={styles.dailyStripWrap}>
             <Text style={styles.dailyStripLabel}>Today, around the app</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
-              {dailyPhotos.map((d) => (
-                <Pressable key={d.id} onPress={() => setDailyViewerUrl(d.image_url)}>
-                  <Image source={{ uri: d.image_url }} style={styles.dailyThumb} />
+              {visibleDaily.map((d) => (
+                <Pressable key={d.id} onPress={() => !moderation.coverFor(d.id, d.user_id) && setDailyViewer(d)}>
+                  <View style={styles.dailyThumb}>
+                    <Image source={{ uri: d.image_url }} style={StyleSheet.absoluteFill} />
+                    {moderation.coverFor(d.id, d.user_id) && <ReviewCover kind={moderation.coverFor(d.id, d.user_id)!} compact />}
+                  </View>
                   <Text style={styles.dailyThumbUsername} numberOfLines={1}>{d.username}</Text>
                 </Pressable>
               ))}
@@ -853,7 +866,7 @@ export default function HomeScreen() {
           <Wave />
           {isLoading ? (
             <View style={styles.centered}>
-              <ActivityIndicator color={colors.deep} />
+              <OchoLoader message="Ocho is fetching this week’s photos…" />
             </View>
           ) : errorMessage ? (
             <View style={styles.centered}>
@@ -864,7 +877,7 @@ export default function HomeScreen() {
               ref={listRef}
               style={styles.feedSheet}
               contentContainerStyle={{ paddingTop: WAVE_HEIGHT }}
-              data={submissions}
+              data={visibleSubmissions}
               onScroll={onFeedScroll}
               scrollEventThrottle={16}
               onScrollBeginDrag={() => (userScrollingRef.current = true)}
@@ -876,7 +889,7 @@ export default function HomeScreen() {
               onEndReachedThreshold={0.6}
               onEndReached={loadMore}
               ListFooterComponent={
-                isLoadingMore ? <ActivityIndicator style={{ marginVertical: 16 }} color={colors.deep} /> : undefined
+                isLoadingMore ? <OchoLoader size={44} compact /> : undefined
               }
               ListEmptyComponent={
                 <View style={styles.centered}>
@@ -896,6 +909,7 @@ export default function HomeScreen() {
                 const overallHere = votes.mine.overall === item.id;
                 // how many of your category votes this photo has
                 const picksHere = Object.entries(votes.mine).filter(([c, id]) => c !== 'overall' && id === item.id).length;
+                const cover = moderation.coverFor(item.id, item.user_id);
                 return (
                   <View style={styles.card}>
                     <Pressable
@@ -909,9 +923,20 @@ export default function HomeScreen() {
                       )}
                       <Text style={styles.username}>{item.username}</Text>
                       <FormatTag format={item.format} />
+                      {item.user_id !== user?.id && (
+                        <Pressable
+                          style={styles.cardMenu}
+                          hitSlop={10}
+                          onPress={() =>
+                            moderation.openContentMenu({ kind: 'photo', id: item.id, userId: item.user_id, username: item.username })
+                          }
+                        >
+                          <Ionicons name="ellipsis-horizontal" size={18} color={colors.muted} />
+                        </Pressable>
+                      )}
                     </Pressable>
 
-                    <Pressable onPress={() => handleImageTap(item.id)}>
+                    <Pressable onPress={() => !cover && handleImageTap(item.id)}>
                       <Image
                         source={{ uri: item.image_url }}
                         style={[styles.image, { aspectRatio: aspectRatios[item.id] ?? 1 }]}
@@ -934,6 +959,7 @@ export default function HomeScreen() {
                           <Ionicons name="heart" size={80} color={colors.white} />
                         </View>
                       )}
+                      {cover && <ReviewCover kind={cover} />}
                     </Pressable>
 
                     {item.caption ? (
@@ -1005,21 +1031,34 @@ export default function HomeScreen() {
             </View>
 
             {commentsLoading ? (
-              <ActivityIndicator style={{ marginTop: 20 }} color={colors.deep} />
+              <OchoLoader size={48} message="Ocho is fetching the comments…" />
             ) : (
               <FlatList
-                data={comments}
+                data={visibleComments}
                 keyExtractor={(c) => c.id}
                 style={{ maxHeight: 320 }}
                 ListEmptyComponent={
                   <Text style={styles.emptyText}>No comments yet. Say something nice.</Text>
                 }
-                renderItem={({ item }) => (
-                  <View style={styles.commentRow}>
-                    <Text style={styles.commentUsername}>{item.username}</Text>
-                    <Text style={styles.commentBody}>{item.body}</Text>
-                  </View>
-                )}
+                renderItem={({ item }) => {
+                  const cover = moderation.coverFor(item.id, item.user_id);
+                  // long-press someone else's comment to report it or block them
+                  return (
+                    <Pressable
+                      style={styles.commentRow}
+                      onLongPress={() =>
+                        item.user_id !== user?.id &&
+                        moderation.openContentMenu(
+                          { kind: 'comment', id: item.id, userId: item.user_id, username: item.username },
+                          () => setCommentSubmissionId(null)
+                        )
+                      }
+                    >
+                      <Text style={styles.commentUsername}>{item.username}</Text>
+                      {cover ? <CoveredComment kind={cover} /> : <Text style={styles.commentBody}>{item.body}</Text>}
+                    </Pressable>
+                  );
+                }}
               />
             )}
 
@@ -1051,14 +1090,28 @@ export default function HomeScreen() {
         }}
       />
 
-      <Modal visible={!!dailyViewerUrl} transparent animationType="fade" onRequestClose={() => setDailyViewerUrl(null)}>
-        <Pressable style={styles.dailyViewerBackdrop} onPress={() => setDailyViewerUrl(null)}>
-          {dailyViewerUrl && (
-            <Image source={{ uri: dailyViewerUrl }} style={styles.dailyViewerImage} resizeMode="contain" />
+      <Modal visible={!!dailyViewer} transparent animationType="fade" onRequestClose={() => setDailyViewer(null)}>
+        <Pressable style={styles.dailyViewerBackdrop} onPress={() => setDailyViewer(null)}>
+          {dailyViewer && (
+            <Image source={{ uri: dailyViewer.image_url }} style={styles.dailyViewerImage} resizeMode="contain" />
           )}
-          <Pressable style={styles.dailyViewerCloseButton} onPress={() => setDailyViewerUrl(null)}>
+          <Pressable style={styles.dailyViewerCloseButton} onPress={() => setDailyViewer(null)}>
             <Ionicons name="close" size={22} color={colors.white} />
           </Pressable>
+          {dailyViewer && dailyViewer.user_id !== user?.id && (
+            <Pressable
+              style={[styles.dailyViewerCloseButton, styles.dailyViewerMenuButton]}
+              onPress={() => {
+                const d = dailyViewer;
+                moderation.openContentMenu(
+                  { kind: 'daily', id: d.id, userId: d.user_id, username: d.username },
+                  () => setDailyViewer(null)
+                );
+              }}
+            >
+              <Ionicons name="ellipsis-horizontal" size={20} color={colors.white} />
+            </Pressable>
+          )}
         </Pressable>
       </Modal>
 
@@ -1161,10 +1214,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     marginLeft: 16,
   },
-  dailyThumb: { width: 64, height: 64, borderRadius: 12, backgroundColor: colors.sand },
+  dailyThumb: { width: 64, height: 64, borderRadius: 12, backgroundColor: colors.sand, overflow: 'hidden' },
   dailyThumbUsername: { fontSize: 10, color: colors.muted, marginTop: 4, width: 64, textAlign: 'center' },
   dailyViewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', alignItems: 'center', justifyContent: 'center' },
   dailyViewerImage: { width: '100%', height: '80%' },
+  dailyViewerMenuButton: { right: undefined, left: 20 },
   dailyViewerCloseButton: {
     position: 'absolute',
     top: 50,
@@ -1233,6 +1287,7 @@ const styles = StyleSheet.create({
 
   card: { paddingHorizontal: 16, paddingTop: 14 },
   cardHeaderTouchable: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  cardMenu: { marginLeft: 'auto', paddingHorizontal: 4 },
   avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.reefLight },
   username: { fontSize: 14, fontWeight: '600', color: colors.ink },
   image: { width: '100%', borderRadius: 10, backgroundColor: colors.sand },

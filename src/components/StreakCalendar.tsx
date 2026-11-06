@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { localDateString } from '../lib/date';
 import { Text } from './Themed';
 import { colors } from '../theme';
+import OchoLoader from './OchoLoader';
 
 const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -57,7 +58,7 @@ export default function StreakCalendar({ userId, refreshKey }: { userId: string;
     return [...blanks, ...days];
   }, [month]);
 
-  if (!posted) return <ActivityIndicator color={colors.deep} style={{ marginVertical: 16 }} />;
+  if (!posted) return <OchoLoader size={44} compact />;
 
   const streak = currentStreak(posted, today);
   const monthPrefix = `${month.year}-${String(month.month + 1).padStart(2, '0')}`;

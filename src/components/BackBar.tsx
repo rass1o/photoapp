@@ -1,3 +1,4 @@
+import { ReactNode } from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -6,12 +7,14 @@ import { colors } from '../theme';
 
 type Props = {
   title?: string;
+  // e.g. a ... menu on the right
+  right?: ReactNode;
 };
 
 // In-page back bar for pushed screens. The native stack header is hidden on
 // those screens because newer iOS draws it translucent over the content; this
 // sits inside the screen's top safe area instead, so nothing ends up under it.
-export default function BackBar({ title }: Props) {
+export default function BackBar({ title, right }: Props) {
   const navigation = useNavigation();
 
   return (
@@ -25,6 +28,7 @@ export default function BackBar({ title }: Props) {
           {title}
         </Text>
       ) : null}
+      {right ? <View style={styles.right}>{right}</View> : null}
     </View>
   );
 }
@@ -33,6 +37,7 @@ const styles = StyleSheet.create({
   bar: { height: 44, justifyContent: 'center', paddingHorizontal: 8 },
   back: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', zIndex: 1 },
   backText: { fontSize: 16, color: colors.deep },
+  right: { position: 'absolute', right: 14, top: 0, bottom: 0, justifyContent: 'center' },
   title: {
     position: 'absolute',
     left: 90,

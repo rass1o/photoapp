@@ -24,6 +24,7 @@ import { Text, TextInput } from '../components/Themed';
 import BackBar from '../components/BackBar';
 import SandGrain from '../components/SandGrain';
 import PasswordRules from '../components/PasswordRules';
+import { useModeration } from '../context/ModerationContext';
 import { colors, bubbly } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
@@ -33,8 +34,9 @@ type IoniconName = keyof typeof Ionicons.glyphMap;
 const SUPPORT_EMAIL = 'support@shuttink.app';
 const SUPPORT_URL = 'https://shuttink.app/support';
 const PRIVACY_URL = 'https://shuttink.app/privacy';
+export const TERMS_URL = 'https://shuttink.app/terms';
 
-type Sheet = 'username' | 'bio' | 'password' | 'feedback' | 'privacy' | 'delete' | null;
+type Sheet = 'username' | 'bio' | 'password' | 'feedback' | 'privacy' | 'delete' | 'blocked' | null;
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -128,6 +130,19 @@ export default function SettingsScreen({ navigation }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
+  const moderation = useModeration();
+  const [blockedNames, setBlockedNames] = useState<{ id: string; username: string }[]>([]);
+
+  // Names for the Blocked accounts list, whenever the list changes
+  useEffect(() => {
+    const ids = [...moderation.blocked];
+    if (ids.length === 0) return setBlockedNames([]);
+    supabase
+      .from('profiles')
+      .select('id, username')
+      .in('id', ids)
+      .then(({ data }) => setBlockedNames(data ?? []));
+  }, [moderation.blocked]);
 
   useEffect(() => {
     if (!user) return;
@@ -332,6 +347,20 @@ export default function SettingsScreen({ navigation }: Props) {
           ) : null}
         </Section>
 
+        <Section title="Safety">
+          <Row
+            icon="shield-outline"
+            label="Blocked accounts"
+            value={moderation.blocked.size ? String(moderation.blocked.size) : 'None'}
+            onPress={() => open('blocked')}
+          />
+          <Row icon="document-text-outline" label="Terms of Use" onPress={() => Linking.openURL(TERMS_URL)} last />
+        </Section>
+        <Note>
+          See something that breaks the rules? Tap ••• on a photo or profile, or press and hold a comment, to report it.
+          Ocho covers it for you right away and you{'’'}ll hear back under the bell.
+        </Note>
+
         <Section title="Privacy">
           <Row icon="shield-checkmark-outline" label="Your data & privacy" onPress={() => open('privacy')} />
           <Row icon="document-text-outline" label="Privacy policy" onPress={() => Linking.openURL(PRIVACY_URL)} />
@@ -435,6 +464,7 @@ export default function SettingsScreen({ navigation }: Props) {
             'Your email is only used to sign you in. Other people can’t see it.',
             'Your phone’s camera and photo library are only used when you choose to take or pick a photo.',
             'Feedback and problem reports you send are read by the ShuttInk team.',
+            'Reports are private: the person you report is never told who sent it. Blocking someone is private too.',
             'You can delete your account at any time from this screen. That removes your photos, posts, votes, comments, friends, shutters and items from ShuttInk.',
           ].map((line) => (
             <View key={line} style={styles.privacyRow}>
@@ -442,6 +472,24 @@ export default function SettingsScreen({ navigation }: Props) {
               <Text style={styles.privacyText}>{line}</Text>
             </View>
           ))}
+        </ScrollView>
+      </EditSheet>
+
+      <EditSheet visible={sheet === 'blocked'} title="Blocked accounts" onClose={close}>
+        <ScrollView style={{ maxHeight: 360 }}>
+          {blockedNames.length === 0 ? (
+            <Text style={styles.hint}>You haven{'’'}t blocked anyone. You can block someone from the ••• on their profile.</Text>
+          ) : (
+            blockedNames.map((b) => (
+              <View key={b.id} style={styles.blockedRow}>
+                <Ionicons name="shield" size={16} color={colors.coral} />
+                <Text style={styles.blockedName}>{b.username}</Text>
+                <Pressable style={styles.unblockButton} onPress={() => moderation.confirmUnblock(b.id, b.username)}>
+                  <Text style={styles.unblockText}>Unblock</Text>
+                </Pressable>
+              </View>
+            ))
+          )}
         </ScrollView>
       </EditSheet>
 
@@ -478,6 +526,10 @@ function DoneNote({ text, onClose }: { text: string; onClose: () => void }) {
 }
 
 const styles = StyleSheet.create({
+  blockedRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, borderBottomWidth: 1, borderColor: colors.sandBorder },
+  blockedName: { flex: 1, fontSize: 15, color: colors.ink },
+  unblockButton: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1.5, borderColor: colors.deep },
+  unblockText: { fontSize: 13, fontWeight: '600', color: colors.deep },
   page: { flex: 1, backgroundColor: colors.shell },
   content: { paddingHorizontal: 16, paddingBottom: 32 },
 

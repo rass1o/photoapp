@@ -4,7 +4,6 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
-  ActivityIndicator,
   Alert,
   LayoutAnimation,
   useWindowDimensions,
@@ -23,6 +22,7 @@ import BackBar from '../components/BackBar';
 import { Text, TextInput } from '../components/Themed';
 import { colors } from '../theme';
 import OchoRoom from '../components/OchoRoom';
+import OchoLoader from '../components/OchoLoader';
 
 const SECTIONS: Array<{ category: OctoCategory; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
   { category: 'octo_color', label: 'Colors', icon: 'color-palette-outline' },
@@ -124,7 +124,7 @@ export default function OctopusScreen() {
       <SafeAreaView style={styles.screen} edges={['top', 'bottom']}>
         <BackBar title="Your octopus" />
         <View style={[styles.screen, styles.centered]}>
-          <ActivityIndicator color={colors.deep} />
+          <OchoLoader message="Ocho is getting dressed…" />
         </View>
       </SafeAreaView>
     );

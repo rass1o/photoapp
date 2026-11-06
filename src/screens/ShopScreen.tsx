@@ -23,6 +23,7 @@ import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
 import Wave, { WAVE_HEIGHT } from '../components/Wave';
 import SandGrain from '../components/SandGrain';
+import OchoLoader from '../components/OchoLoader';
 
 type Profile = {
   username: string;
@@ -205,7 +206,7 @@ export default function ShopScreen() {
   if (isLoading || !profile) {
     return (
       <SafeAreaView style={[styles.screen, { alignItems: 'center', justifyContent: 'center' }]}>
-        <ActivityIndicator color={colors.deep} />
+        <OchoLoader message="Ocho is stocking the shelves…" />
       </SafeAreaView>
     );
   }
