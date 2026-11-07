@@ -29,6 +29,7 @@ import { Text, TextInput } from '../components/Themed';
 import { CoverableImage } from '../components/ModerationCovers';
 import { colors, bubbly } from '../theme';
 import Wave, { WAVE_HEIGHT } from '../components/Wave';
+import { TAB_BAR_CLEARANCE } from '../components/SeaTabBar';
 import SandGrain from '../components/SandGrain';
 import StreakBanner from '../components/StreakBanner';
 import FrameDecoration, { frameColor } from '../components/AvatarFrame';
@@ -484,7 +485,7 @@ export default function ProfileScreen() {
           keyExtractor={(g) => g.id}
           numColumns={3}
           columnWrapperStyle={{ gap: 6 }}
-          contentContainerStyle={{ paddingTop: WAVE_HEIGHT + 2, paddingBottom: 20 }}
+          contentContainerStyle={{ paddingTop: WAVE_HEIGHT + 2, paddingBottom: TAB_BAR_CLEARANCE }}
           ListHeaderComponent={
             <View>
               <View style={styles.statsRow}>

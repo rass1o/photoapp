@@ -36,6 +36,7 @@ import { STREAK_BONUS, STREAK_BONUS_EVERY, liveDailyStreak } from '../lib/streak
 import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
 import OchoLoader from '../components/OchoLoader';
+import { TAB_BAR_CLEARANCE } from '../components/SeaTabBar';
 
 type Theme = {
   id: string;
@@ -656,7 +657,7 @@ const styles = StyleSheet.create({
   stampNoneText: { fontSize: 11, color: colors.muted, paddingHorizontal: 6 },
   container: { flex: 1 },
   flex: { flex: 1 },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 30 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: TAB_BAR_CLEARANCE },
   topRow: { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 4 },
   cheatSheetButton: {
     flexDirection: 'row',

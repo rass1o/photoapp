@@ -40,6 +40,7 @@ import { useNotifications } from '../context/NotificationsContext';
 import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
 import Wave, { WAVE_HEIGHT } from '../components/Wave';
+import { TAB_BAR_CLEARANCE } from '../components/SeaTabBar';
 import SandGrain from '../components/SandGrain';
 import Wordmark from '../components/Wordmark';
 import ShareCardModal from '../components/ShareCardModal';
@@ -905,7 +906,7 @@ export default function HomeScreen() {
             <FlatList
               ref={listRef}
               style={styles.feedSheet}
-              contentContainerStyle={{ paddingTop: WAVE_HEIGHT }}
+              contentContainerStyle={{ paddingTop: WAVE_HEIGHT, paddingBottom: TAB_BAR_CLEARANCE }}
               data={visibleSubmissions}
               onScroll={onFeedScroll}
               scrollEventThrottle={16}

@@ -19,6 +19,11 @@ const ICONS: Record<string, OchoIconName> = {
 };
 
 const RAISED = 'Submit';
+const RAISE = 34; // how far the Submit button pokes up above the bar
+
+// Extra room at the bottom of the tab screens' scrolling lists, so the last
+// item can scroll clear of the raised Submit button instead of hiding under it
+export const TAB_BAR_CLEARANCE = RAISE + 16;
 const WAVE_TOP = 12; // room above the bar's body for the wave crests
 const BODY = 60; // height of the bar's body, under the waves
 const IDLE = '#8FB8CC';
@@ -139,7 +144,7 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
-    marginTop: -34,
+    marginTop: -RAISE,
     backgroundColor: colors.coral,
     borderWidth: 4,
     borderColor: colors.shell,

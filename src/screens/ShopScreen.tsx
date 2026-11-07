@@ -22,6 +22,7 @@ import BlindBoxModal from '../components/BlindBoxModal';
 import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
 import Wave, { WAVE_HEIGHT } from '../components/Wave';
+import { TAB_BAR_CLEARANCE } from '../components/SeaTabBar';
 import SandGrain from '../components/SandGrain';
 import OchoLoader from '../components/OchoLoader';
 
@@ -265,7 +266,7 @@ export default function ShopScreen() {
         <SandGrain />
         <Wave water={bannerColor(shown.banner)} />
         <ScrollView
-          contentContainerStyle={{ paddingTop: WAVE_HEIGHT + 2, paddingBottom: 24 }}
+          contentContainerStyle={{ paddingTop: WAVE_HEIGHT + 2, paddingBottom: TAB_BAR_CLEARANCE }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >

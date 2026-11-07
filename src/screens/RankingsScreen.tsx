@@ -15,6 +15,7 @@ import { Text } from '../components/Themed';
 import { CoverableImage } from '../components/ModerationCovers';
 import { colors, bubbly } from '../theme';
 import Wave, { WAVE_HEIGHT } from '../components/Wave';
+import { TAB_BAR_CLEARANCE } from '../components/SeaTabBar';
 import SandGrain from '../components/SandGrain';
 import OchoLoader from '../components/OchoLoader';
 import OchoIcon from '../components/OchoIcon';
@@ -274,7 +275,7 @@ export default function RankingsScreen() {
         ) : (
           <FlatList
             data={rankings}
-            contentContainerStyle={{ paddingTop: WAVE_HEIGHT + 4 }}
+            contentContainerStyle={{ paddingTop: WAVE_HEIGHT + 4, paddingBottom: TAB_BAR_CLEARANCE }}
             keyExtractor={(item) => item.id}
             refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />}
             ListHeaderComponent={
