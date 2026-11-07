@@ -30,7 +30,8 @@ import OchoLoader from '../components/OchoLoader';
 import OchoIcon from '../components/OchoIcon';
 import Stamp from '../components/Stamp';
 import FilmFrame from '../components/FilmFrame';
-import { BlockedCover, CoveredComment, ReviewCover } from '../components/ModerationCovers';
+import { BlockedCover, ReviewCover } from '../components/ModerationCovers';
+import CommentRow, { CommentItem, ReplyingTo, removedWith, threadComments } from '../components/CommentRow';
 import { useModeration } from '../context/ModerationContext';
 import { Text, TextInput } from '../components/Themed';
 import { colors } from '../theme';
@@ -47,6 +48,7 @@ type Submission = {
   like_count: number;
   caption: string;
   film_stamp: string | null;
+  film_strip: boolean;
   username: string;
   avatar_url: string | null;
   avatar_frame_color: string;
@@ -56,6 +58,7 @@ type Comment = {
   id: string;
   user_id: string;
   body: string;
+  parent_id: string | null;
   username: string;
 };
 
@@ -69,13 +72,14 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
   const [voteSheetOpen, setVoteSheetOpen] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentInput, setCommentInput] = useState('');
+  const [replyTo, setReplyTo] = useState<{ id: string; parent_id: string | null; username: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [aspectRatio, setAspectRatio] = useState(1);
 
   const load = async () => {
     const { data: subData, error } = await supabase
       .from('submissions')
-      .select('id, user_id, theme_id, image_url, format, vote_count, like_count, caption, film_stamp')
+      .select('id, user_id, theme_id, image_url, format, vote_count, like_count, caption, film_stamp, film_strip')
       .eq('id', submissionId)
       .single();
 
@@ -102,7 +106,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
 
     const { data: commentRows } = await supabase
       .from('comments')
-      .select('id, user_id, body')
+      .select('id, user_id, body, parent_id')
       .eq('submission_id', submissionId)
       .order('created_at', { ascending: true });
 
@@ -124,7 +128,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
   }, [submissionId]);
 
   const moderation = useModeration();
-  const visibleComments = comments.filter((c) => !moderation.isBlocked(c.user_id));
+  const visibleComments = threadComments(comments, moderation.isBlocked);
 
   const phase = themePhase(themeEnd);
   const likes = useLikes(user?.id, (_id, delta) =>
@@ -171,15 +175,35 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
     if (!user || !commentInput.trim()) return;
     const body = commentInput.trim();
     setCommentInput('');
+    // replies join the thread of the comment they answer
+    const parentId = replyTo ? (replyTo.parent_id ?? replyTo.id) : null;
+    setReplyTo(null);
 
     const { data, error } = await supabase
       .from('comments')
-      .insert({ submission_id: submissionId, user_id: user.id, body })
-      .select('id, user_id, body')
+      .insert({ submission_id: submissionId, user_id: user.id, body, parent_id: parentId })
+      .select('id, user_id, body, parent_id')
       .single();
 
     if (!error && data) {
       setComments((prev) => [...prev, { ...data, username: user.username }]);
+    }
+  };
+
+  const startReply = (c: CommentItem) => {
+    setReplyTo({ id: c.id, parent_id: c.parent_id, username: c.username });
+    setCommentInput(`@${c.username} `);
+  };
+
+  // Your own Film photo: show it in a film strip or not
+  const toggleFilmStrip = async () => {
+    if (!submission) return;
+    const on = !submission.film_strip;
+    setSubmission({ ...submission, film_strip: on });
+    const { error } = await supabase.rpc('set_film_strip', { p_submission: submission.id, p_on: on });
+    if (error) {
+      setSubmission({ ...submission, film_strip: !on });
+      Alert.alert('Couldn’t change that', error.message);
     }
   };
 
@@ -245,6 +269,20 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
               </View>
               <Text style={styles.username}>{submission.username}</Text>
               <FormatTag format={submission.format} />
+              {isMine && submission.format === 'film' && (
+                <Pressable
+                  style={styles.menuButton}
+                  hitSlop={10}
+                  onPress={() =>
+                    Alert.alert('Your photo', undefined, [
+                      { text: submission.film_strip ? 'Hide the film strip' : 'Show in a film strip', onPress: toggleFilmStrip },
+                      { text: 'Cancel', style: 'cancel' },
+                    ])
+                  }
+                >
+                  <OchoIcon name="more" size={22} color={colors.muted} />
+                </Pressable>
+              )}
               {!isMine && (
                 <Pressable
                   style={styles.menuButton}
@@ -264,7 +302,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
             </Pressable>
 
             <View style={styles.photoWrap}>
-              <FilmFrame film={submission.format === 'film'} frame="1A">
+              <FilmFrame film={submission.format === 'film' && submission.film_strip} frame="1A">
                 <Image
                   source={{ uri: submission.image_url }}
                   style={[styles.image, { aspectRatio }]}
@@ -277,7 +315,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
                 />
               </FilmFrame>
               {submission.film_stamp && (
-                <View style={[styles.stampOverlay, submission.format === 'film' && styles.stampOverlayFilm]} pointerEvents="none">
+                <View style={[styles.stampOverlay, submission.format === 'film' && submission.film_strip && styles.stampOverlayFilm]} pointerEvents="none">
                   <FilmStamp stock={submission.film_stamp} />
                 </View>
               )}
@@ -321,29 +359,37 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
           </View>
         }
         ListEmptyComponent={<Text style={styles.emptyText}>No comments yet. Don't be shellfish, say something nice.</Text>}
-        renderItem={({ item }) => {
-          const commentCover = moderation.coverFor(item.id, item.user_id);
-          // long-press someone else's comment to report it or block them
-          return (
-            <Pressable
-              style={styles.commentRow}
-              onLongPress={() =>
-                item.user_id !== user?.id &&
-                moderation.openContentMenu({ kind: 'comment', id: item.id, userId: item.user_id, username: item.username })
-              }
-            >
-              <Text style={styles.commentUsername}>{item.username}</Text>
-              {commentCover ? <CoveredComment kind={commentCover} /> : <Text style={styles.commentBody}>{item.body}</Text>}
-            </Pressable>
-          );
-        }}
+        renderItem={({ item }) => (
+          <CommentRow
+            comment={item}
+            isReply={item.isReply}
+            photoOwnerId={submission.user_id}
+            onOpenProfile={(userId) => navigation.push('UserProfile', { userId })}
+            onReply={startReply}
+            onDeleted={(c) => {
+              const gone = removedWith(comments, c.id);
+              setComments((prev) => prev.filter((x) => !gone.has(x.id)));
+            }}
+          />
+        )}
         contentContainerStyle={{ paddingBottom: 20 }}
       />
 
+      {replyTo && (
+        <View style={styles.replyingWrap}>
+          <ReplyingTo
+            username={replyTo.username}
+            onCancel={() => {
+              setReplyTo(null);
+              setCommentInput('');
+            }}
+          />
+        </View>
+      )}
       <View style={styles.commentInputRow}>
         <TextInput
           style={styles.commentInput}
-          placeholder="Add a comment"
+          placeholder={replyTo ? `Reply to ${replyTo.username}` : 'Add a comment'}
           value={commentInput}
           onChangeText={setCommentInput}
         />
@@ -377,6 +423,7 @@ const styles = StyleSheet.create({
   stampOverlay: { position: 'absolute', left: 10, bottom: 10 },
   stampOverlayFilm: { left: 14, bottom: 25 },
   photoWrap: { marginHorizontal: 6 },
+  replyingWrap: { paddingHorizontal: 12 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.shell },
   emptyText: { color: colors.faint, fontSize: 13, textAlign: 'center', padding: 20 },
 

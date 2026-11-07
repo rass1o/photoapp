@@ -10,6 +10,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  Switch,
   ScrollView,
   Modal,
 } from 'react-native';
@@ -66,6 +67,8 @@ export default function CameraScreen() {
   const [isUploading, setIsUploading] = useState(false);
   const [ownedStamps, setOwnedStamps] = useState<ShopItem[]>([]);
   const [filmStamp, setFilmStamp] = useState<string | null>(null);
+  // Film photos show in a 35mm strip in the feed unless you turn it off
+  const [filmStrip, setFilmStrip] = useState(true);
 
   // Daily freelance photo state (no theme — just whatever you're up to, like BeReal)
   const [isCheckingDaily, setIsCheckingDaily] = useState(true);
@@ -317,6 +320,7 @@ export default function CameraScreen() {
         format,
         caption: caption.trim(),
         film_stamp: format === 'film' ? filmStamp : null,
+        film_strip: format === 'film' ? filmStrip : true,
       });
 
       if (insertError) throw insertError;
@@ -476,6 +480,16 @@ export default function CameraScreen() {
                   </Text>
                 </Pressable>
               </View>
+
+              {format === 'film' && (
+                <View style={styles.stripRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.stampPickerLabel}>Show in a film strip</Text>
+                    <Text style={styles.stripHint}>A 35mm border with sprocket holes around your photo</Text>
+                  </View>
+                  <Switch value={filmStrip} onValueChange={setFilmStrip} trackColor={{ true: colors.reef, false: colors.sandDark }} />
+                </View>
+              )}
 
               {format === 'film' && (
                 <View style={styles.stampPicker}>
@@ -712,6 +726,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   submitButtonDisabled: { opacity: 0.4 },
+  stripRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+  stripHint: { fontSize: 12, color: colors.muted, marginTop: 1 },
   submitText: { color: colors.white, fontSize: 14, fontWeight: '600' },
   doneWrap: { paddingVertical: 40 },
   doneTitle: { fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 8 },

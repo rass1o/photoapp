@@ -21,6 +21,7 @@ const TYPE_ICON: Record<AppNotification['type'], { name: keyof typeof Ionicons.g
   like: { name: 'heart', color: colors.coral },
   vote: { name: 'star', color: '#F59E0B' },
   comment: { name: 'chatbubble', color: colors.reef },
+  reply: { name: 'return-down-forward', color: colors.reef },
   friend_request: { name: 'person-add', color: colors.deep },
   friend_accepted: { name: 'people', color: '#047857' },
   report_update: { name: 'search', color: colors.reef },
@@ -34,6 +35,8 @@ function message(n: AppNotification) {
       return ' voted for your photo';
     case 'comment':
       return ' commented: ';
+    case 'reply':
+      return ' replied to your comment: ';
     case 'friend_request':
       return ' sent you a friend request';
     case 'friend_accepted':
@@ -149,7 +152,7 @@ export default function NotificationsModal({ visible, onClose, onOpenSubmission,
                       <Text style={styles.username}>{n.type === 'report_update' ? 'Ocho' : n.actor.username}</Text>
                       {message(n)}
                       {n.type === 'report_update' && n.body ? ` ${n.body.replace(/^Ocho /, '')}` : null}
-                      {n.type === 'comment' && n.body ? <Text style={styles.quote}>{`“${n.body}”`}</Text> : null}
+                      {(n.type === 'comment' || n.type === 'reply') && n.body ? <Text style={styles.quote}>{`“${n.body}”`}</Text> : null}
                       <Text style={styles.time}>{`  ${timeAgo(n.createdAt).toUpperCase()}`}</Text>
                     </Text>
 

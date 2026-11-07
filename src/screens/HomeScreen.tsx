@@ -47,7 +47,8 @@ import OchoLoader from '../components/OchoLoader';
 import OchoIcon from '../components/OchoIcon';
 import Stamp from '../components/Stamp';
 import FilmFrame from '../components/FilmFrame';
-import { CoveredComment, ReviewCover } from '../components/ModerationCovers';
+import { ReviewCover } from '../components/ModerationCovers';
+import CommentRow, { CommentItem, ReplyingTo, removedWith, threadComments } from '../components/CommentRow';
 import { useModeration } from '../context/ModerationContext';
 
 type Theme = {
@@ -65,6 +66,7 @@ type Submission = {
   format: 'digital' | 'film';
   caption: string;
   film_stamp: string | null;
+  film_strip: boolean;
   vote_count: number;
   like_count: number;
   created_at: string;
@@ -78,12 +80,13 @@ type Comment = {
   user_id: string;
   body: string;
   created_at: string;
+  parent_id: string | null;
   username: string;
 };
 
 type Feed = 'friends' | 'global';
 
-const SUBMISSION_COLUMNS = 'id, user_id, image_url, format, caption, film_stamp, vote_count, like_count, created_at';
+const SUBMISSION_COLUMNS = 'id, user_id, image_url, format, caption, film_stamp, film_strip, vote_count, like_count, created_at';
 
 // Search order: exact name, then names starting with the query, then a later
 // word starting with it (after _ . - or a digit), then anything containing it
@@ -166,6 +169,8 @@ export default function HomeScreen() {
   const [commentSubmissionId, setCommentSubmissionId] = useState<string | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentInput, setCommentInput] = useState('');
+  // the comment you're answering, if you tapped Reply
+  const [replyTo, setReplyTo] = useState<{ id: string; parent_id: string | null; username: string } | null>(null);
   const [commentsLoading, setCommentsLoading] = useState(false);
 
   const [burstId, setBurstId] = useState<string | null>(null);
@@ -605,7 +610,7 @@ export default function HomeScreen() {
   const moderation = useModeration();
   const visibleSubmissions = submissions.filter((s) => !moderation.isBlocked(s.user_id));
   const visibleDaily = dailyPhotos.filter((d) => !moderation.isBlocked(d.user_id));
-  const visibleComments = comments.filter((c) => !moderation.isBlocked(c.user_id));
+  const visibleComments = threadComments(comments, moderation.isBlocked);
 
   // Hearts: any time during the theme, kept on your profile to vote from later
   const likes = useLikes(user?.id, (id, delta) =>
@@ -674,10 +679,11 @@ export default function HomeScreen() {
 
   const openComments = async (submissionId: string) => {
     setCommentSubmissionId(submissionId);
+    setReplyTo(null);
     setCommentsLoading(true);
     const { data } = await supabase
       .from('comments')
-      .select('id, submission_id, user_id, body, created_at')
+      .select('id, submission_id, user_id, body, created_at, parent_id')
       .eq('submission_id', submissionId)
       .order('created_at', { ascending: true });
 
@@ -698,11 +704,14 @@ export default function HomeScreen() {
     if (!user || !commentSubmissionId || !commentInput.trim()) return;
     const body = commentInput.trim();
     setCommentInput('');
+    // replies join the thread of the comment they answer
+    const parentId = replyTo ? (replyTo.parent_id ?? replyTo.id) : null;
+    setReplyTo(null);
 
     const { data, error } = await supabase
       .from('comments')
-      .insert({ submission_id: commentSubmissionId, user_id: user.id, body })
-      .select('id, submission_id, user_id, body, created_at')
+      .insert({ submission_id: commentSubmissionId, user_id: user.id, body, parent_id: parentId })
+      .select('id, submission_id, user_id, body, created_at, parent_id')
       .single();
 
     if (!error && data) {
@@ -713,6 +722,23 @@ export default function HomeScreen() {
       }));
     } else if (error) {
       console.log('Comment failed:', error.message);
+    }
+  };
+
+  const startReply = (c: CommentItem) => {
+    setReplyTo({ id: c.id, parent_id: c.parent_id, username: c.username });
+    setCommentInput(`@${c.username} `);
+  };
+
+  // A deleted comment takes its replies with it
+  const commentDeleted = (c: CommentItem) => {
+    const gone = removedWith(comments, c.id);
+    setComments((prev) => prev.filter((x) => !gone.has(x.id)));
+    if (commentSubmissionId) {
+      setCommentCounts((prev) => ({
+        ...prev,
+        [commentSubmissionId]: Math.max(0, (prev[commentSubmissionId] ?? 0) - gone.size),
+      }));
     }
   };
 
@@ -940,7 +966,7 @@ export default function HomeScreen() {
                     </Pressable>
 
                     <Pressable style={styles.photoWrap} onPress={() => !cover && handleImageTap(item.id)}>
-                      <FilmFrame film={item.format === 'film'} frame={`${(visibleSubmissions.indexOf(item) % 36) + 1}A`}>
+                      <FilmFrame film={item.format === 'film' && item.film_strip !== false} frame={`${(visibleSubmissions.indexOf(item) % 36) + 1}A`}>
                       <Image
                         source={{ uri: item.image_url }}
                         style={[styles.image, { aspectRatio: aspectRatios[item.id] ?? 1 }]}
@@ -955,7 +981,7 @@ export default function HomeScreen() {
                       />
                       </FilmFrame>
                       {item.film_stamp && (
-                        <View style={[styles.stampOverlay, item.format === 'film' && styles.stampOverlayFilm]} pointerEvents="none">
+                        <View style={[styles.stampOverlay, item.format === 'film' && item.film_strip !== false && styles.stampOverlayFilm]} pointerEvents="none">
                           <FilmStamp stock={item.film_stamp} />
                         </View>
                       )}
@@ -1045,32 +1071,37 @@ export default function HomeScreen() {
                 ListEmptyComponent={
                   <Text style={styles.emptyText}>No comments yet. Say something nice.</Text>
                 }
-                renderItem={({ item }) => {
-                  const cover = moderation.coverFor(item.id, item.user_id);
-                  // long-press someone else's comment to report it or block them
-                  return (
-                    <Pressable
-                      style={styles.commentRow}
-                      onLongPress={() =>
-                        item.user_id !== user?.id &&
-                        moderation.openContentMenu(
-                          { kind: 'comment', id: item.id, userId: item.user_id, username: item.username },
-                          () => setCommentSubmissionId(null)
-                        )
-                      }
-                    >
-                      <Text style={styles.commentUsername}>{item.username}</Text>
-                      {cover ? <CoveredComment kind={cover} /> : <Text style={styles.commentBody}>{item.body}</Text>}
-                    </Pressable>
-                  );
-                }}
+                renderItem={({ item }) => (
+                  <CommentRow
+                    comment={item}
+                    isReply={item.isReply}
+                    photoOwnerId={submissions.find((s) => s.id === commentSubmissionId)?.user_id}
+                    onOpenProfile={(userId) => {
+                      setCommentSubmissionId(null);
+                      navigation.push('UserProfile', { userId });
+                    }}
+                    onReply={startReply}
+                    onDeleted={commentDeleted}
+                    beforeReport={() => setCommentSubmissionId(null)}
+                    inset={0}
+                  />
+                )}
               />
             )}
 
+            {replyTo && (
+              <ReplyingTo
+                username={replyTo.username}
+                onCancel={() => {
+                  setReplyTo(null);
+                  setCommentInput('');
+                }}
+              />
+            )}
             <View style={styles.commentInputRow}>
               <TextInput
                 style={styles.commentInput}
-                placeholder="Add a comment"
+                placeholder={replyTo ? `Reply to ${replyTo.username}` : 'Add a comment'}
                 value={commentInput}
                 onChangeText={setCommentInput}
               />
@@ -1328,7 +1359,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   commentSheetTitle: { fontSize: 16, fontWeight: '600' },
-  commentRow: { paddingVertical: 8, borderBottomWidth: 1, borderColor: colors.sand },
   commentUsername: { fontSize: 12, fontWeight: '600', color: colors.text },
   commentBody: { fontSize: 13, color: colors.ink, marginTop: 2 },
   commentInputRow: { flexDirection: 'row', gap: 8, marginTop: 12, alignItems: 'center' },
