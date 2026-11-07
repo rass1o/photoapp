@@ -11,6 +11,7 @@ import Reanimated, {
   withRepeat,
   withSequence,
   withTiming,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { useSettings } from '../context/SettingsContext';
 import { useScreenFocused } from '../lib/useScreenFocused';
@@ -184,6 +185,118 @@ const around = (deg: number, r: number) => {
 };
 
 
+// --- the legendary frames that move are drawn in parts, so the moving part
+// can sit on its own layer (see LIVE below) ----------------------------------
+
+function OchoPeekBody() {
+  return (
+    <G strokeLinejoin="round" strokeLinecap="round">
+      <Band d="M38,40 C14,52 8,90 22,112 C30,124 40,118 36,108" color="#A78BFA" w={10} />
+      <Band d="M122,40 C146,52 152,90 138,112 C130,124 120,118 124,108" color="#A78BFA" w={10} />
+      <Path d="M30,44 C30,-4 130,-4 130,44 C116,36 44,36 30,44 Z" fill="#A78BFA" stroke={OUTLINE} strokeWidth={3} />
+      <Ellipse cx={58} cy={14} rx={8} ry={5} fill="#FFFFFF" opacity={0.45} rotation={-25} origin="58, 14" />
+      <Circle cx={66} cy={28} r={7.5} fill="#FFFFFF" stroke={OUTLINE} strokeWidth={2} />
+      <Circle cx={94} cy={28} r={7.5} fill="#FFFFFF" stroke={OUTLINE} strokeWidth={2} />
+      <G fill="#F5D0FE" stroke={OUTLINE} strokeWidth={1}>
+        <Circle cx={18} cy={86} r={2.4} />
+        <Circle cx={142} cy={86} r={2.4} />
+        <Circle cx={22} cy={104} r={2.4} />
+        <Circle cx={138} cy={104} r={2.4} />
+      </G>
+    </G>
+  );
+}
+
+function OchoPeekPupils() {
+  return (
+    <G>
+      <Circle cx={67} cy={31} r={4} fill={OUTLINE} />
+      <Circle cx={95} cy={31} r={4} fill={OUTLINE} />
+      <Circle cx={68.5} cy={29} r={1.4} fill="#FFFFFF" />
+      <Circle cx={96.5} cy={29} r={1.4} fill="#FFFFFF" />
+    </G>
+  );
+}
+
+function AnglerBody() {
+  return (
+    <G strokeLinejoin="round" strokeLinecap="round">
+      <Path d="M120,118 C112,70 74,10 30,18" fill="none" stroke={OUTLINE} strokeWidth={5} />
+      <Path d="M120,118 C112,70 74,10 30,18" fill="none" stroke="#475569" strokeWidth={2.5} />
+      <Path d="M104,120 C110,100 152,98 160,124 C152,150 112,150 104,128 Z" fill="#334155" stroke={OUTLINE} strokeWidth={3} />
+      <Path d="M108,124 L116,120 L120,128 L126,121 L130,129 L136,122 L140,130" fill="none" stroke="#FFFFFF" strokeWidth={2} />
+      <Circle cx={134} cy={112} r={5} fill="#FDE047" stroke={OUTLINE} strokeWidth={1.8} />
+      <Circle cx={135} cy={113} r={2.2} fill={OUTLINE} />
+    </G>
+  );
+}
+
+function AnglerLight() {
+  return (
+    <G>
+      <Circle cx={30} cy={24} r={20} fill="#FEF9C3" opacity={0.35} />
+      <Circle cx={30} cy={24} r={8} fill="#FDE047" stroke={OUTLINE} strokeWidth={2.5} />
+      <Circle cx={28} cy={22} r={3} fill="#FFFFFF" />
+    </G>
+  );
+}
+
+function RoyalCrown() {
+  return (
+    <G strokeLinejoin="round" stroke={OUTLINE}>
+      <Path d="M48,34 L44,8 L62,20 L80,3 L98,20 L116,8 L112,34 Z" fill="#FACC15" strokeWidth={3} />
+      <Rect x={46} y={30} width={68} height={10} rx={3} fill="#EAB308" strokeWidth={3} />
+      <Gem x={80} y={18} s={0.9} color="#EF4444" />
+      <Circle cx={62} cy={26} r={3.5} fill="#38BDF8" strokeWidth={1.4} />
+      <Circle cx={98} cy={26} r={3.5} fill="#4ADE80" strokeWidth={1.4} />
+      {/* laurel branches curving up both sides */}
+      <Path d="M76,144 A64,64 0 0 1 17,92 M84,144 A64,64 0 0 0 143,92" fill="none" stroke="#A16207" strokeWidth={2.5} strokeLinecap="round" />
+      {[110, 125, 140, 155, 170].map((deg) => {
+        const p = around(deg, 62);
+        return <Leaf key={deg} x={p.x} y={p.y} r={9} rotate={deg + 120} color="#CA8A04" />;
+      })}
+      {[70, 55, 40, 25, 10].map((deg) => {
+        const p = around(deg, 62);
+        return <Leaf key={deg} x={p.x} y={p.y} r={9} rotate={deg + 60} color="#CA8A04" />;
+      })}
+    </G>
+  );
+}
+
+// the glints that flash on the crown's jewels
+const ROYAL_GLINTS = [
+  { x: 84, y: 12, r: 5 },
+  { x: 65, y: 22, r: 4 },
+  { x: 101, y: 22, r: 4 },
+];
+
+function JellyTentacles({ side }: { side: 'left' | 'right' }) {
+  const d =
+    side === 'left'
+      ? 'M40,34 C22,54 22,84 12,116 M50,38 C32,62 32,92 26,128'
+      : 'M120,34 C138,54 138,84 148,116 M110,38 C128,62 128,92 134,128';
+  return (
+    <G strokeLinejoin="round" strokeLinecap="round" fill="none">
+      <Path d={d} stroke={OUTLINE} strokeWidth={5} />
+      <Path d={d} stroke="#F5D0FE" strokeWidth={2.6} />
+    </G>
+  );
+}
+
+function JellyBell() {
+  return (
+    <G strokeLinejoin="round" strokeLinecap="round">
+      <Ellipse cx={80} cy={16} rx={52} ry={14} fill="#F0ABFC" opacity={0.3} />
+      <Path d="M38,34 C38,-6 122,-6 122,34 Q114,40 106,34 Q98,40 90,34 Q82,40 74,34 Q66,40 58,34 Q50,40 38,34 Z" fill="#E879F9" stroke={OUTLINE} strokeWidth={3} />
+      <Path d="M54,16 Q66,4 82,4" fill="none" stroke="#FFFFFF" strokeWidth={3} opacity={0.7} />
+      <Circle cx={70} cy={22} r={3} fill={OUTLINE} />
+      <Circle cx={90} cy={22} r={3} fill={OUTLINE} />
+      <Path d="M76,28 Q80,31 84,28" fill="none" stroke={OUTLINE} strokeWidth={2} />
+      <Sparkle x={140} y={14} r={6} color="#F5D0FE" />
+    </G>
+  );
+}
+
 // The cat on the cat_purr frame: a black cat with a pink collar, curled up
 // asleep along the top of the photo, tail hanging down the right side
 function SleepyCat() {
@@ -196,7 +309,7 @@ function SleepyCat() {
       <Ellipse cx={62} cy={46} rx={8} ry={5} fill="#2A2533" stroke={OUTLINE} strokeWidth={2.4} />
       <Ellipse cx={78} cy={44} rx={8} ry={5} fill="#2A2533" stroke={OUTLINE} strokeWidth={2.4} />
       {/* head resting on the left */}
-      <Path d="M28,22 L26,4 L40,14 Z M52,14 L60,0 L62,18 Z" fill="#2A2533" stroke={OUTLINE} strokeWidth={2.5} />
+      <Path d="M28,22 L26,5 L40,14 Z M52,14 L60,3 L62,18 Z" fill="#2A2533" stroke={OUTLINE} strokeWidth={2.5} />
       <Path d="M30,18 L29,9 L36,14 Z M54,14 L58,7 L59,17 Z" fill="#F9A8D4" />
       <Circle cx={44} cy={30} r={18} fill="#2A2533" stroke={OUTLINE} strokeWidth={3} />
       <Path d="M33,30 Q37,34 41,30 M47,30 Q51,34 55,30" fill="none" stroke="#C6E35B" strokeWidth={2} />
@@ -427,18 +540,6 @@ const DESIGNS: Record<string, { color: string; art: () => ReactElement }> = {
       </G>
     ),
   },
-  bow: {
-    color: '#F472B6',
-    art: () => (
-      <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" transform="rotate(18 118 30)">
-        <Path d="M118,30 C104,14 90,18 92,30 C90,42 104,46 118,30 Z" fill="#F472B6" />
-        <Path d="M118,30 C132,14 146,18 144,30 C146,42 132,46 118,30 Z" fill="#F472B6" />
-        <Path d="M112,34 L104,52 L112,48 L116,54 Z M124,34 L132,52 L124,48 L120,54 Z" fill="#EC4899" />
-        <Circle cx={118} cy={30} r={6} fill="#EC4899" />
-        <Path d="M98,26 Q102,22 106,24 M138,26 Q134,22 130,24" fill="none" stroke="#FBCFE8" strokeWidth={2} strokeLinecap="round" />
-      </G>
-    ),
-  },
   shells: {
     color: '#F9A8D4',
     art: () => (
@@ -483,7 +584,7 @@ const DESIGNS: Record<string, { color: string; art: () => ReactElement }> = {
         <Path d="M60,10 C58,22 58,32 60,42 M80,6 C80,20 80,30 80,42 M100,10 C102,22 102,32 100,42" fill="none" stroke="#B91C1C" strokeWidth={2} />
         <Rect x={34} y={36} width={92} height={16} rx={7} fill="#FCA5A5" />
         <Path d="M46,38 V50 M58,38 V50 M70,38 V50 M82,38 V50 M94,38 V50 M106,38 V50 M118,38 V50" stroke="#EF4444" strokeWidth={2} />
-        <Circle cx={80} cy={6} r={9} fill="#FFFFFF" />
+        <Circle cx={80} cy={11} r={8} fill="#FFFFFF" />
       </G>
     ),
   },
@@ -526,9 +627,9 @@ const DESIGNS: Record<string, { color: string; art: () => ReactElement }> = {
     color: '#FACC15',
     art: () => (
       <G>
-        <Ellipse cx={80} cy={14} rx={40} ry={10} fill="none" stroke="#FEF08A" strokeWidth={12} opacity={0.5} />
-        <Ellipse cx={80} cy={14} rx={36} ry={8} fill="none" stroke={OUTLINE} strokeWidth={8} />
-        <Ellipse cx={80} cy={14} rx={36} ry={8} fill="none" stroke="#FACC15" strokeWidth={4.5} />
+        <Ellipse cx={80} cy={18} rx={40} ry={9} fill="none" stroke="#FEF08A" strokeWidth={10} opacity={0.5} />
+        <Ellipse cx={80} cy={18} rx={36} ry={8} fill="none" stroke={OUTLINE} strokeWidth={8} />
+        <Ellipse cx={80} cy={18} rx={36} ry={8} fill="none" stroke="#FACC15" strokeWidth={4.5} />
         <Sparkle x={26} y={30} r={7} color="#FEF08A" />
         <Sparkle x={136} y={28} r={6} color="#FEF08A" />
       </G>
@@ -565,7 +666,7 @@ const DESIGNS: Record<string, { color: string; art: () => ReactElement }> = {
   rainbow: {
     color: '#60A5FA',
     art: () => (
-      <G fill="none" strokeLinecap="round">
+      <G fill="none" strokeLinecap="round" transform="translate(0,8)">
         <Path d="M14,74 A66,66 0 0 1 146,74" stroke={OUTLINE} strokeWidth={27} />
         {['#EF4444', '#FB923C', '#FDE047', '#4ADE80', '#60A5FA'].map((c, i) => (
           <Path key={c} d={`M${16 + i * 4.6},74 A${64 - i * 4.6},${64 - i * 4.6} 0 0 1 ${144 - i * 4.6},74`} stroke={c} strokeWidth={4.6} />
@@ -580,7 +681,7 @@ const DESIGNS: Record<string, { color: string; art: () => ReactElement }> = {
   bunny_ears: {
     color: '#F9A8D4',
     art: () => (
-      <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round">
+      <G stroke={OUTLINE} strokeWidth={3} strokeLinejoin="round" transform="translate(0,6) translate(80,40) scale(0.85) translate(-80,-40)">
         <Path d="M56,40 C40,24 40,-8 52,-6 C66,-4 70,22 68,38 Z" fill="#FFFFFF" transform="rotate(-10 60 30)" />
         <Path d="M104,40 C120,24 120,-8 108,-6 C94,-4 90,22 92,38 Z" fill="#FFFFFF" transform="rotate(10 100 30)" />
         <Path d="M57,32 C48,20 48,2 54,2 C62,4 64,20 63,32 Z" fill="#F9A8D4" strokeWidth={0} transform="rotate(-10 60 30)" />
@@ -733,7 +834,7 @@ const DESIGNS: Record<string, { color: string; art: () => ReactElement }> = {
         {/* head and long snout */}
         <Path d="M90,12 C102,2 122,8 122,22 C122,32 112,38 100,36 C92,34 86,24 90,12 Z" fill="#FB923C" stroke={OUTLINE} strokeWidth={3} />
         <Path d="M118,18 L146,22 C152,23 152,31 146,31 L118,32 Z" fill="#FB923C" stroke={OUTLINE} strokeWidth={3} />
-        <Path d="M92,10 L88,0 L98,6 L100,-2 L106,6" fill="#FDBA74" stroke={OUTLINE} strokeWidth={2} />
+        <Path d="M92,10 L88,3 L98,7 L100,2 L106,7" fill="#FDBA74" stroke={OUTLINE} strokeWidth={2} />
         <Circle cx={106} cy={20} r={4.5} fill="#FFFFFF" stroke={OUTLINE} strokeWidth={2} />
         <Circle cx={107} cy={21} r={2.2} fill={OUTLINE} />
         <Ellipse cx={104} cy={30} rx={4} ry={2.2} fill="#FB7185" opacity={0.6} />
@@ -753,56 +854,18 @@ const DESIGNS: Record<string, { color: string; art: () => ReactElement }> = {
   ocho_peek: {
     color: '#A78BFA',
     art: () => (
-      <G strokeLinejoin="round" strokeLinecap="round">
-        <Band d="M38,40 C14,52 8,90 22,112 C30,124 40,118 36,108" color="#A78BFA" w={10} />
-        <Band d="M122,40 C146,52 152,90 138,112 C130,124 120,118 124,108" color="#A78BFA" w={10} />
-        <Path d="M30,44 C30,-4 130,-4 130,44 C116,36 44,36 30,44 Z" fill="#A78BFA" stroke={OUTLINE} strokeWidth={3} />
-        <Ellipse cx={58} cy={14} rx={8} ry={5} fill="#FFFFFF" opacity={0.45} rotation={-25} origin="58, 14" />
-        <Circle cx={66} cy={28} r={7.5} fill="#FFFFFF" stroke={OUTLINE} strokeWidth={2} />
-        <Circle cx={94} cy={28} r={7.5} fill="#FFFFFF" stroke={OUTLINE} strokeWidth={2} />
-        <Circle cx={67} cy={31} r={4} fill={OUTLINE} />
-        <Circle cx={95} cy={31} r={4} fill={OUTLINE} />
-        <Circle cx={68.5} cy={29} r={1.4} fill="#FFFFFF" />
-        <Circle cx={96.5} cy={29} r={1.4} fill="#FFFFFF" />
-        <G fill="#F5D0FE" stroke={OUTLINE} strokeWidth={1}>
-          <Circle cx={18} cy={86} r={2.4} />
-          <Circle cx={142} cy={86} r={2.4} />
-          <Circle cx={22} cy={104} r={2.4} />
-          <Circle cx={138} cy={104} r={2.4} />
-        </G>
-      </G>
-    ),
-  },
-  whale_tail: {
-    color: '#3B82F6',
-    art: () => (
-      <G strokeLinejoin="round" strokeLinecap="round">
-        <Path d="M0,136 Q20,128 40,136 T80,136 T120,136 T160,136 L160,160 L0,160 Z" fill="#7DD3FC" stroke={OUTLINE} strokeWidth={2.5} />
-        <Path d="M120,132 C120,110 124,92 132,78" fill="none" stroke={OUTLINE} strokeWidth={13} />
-        <Path d="M120,132 C120,110 124,92 132,78" fill="none" stroke="#3B82F6" strokeWidth={8} />
-        <Path d="M132,78 C120,70 104,72 98,62 C112,62 124,64 132,70 C138,62 148,56 160,58 C152,66 142,72 132,78 Z" fill="#3B82F6" stroke={OUTLINE} strokeWidth={2.5} />
-        <G fill="#FFFFFF" stroke="#7DD3FC" strokeWidth={1.5}>
-          <Circle cx={108} cy={50} r={3} />
-          <Circle cx={150} cy={44} r={2.5} />
-          <Circle cx={118} cy={40} r={2} />
-        </G>
-        <Path d="M20,146 Q30,142 40,146 M70,150 Q80,146 90,150" stroke="#FFFFFF" strokeWidth={2} fill="none" />
+      <G>
+        <OchoPeekBody />
+        <OchoPeekPupils />
       </G>
     ),
   },
   angler_glow: {
     color: '#0EA5E9',
     art: () => (
-      <G strokeLinejoin="round" strokeLinecap="round">
-        <Circle cx={30} cy={24} r={20} fill="#FEF9C3" opacity={0.35} />
-        <Path d="M120,118 C112,70 74,10 30,18" fill="none" stroke={OUTLINE} strokeWidth={5} />
-        <Path d="M120,118 C112,70 74,10 30,18" fill="none" stroke="#475569" strokeWidth={2.5} />
-        <Circle cx={30} cy={24} r={8} fill="#FDE047" stroke={OUTLINE} strokeWidth={2.5} />
-        <Circle cx={28} cy={22} r={3} fill="#FFFFFF" />
-        <Path d="M104,120 C110,100 152,98 160,124 C152,150 112,150 104,128 Z" fill="#334155" stroke={OUTLINE} strokeWidth={3} />
-        <Path d="M108,124 L116,120 L120,128 L126,121 L130,129 L136,122 L140,130" fill="none" stroke="#FFFFFF" strokeWidth={2} />
-        <Circle cx={134} cy={112} r={5} fill="#FDE047" stroke={OUTLINE} strokeWidth={1.8} />
-        <Circle cx={135} cy={113} r={2.2} fill={OUTLINE} />
+      <G>
+        <AnglerBody />
+        <AnglerLight />
       </G>
     ),
   },
@@ -848,25 +911,7 @@ const DESIGNS: Record<string, { color: string; art: () => ReactElement }> = {
   },
   royal: {
     color: '#EAB308',
-    art: () => (
-      <G strokeLinejoin="round" stroke={OUTLINE}>
-        <Path d="M48,34 L44,6 L62,20 L80,0 L98,20 L116,6 L112,34 Z" fill="#FACC15" strokeWidth={3} />
-        <Rect x={46} y={30} width={68} height={10} rx={3} fill="#EAB308" strokeWidth={3} />
-        <Gem x={80} y={18} s={0.9} color="#EF4444" />
-        <Circle cx={62} cy={26} r={3.5} fill="#38BDF8" strokeWidth={1.4} />
-        <Circle cx={98} cy={26} r={3.5} fill="#4ADE80" strokeWidth={1.4} />
-        {/* laurel branches curving up both sides */}
-        <Path d="M76,144 A64,64 0 0 1 17,92 M84,144 A64,64 0 0 0 143,92" fill="none" stroke="#A16207" strokeWidth={2.5} strokeLinecap="round" />
-        {[110, 125, 140, 155, 170].map((deg) => {
-          const p = around(deg, 62);
-          return <Leaf key={deg} x={p.x} y={p.y} r={9} rotate={deg + 120} color="#CA8A04" />;
-        })}
-        {[70, 55, 40, 25, 10].map((deg) => {
-          const p = around(deg, 62);
-          return <Leaf key={deg} x={p.x} y={p.y} r={9} rotate={deg + 60} color="#CA8A04" />;
-        })}
-      </G>
-    ),
+    art: () => <RoyalCrown />,
   },
   // two koi circling the photo, nose to tail
   koi: {
@@ -900,20 +945,142 @@ const DESIGNS: Record<string, { color: string; art: () => ReactElement }> = {
   jellyfish_crown: {
     color: '#C084FC',
     art: () => (
-      <G strokeLinejoin="round" strokeLinecap="round">
-        {/* tentacles drift down the sides, outside the photo */}
-        <Path d="M40,34 C22,54 22,84 12,116 M50,38 C32,62 32,92 26,128 M120,34 C138,54 138,84 148,116 M110,38 C128,62 128,92 134,128" fill="none" stroke={OUTLINE} strokeWidth={5} />
-        <Path d="M40,34 C22,54 22,84 12,116 M50,38 C32,62 32,92 26,128 M120,34 C138,54 138,84 148,116 M110,38 C128,62 128,92 134,128" fill="none" stroke="#F5D0FE" strokeWidth={2.6} />
-        <Ellipse cx={80} cy={14} rx={52} ry={20} fill="#F0ABFC" opacity={0.3} />
-        <Path d="M38,34 C38,-6 122,-6 122,34 Q114,40 106,34 Q98,40 90,34 Q82,40 74,34 Q66,40 58,34 Q50,40 38,34 Z" fill="#E879F9" stroke={OUTLINE} strokeWidth={3} />
-        <Path d="M54,16 Q66,4 82,4" fill="none" stroke="#FFFFFF" strokeWidth={3} opacity={0.7} />
-        <Circle cx={70} cy={22} r={3} fill={OUTLINE} />
-        <Circle cx={90} cy={22} r={3} fill={OUTLINE} />
-        <Path d="M76,28 Q80,31 84,28" fill="none" stroke={OUTLINE} strokeWidth={2} />
-        <Sparkle x={140} y={14} r={6} color="#F5D0FE" />
+      <G>
+        <JellyTentacles side="left" />
+        <JellyTentacles side="right" />
+        <JellyBell />
       </G>
     ),
   },
+};
+
+// --- the moving legendary frames -------------------------------------------
+
+// A clock that runs 0 to 1 over and over
+function useLoop(ms: number) {
+  const t = useSharedValue(0);
+  useEffect(() => {
+    t.value = withRepeat(withTiming(1, { duration: ms, easing: Easing.linear }), -1, false);
+    return () => cancelAnimation(t);
+  }, [t, ms]);
+  return t;
+}
+
+// One drawing on its own animated layer; origin is in the frame's 160 units
+function FrameLayer({ box, style, origin, children }: { box: number; style?: object; origin?: [number, number]; children: ReactElement }) {
+  const k = box / 160;
+  return (
+    <Reanimated.View style={[StyleSheet.absoluteFill, origin && { transformOrigin: [origin[0] * k, origin[1] * k, 0] }, style]}>
+      <Svg width={box} height={box} viewBox="0 0 160 160">
+        {children}
+      </Svg>
+    </Reanimated.View>
+  );
+}
+
+// Ocho glances left, back, right and back again
+function LiveOchoPeek({ box }: { box: number }) {
+  const t = useLoop(4200);
+  const k = box / 160;
+  const eyes = useAnimatedStyle(() => {
+    const p = t.value;
+    // an eased step from 0 to 1 between a and b
+    const ramp = (a: number, b: number) => {
+      const v = Math.max(0, Math.min(1, (p - a) / (b - a)));
+      return v * v * (3 - 2 * v);
+    };
+    // look left, back to the middle, look right, back again
+    const x = -ramp(0.2, 0.27) + ramp(0.45, 0.52) + ramp(0.6, 0.67) - ramp(0.85, 0.92);
+    return { transform: [{ translateX: x * 3 * k }] };
+  });
+  return (
+    <>
+      <FrameLayer box={box}>
+        <OchoPeekBody />
+      </FrameLayer>
+      <FrameLayer box={box} style={eyes}>
+        <OchoPeekPupils />
+      </FrameLayer>
+    </>
+  );
+}
+
+// The lure flickers like a failing bulb
+function LiveAnglerGlow({ box }: { box: number }) {
+  const t = useLoop(3000);
+  const light = useAnimatedStyle(() => {
+    const flick = 0.55 + 0.45 * Math.abs(Math.sin(t.value * Math.PI * 2 * 7));
+    const dip = Math.sin(t.value * Math.PI * 2 * 1.7) < -0.8 ? 0.25 : 1;
+    return { opacity: flick * dip };
+  });
+  return (
+    <>
+      <FrameLayer box={box}>
+        <AnglerBody />
+      </FrameLayer>
+      <FrameLayer box={box} style={light}>
+        <AnglerLight />
+      </FrameLayer>
+    </>
+  );
+}
+
+// Each jewel catches the light in turn
+function Glint({ box, t, i }: { box: number; t: SharedValue<number>; i: number }) {
+  const g = ROYAL_GLINTS[i];
+  const style = useAnimatedStyle(() => {
+    const p = (t.value * 3 - i) % 3;
+    const on = p > 0 && p < 0.6 ? Math.sin((p / 0.6) * Math.PI) : 0;
+    return { opacity: on, transform: [{ scale: 0.4 + 0.8 * on }, { rotate: `${on * 45}deg` }] };
+  });
+  return (
+    <FrameLayer box={box} style={style} origin={[g.x, g.y]}>
+      <Sparkle x={g.x} y={g.y} r={g.r} color="#FFFFFF" />
+    </FrameLayer>
+  );
+}
+
+function LiveRoyal({ box }: { box: number }) {
+  const t = useLoop(3600);
+  return (
+    <>
+      <FrameLayer box={box}>
+        <RoyalCrown />
+      </FrameLayer>
+      {ROYAL_GLINTS.map((_, i) => (
+        <Glint key={i} box={box} t={t} i={i} />
+      ))}
+    </>
+  );
+}
+
+// The tentacles drift back and forth under the bell
+function LiveJellyCrown({ box }: { box: number }) {
+  const t = useLoop(2800);
+  const left = useAnimatedStyle(() => ({ transform: [{ rotate: `${Math.sin(t.value * Math.PI * 2) * 4}deg` }] }));
+  const right = useAnimatedStyle(() => ({ transform: [{ rotate: `${Math.sin(t.value * Math.PI * 2 + 1.4) * -4}deg` }] }));
+  return (
+    <>
+      <FrameLayer box={box} style={left} origin={[45, 36]}>
+        <JellyTentacles side="left" />
+      </FrameLayer>
+      <FrameLayer box={box} style={right} origin={[115, 36]}>
+        <JellyTentacles side="right" />
+      </FrameLayer>
+      <FrameLayer box={box}>
+        <JellyBell />
+      </FrameLayer>
+    </>
+  );
+}
+
+// Frames that move on profile-sized avatars
+const LIVE: Record<string, (props: { box: number }) => ReactElement> = {
+  cat_purr: PurringCat,
+  ocho_peek: LiveOchoPeek,
+  angler_glow: LiveAnglerGlow,
+  royal: LiveRoyal,
+  jellyfish_crown: LiveJellyCrown,
 };
 
 export const FRAME_DESIGNS = Object.keys(DESIGNS);
@@ -921,7 +1088,8 @@ export const FRAME_DESIGNS = Object.keys(DESIGNS);
 // The color of the ring around the avatar (plain frames are just a color)
 export function frameColor(value: string | null | undefined) {
   if (!value) return '#7c3aed';
-  return DESIGNS[value]?.color ?? value;
+  // a plain color, or a design; anything else (a retired design) gets the default
+  return DESIGNS[value]?.color ?? (value.startsWith('#') ? value : '#7c3aed');
 }
 
 // Draws a designed frame's decoration over an avatar of the given size.
@@ -933,14 +1101,16 @@ export default function FrameDecoration({ value, size }: { value: string | null 
   const design = value ? DESIGNS[value] : undefined;
   if (!design) return null;
   const box = size * 1.6; // the 160-unit box, where the avatar is 100 units wide
-  // the cat purrs on profile-sized avatars (small swatches stay still)
-  const purring = value === 'cat_purr' && size >= 60 && focused && settings.animations && !reduceMotion;
+  // legendary frames move on profile-sized avatars (small swatches stay still)
+  const Live = value && size >= 60 && focused && settings.animations && !reduceMotion ? LIVE[value] : undefined;
   return (
     <View pointerEvents="none" style={[styles.overlay, { width: box, height: box, left: (size - box) / 2, top: (size - box) / 2 }]}>
-      {purring ? (
-        <PurringCat box={box} />
+      {Live ? (
+        <Live key={value} box={box} />
       ) : (
-        <Svg width={box} height={box} viewBox="0 0 160 160">
+        // keyed by design so switching frames redraws from scratch (a tilted
+        // design's rotation would otherwise stick to the next one)
+        <Svg key={value} width={box} height={box} viewBox="0 0 160 160">
           {design.art()}
         </Svg>
       )}

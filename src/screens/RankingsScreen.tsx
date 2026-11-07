@@ -3,6 +3,7 @@ import { View, FlatList, StyleSheet, Pressable, Image, RefreshControl } from 're
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useTapTabToTop } from '../lib/useTapTabToTop';
 import { supabase } from '../lib/supabase';
 import { ensureCurrentTheme, themePhase, votingOpensAt } from '../lib/themes';
 import { VoteCategory, loadVoteCategories } from '../lib/voting';
@@ -151,6 +152,9 @@ export default function RankingsScreen() {
   // up without pulling to refresh) or the feed changes. Only the first load
   // of each feed shows the spinner.
   const loadedFeedRef = useRef<Feed | null>(null);
+  // tap Rankings again to jump back to the top
+  const listRef = useRef<FlatList>(null);
+  useTapTabToTop(() => listRef.current?.scrollToOffset({ offset: 0, animated: true }));
   useFocusEffect(
     useCallback(() => {
       const firstLoad = loadedFeedRef.current !== feed;
@@ -274,6 +278,7 @@ export default function RankingsScreen() {
           </View>
         ) : (
           <FlatList
+            ref={listRef}
             data={rankings}
             contentContainerStyle={{ paddingTop: WAVE_HEIGHT + 4, paddingBottom: TAB_BAR_CLEARANCE }}
             keyExtractor={(item) => item.id}

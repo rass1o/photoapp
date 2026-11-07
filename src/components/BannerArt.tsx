@@ -2,7 +2,7 @@ import { ReactElement } from 'react';
 import { StyleSheet } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import AnimatedBanner, { ANIMATED_BANNERS } from './AnimatedBanner';
-import { CAT, FIRE, HAMMOCK } from './bannerShapes';
+import { CAT } from './bannerShapes';
 import { useScreenFocused } from '../lib/useScreenFocused';
 import { useSettings } from '../context/SettingsContext';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
@@ -34,16 +34,6 @@ function Cloud({ x, y, s = 1, opacity = 0.9 }: { x: number; y: number; s?: numbe
       opacity={opacity}
       transform={`translate(${x},${y}) scale(${s})`}
     />
-  );
-}
-
-function Seahorse({ x, y, s, flip = false, color = '#FB923C' }: { x: number; y: number; s: number; flip?: boolean; color?: string }) {
-  return (
-    <G transform={`translate(${x},${y}) scale(${flip ? -s : s},${s})`}>
-      <Path d="M0,-18 C8,-24 18,-20 16,-12 L28,-12 L28,-8 L14,-6 C10,0 10,6 8,12 C6,20 -2,22 -4,30 C-6,38 2,40 2,34" fill="none" stroke={color} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" />
-      <Path d="M-2,-14 C-8,-6 -8,6 -4,14 L-10,8 C-12,0 -10,-8 -2,-14 Z" fill="#FDE68A" opacity={0.8} />
-      <Circle cx={6} cy={-15} r={1.8} fill="#14507A" />
-    </G>
   );
 }
 
@@ -80,36 +70,17 @@ function Star({ x, y, r = 2, opacity = 0.9 }: { x: number; y: number; r?: number
 }
 
 
+// Merlin: a black cat in a pink collar, lying on his side
 function CatLoaf({ x, y }: { x: number; y: number }) {
   return (
     <G transform={`translate(${x},${y})`}>
-      <Path d={CAT.tail} stroke="#F59E0B" strokeWidth={6} fill="none" strokeLinecap="round" />
-      <Path d={CAT.body} fill="#F59E0B" />
-      <Path d={CAT.ears} fill="#F59E0B" />
-      <Path d={CAT.head} fill="#F59E0B" />
-      <Path d={CAT.sleepy} stroke="#7C2D12" strokeWidth={1.6} fill="none" strokeLinecap="round" />
-      <Path d="M20,-18 L24,-10 M32,-20 L34,-12 M44,-20 L44,-12" stroke="#D97706" strokeWidth={2} strokeLinecap="round" />
-    </G>
-  );
-}
-
-function Hammock({ sway }: { sway: number }) {
-  return (
-    <G rotation={sway} origin="96, 178">
-      <Path d={HAMMOCK.ropes} stroke="#7C4A21" strokeWidth={2} />
-      <Path d={HAMMOCK.cloth} fill="#F472B6" />
-      <Path d={HAMMOCK.stripes} stroke="#FDE68A" strokeWidth={2.5} fill="none" />
-    </G>
-  );
-}
-
-function Campfire({ flicker }: { flicker: number }) {
-  return (
-    <G>
-      <Circle cx={300} cy={214} r={24 + flicker * 4} fill="#FDBA74" opacity={0.3} />
-      <Path d={FIRE.logs} stroke="#7C4A21" strokeWidth={6} strokeLinecap="round" />
-      <Path d={FIRE.outer} fill="#F97316" />
-      <Path d={FIRE.inner} fill="#FDE047" />
+      <Path d={CAT.tail} stroke="#2A2533" strokeWidth={6} fill="none" strokeLinecap="round" />
+      <Path d={CAT.body} fill="#2A2533" />
+      <Path d={CAT.ears} fill="#2A2533" />
+      <Path d={CAT.head} fill="#2A2533" />
+      <Path d={CAT.sleepy} stroke="#C6E35B" strokeWidth={1.6} fill="none" strokeLinecap="round" />
+      <Path d={CAT.collar} stroke="#F472B6" strokeWidth={3.5} fill="none" strokeLinecap="round" />
+      <Circle cx={CAT.bell.x} cy={CAT.bell.y} r={CAT.bell.r} fill="#FACC15" />
     </G>
   );
 }
@@ -174,23 +145,6 @@ const SCENES: Record<string, Scene> = {
           <Path d="M290,96 C298,88 314,88 320,96 C314,104 298,104 290,96 Z M320,96 L328,90 L328,102 Z" fill="#F59E0B" />
           <Path d="M70,70 C76,64 88,64 92,70 C88,76 76,76 70,70 Z M92,70 L98,66 L98,74 Z" fill="#38BDF8" />
         </G>
-      </G>
-    ),
-  },
-  whale: {
-    color: '#B8DDF0',
-    top: '#E2F2FA',
-    art: () => (
-      <G>
-        <G opacity={0.28} fill="#14507A">
-          <Path d="M10,190 C30,150 120,140 170,170 C190,182 200,196 186,204 C150,220 40,222 10,190 Z" />
-          <Path d="M168,172 C180,150 200,146 214,152 C200,160 192,172 186,184 Z" />
-        </G>
-        <G opacity={0.5} fill="#FFFFFF">
-          <Path d="M120,140 C118,126 110,118 104,114 M120,140 C122,126 130,118 136,114" stroke="#FFFFFF" strokeWidth={4} fill="none" strokeLinecap="round" />
-        </G>
-        <Circle cx={60} cy={180} r={3} fill="#FFFFFF" opacity={0.6} />
-        <Path d="M300,60 Q312,52 324,60 M330,48 Q340,42 350,48" stroke="#FFFFFF" strokeWidth={3} fill="none" opacity={0.7} />
       </G>
     ),
   },
@@ -382,25 +336,6 @@ const SCENES: Record<string, Scene> = {
   },
 
   // --- rare -----------------------------------------------------------------
-  seahorses: {
-    color: '#AEDFE6',
-    top: '#E2F5F7',
-    art: () => (
-      <G>
-        <Path d="M50,0 L100,0 L40,260 L10,260 Z" fill="#FFFFFF" opacity={0.15} />
-        <Seahorse x={40} y={90} s={1.2} />
-        <Seahorse x={78} y={140} s={0.9} color="#F472B6" />
-        <Seahorse x={30} y={190} s={0.8} color="#FACC15" />
-        <Seahorse x={350} y={80} s={1.1} flip color="#C084FC" />
-        <Seahorse x={320} y={150} s={0.85} flip />
-        <Seahorse x={370} y={200} s={0.95} flip color="#34D399" />
-        <G fill="#FFFFFF" opacity={0.6}>
-          <Circle cx={120} cy={60} r={3} />
-          <Circle cx={280} cy={210} r={4} />
-        </G>
-      </G>
-    ),
-  },
   penguins: {
     color: '#C6E3F2',
     top: '#EDF6FB',
@@ -540,28 +475,6 @@ const SCENES: Record<string, Scene> = {
       </G>
     ),
   },
-  dolphins: {
-    color: '#9CD3EC',
-    top: '#DDF0F9',
-    art: () => (
-      <G>
-        <Circle cx={60} cy={60} r={22} fill="#FDE68A" opacity={0.9} />
-        <Path d={wavePath(190, 6, 100)} fill="#6BB7DA" />
-        {[
-          { x: 280, y: 160, r: -28, s: 1 },
-          { x: 360, y: 110, r: 24, s: 0.75 },
-        ].map((d, i) => (
-          <G key={i} transform={`translate(${d.x},${d.y}) rotate(${d.r}) scale(${d.s})`}>
-            <Path d="M-40,10 C-20,-14 20,-16 40,0 L52,-4 L46,6 C30,18 -10,22 -40,10 Z" fill="#5B7FA6" />
-            <Path d="M0,-12 L6,-24 L10,-10 Z M-40,10 L-52,0 L-48,14 L-54,24 Z" fill="#5B7FA6" />
-            <Path d="M-30,10 C-10,16 20,12 40,2" stroke="#DCE8F3" strokeWidth={3} fill="none" />
-            <Circle cx={32} cy={-4} r={1.6} fill="#1F2937" />
-          </G>
-        ))}
-        <Path d="M280,186 Q290,170 300,186 M340,186 Q350,174 360,186" stroke="#FFFFFF" strokeWidth={3} fill="none" opacity={0.7} />
-      </G>
-    ),
-  },
   volcano: {
     color: '#F2B6A0',
     top: '#FCE1D6',
@@ -597,22 +510,6 @@ const SCENES: Record<string, Scene> = {
         </G>
         <Path d="M0,230 Q100,218 200,230 T400,230 L400,260 L0,260 Z" fill="#E9D3A4" />
         <Path d="M30,232 L30,204 M30,216 L20,206 M60,232 C56,218 66,210 62,198" stroke="#FB7185" strokeWidth={5} fill="none" strokeLinecap="round" />
-      </G>
-    ),
-  },
-  orca: {
-    color: '#9FC6DE',
-    top: '#DCEBF5',
-    art: () => (
-      <G>
-        <Path d={wavePath(176, 5, 100)} fill="#7FB0CF" />
-        <G transform="translate(300,170) rotate(-14)">
-          <Path d="M-50,10 C-30,-20 30,-22 56,-2 L68,-8 L62,6 C40,24 -10,28 -50,10 Z" fill="#1F2937" />
-          <Path d="M2,-16 L10,-42 L18,-14 Z" fill="#1F2937" />
-          <Path d="M-30,12 C-10,18 20,14 44,6 C30,4 0,8 -30,12 Z" fill="#FFFFFF" />
-          <Ellipse cx={38} cy={-6} rx={7} ry={3.5} fill="#FFFFFF" />
-        </G>
-        <Path d="M30,200 Q50,194 70,200 M110,214 Q130,208 150,214" stroke="#FFFFFF" strokeWidth={3} fill="none" opacity={0.6} />
       </G>
     ),
   },
@@ -676,22 +573,6 @@ const SCENES: Record<string, Scene> = {
           <Circle cx={320} cy={70} r={3} />
           <Circle cx={326} cy={58} r={2} />
         </G>
-      </G>
-    ),
-  },
-  island_camp: {
-    color: '#F6C59E',
-    top: '#FBE3CC',
-    art: () => (
-      <G>
-        <Circle cx={200} cy={186} r={34} fill="#FDBA74" opacity={0.6} />
-        <Path d="M0,190 Q100,182 200,190 T400,190 L400,260 L0,260 Z" fill="#7CBFD0" />
-        <Path d="M0,206 C80,190 150,196 180,216 L180,260 L0,260 Z" fill="#F2D59A" />
-        <Path d="M400,210 C330,194 270,200 240,220 L240,260 L400,260 Z" fill="#F2D59A" />
-        <Palm x={30} y={212} s={1} lean={8} />
-        <Palm x={146} y={220} s={0.95} lean={-8} />
-        <Hammock sway={0} />
-        <Campfire flicker={0} />
       </G>
     ),
   },
@@ -770,7 +651,8 @@ export const ON_DARK = {
 // The banner's main color: the header background and the wave below it
 export function bannerColor(value: string | null | undefined) {
   if (!value) return '#D9E2E6';
-  return SCENES[value]?.color ?? value;
+  // a plain color, or a scene; anything else (a retired scene) gets the default
+  return SCENES[value]?.color ?? (value.startsWith('#') ? value : '#D9E2E6');
 }
 
 // The scene behind a profile header (fills its parent; bleedTop extends it up
@@ -796,6 +678,7 @@ export default function BannerArt({
   }
   return (
     <Svg
+      key={value}
       style={[StyleSheet.absoluteFill, { top: -bleedTop }]}
       pointerEvents="none"
       viewBox={`0 0 ${W} ${H}`}

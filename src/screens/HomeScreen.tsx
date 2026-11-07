@@ -45,6 +45,7 @@ import SandGrain from '../components/SandGrain';
 import Wordmark from '../components/Wordmark';
 import ShareCardModal from '../components/ShareCardModal';
 import OchoLoader from '../components/OchoLoader';
+import { useTapTabToTop } from '../lib/useTapTabToTop';
 import OchoIcon from '../components/OchoIcon';
 import Stamp from '../components/Stamp';
 import FilmFrame from '../components/FilmFrame';
@@ -228,6 +229,9 @@ export default function HomeScreen() {
     listRef.current?.scrollToOffset({ offset: 0, animated: true });
     setHeaderOpen(true);
   };
+
+  // Tapping the Home tab while you're already here takes you back to the top
+  useTapTabToTop(scrollToTop);
 
   // Daily freelance photos strip (BeReal-style, no theme, just today's posts)
   const [dailyPhotos, setDailyPhotos] = useState<

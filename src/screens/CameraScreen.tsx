@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { ComponentRef, useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Pressable,
@@ -23,6 +23,7 @@ import { readImage } from '../lib/upload';
 import { localDateString } from '../lib/date';
 import { useAuth } from '../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
+import { useTapTabToTop } from '../lib/useTapTabToTop';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SectionHeader from '../components/SectionHeader';
 import SandGrain from '../components/SandGrain';
@@ -54,6 +55,9 @@ const CHEAT_SHEET_ROWS = [
 ];
 
 export default function CameraScreen() {
+  // tap Submit again to jump back to the top
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
+  useTapTabToTop(() => scrollRef.current?.scrollTo({ y: 0, animated: true }));
   const { user } = useAuth();
 
   // Weekly (main) submission state
@@ -403,6 +407,7 @@ export default function CameraScreen() {
       <SandGrain />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"

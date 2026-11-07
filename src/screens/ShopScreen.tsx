@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { ComponentRef, useCallback, useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Pressable, ScrollView, Image, ActivityIndicator, Alert, LayoutAnimation } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,6 +6,7 @@ import FrameDecoration, { frameColor } from '../components/AvatarFrame';
 import BannerArt, { ON_DARK, bannerColor, bannerIsDark } from '../components/BannerArt';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useTapTabToTop } from '../lib/useTapTabToTop';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -56,6 +57,9 @@ const STATUS_STYLES: Record<Suggestion['status'], { bg: string; fg: string; labe
 const CLOSED_SECTIONS_KEY = 'shopClosedSections';
 
 export default function ShopScreen() {
+  // tap Shop again to jump back to the top
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
+  useTapTabToTop(() => scrollRef.current?.scrollTo({ y: 0, animated: true }));
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -289,6 +293,7 @@ export default function ShopScreen() {
         <SandGrain />
         <Wave water={bannerColor(shown.banner)} />
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={{ paddingTop: WAVE_HEIGHT + 2, paddingBottom: TAB_BAR_CLEARANCE }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"

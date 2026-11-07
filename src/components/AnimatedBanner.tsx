@@ -10,7 +10,7 @@ import {
   vec,
 } from '@shopify/react-native-skia';
 import { Easing, cancelAnimation, useDerivedValue, useSharedValue, withRepeat, withTiming, type SharedValue } from 'react-native-reanimated';
-import { CAT, FIRE, HAMMOCK } from './bannerShapes';
+import { CAT } from './bannerShapes';
 
 // Legendary banners that move: drawn with Skia and driven by one looping
 // clock, so the whole scene costs a single canvas. Same 400x260 scene and
@@ -20,7 +20,7 @@ const W = 400;
 const H = 260;
 const LOOP_MS = 12000;
 
-export const ANIMATED_BANNERS = ['sunset_sail', 'jellyfish', 'angler', 'cat_fish', 'island_camp', 'glow_bay', 'koi_pond', 'starfall'];
+export const ANIMATED_BANNERS = ['sunset_sail', 'jellyfish', 'angler', 'cat_fish', 'glow_bay', 'koi_pond', 'starfall'];
 
 // A wave band: its top edge ripples, and it's drawn two periods wide so it
 // can slide sideways and loop without a seam
@@ -230,73 +230,25 @@ function CatFish({ t }: { t: SharedValue<number> }) {
       <Sky top="#E8F1F7" bottom="#C7DDEA" />
       <SkRect x={0} y={226} width={W} height={H - 226} color="#E9D3A4" />
       <SkGroup transform={[{ translateX: CAT_AT.x }, { translateY: CAT_AT.y }]}>
-        <SkPath path={CAT.tail} style="stroke" strokeWidth={6} strokeCap="round" color="#F59E0B" />
-        <SkPath path={CAT.body} color="#F59E0B" />
-        <SkPath path="M20,-18 L24,-10 M32,-20 L34,-12 M44,-20 L44,-12" style="stroke" strokeWidth={2} strokeCap="round" color="#D97706" />
+        <SkPath path={CAT.tail} style="stroke" strokeWidth={6} strokeCap="round" color="#2A2533" />
+        <SkPath path={CAT.body} color="#2A2533" />
         <SkGroup transform={head} origin={vec(66, -6)}>
-          <SkPath path={CAT.ears} color="#F59E0B" />
-          <SkPath path={CAT.head} color="#F59E0B" />
-          <SkPath path={CAT.sleepy} style="stroke" strokeWidth={1.6} strokeCap="round" color="#7C2D12" opacity={asleep} />
+          <SkPath path={CAT.ears} color="#2A2533" />
+          <SkPath path={CAT.head} color="#2A2533" />
+          <SkPath path={CAT.sleepy} style="stroke" strokeWidth={1.6} strokeCap="round" color="#C6E35B" opacity={asleep} />
           <SkGroup opacity={lift}>
-            <SkCircle cx={75} cy={-14} r={2.6} color="#7C2D12" />
-            <SkCircle cx={85} cy={-14} r={2.6} color="#7C2D12" />
+            <SkCircle cx={75} cy={-14} r={2.6} color="#C6E35B" />
+            <SkCircle cx={85} cy={-14} r={2.6} color="#C6E35B" />
+            <SkCircle cx={75} cy={-14} r={1.1} color="#111111" />
+            <SkCircle cx={85} cy={-14} r={1.1} color="#111111" />
           </SkGroup>
         </SkGroup>
+        <SkPath path={CAT.collar} style="stroke" strokeWidth={3.5} strokeCap="round" color="#F472B6" />
+        <SkCircle cx={CAT.bell.x} cy={CAT.bell.y} r={CAT.bell.r} color="#FACC15" />
       </SkGroup>
       <SkGroup transform={fish}>
         <SkPath path={FISH} color="#F97316" />
         <SkCircle cx={7} cy={-2} r={1.4} color="#1F2937" />
-      </SkGroup>
-    </SkGroup>
-  );
-}
-
-// --- island camp: a hammock swaying and a campfire ---------------------------
-
-const PALM_LEAVES =
-  'M14,-74 C-2,-86 -18,-82 -26,-72 C-12,-78 2,-76 14,-74 Z M14,-74 C22,-90 38,-92 48,-86 C34,-86 24,-82 14,-74 Z M14,-74 C6,-92 10,-104 18,-110 C16,-96 16,-86 14,-74 Z M14,-74 C30,-78 42,-70 46,-60 C34,-68 24,-72 14,-74 Z M14,-74 C0,-68 -6,-58 -6,-50 C2,-60 8,-68 14,-74 Z';
-
-function SkPalm({ x, y, s, lean, t }: { x: number; y: number; s: number; lean: number; t: SharedValue<number> }) {
-  const leaves = useDerivedValue(() => [{ rotate: Math.sin(t.value * TAU * 3 + x) * 0.05 }]);
-  return (
-    <SkGroup transform={[{ translateX: x }, { translateY: y }, { scale: s }, { rotate: (lean * Math.PI) / 180 }]}>
-      <SkPath path="M0,0 C-2,-30 4,-56 14,-74" style="stroke" strokeWidth={6} strokeCap="round" color="#8B5A3C" />
-      <SkGroup transform={leaves} origin={vec(14, -74)}>
-        <SkPath path={PALM_LEAVES} color="#3FA796" />
-      </SkGroup>
-    </SkGroup>
-  );
-}
-
-function IslandCamp({ t }: { t: SharedValue<number> }) {
-  const sway = useDerivedValue(() => [{ rotate: Math.sin(t.value * TAU * 3) * 0.07 }]);
-  const flame = useDerivedValue(() => {
-    const f = Math.sin(t.value * TAU * 14) * 0.5 + Math.sin(t.value * TAU * 23) * 0.5;
-    return [{ scaleY: 1 + 0.14 * f }, { scaleX: 1 - 0.06 * f }];
-  });
-  const glow = useDerivedValue(() => 24 + 4 * Math.abs(Math.sin(t.value * TAU * 11)));
-  const water = useDerivedValue(() => [{ translateX: -((t.value * 3) % 1) * 100 }]);
-  return (
-    <SkGroup>
-      <Sky top="#FBE3CC" bottom="#F6C59E" />
-      <SkCircle cx={200} cy={186} r={34} color="#FDBA74" opacity={0.6} />
-      <SkGroup transform={water}>
-        <SkPath path={waveBand(190, 4, 100)} color="#7CBFD0" />
-      </SkGroup>
-      <SkPath path="M0,206 C80,190 150,196 180,216 L180,260 L0,260 Z" color="#F2D59A" />
-      <SkPath path="M400,210 C330,194 270,200 240,220 L240,260 L400,260 Z" color="#F2D59A" />
-      <SkPalm x={30} y={212} s={1} lean={8} t={t} />
-      <SkPalm x={146} y={220} s={0.95} lean={-8} t={t} />
-      <SkGroup transform={sway} origin={vec(96, 178)}>
-        <SkPath path={HAMMOCK.ropes} style="stroke" strokeWidth={2} color="#7C4A21" />
-        <SkPath path={HAMMOCK.cloth} color="#F472B6" />
-        <SkPath path={HAMMOCK.stripes} style="stroke" strokeWidth={2.5} color="#FDE68A" />
-      </SkGroup>
-      <SkCircle cx={300} cy={214} r={glow} color="#FDBA74" opacity={0.3} />
-      <SkPath path={FIRE.logs} style="stroke" strokeWidth={6} strokeCap="round" color="#7C4A21" />
-      <SkGroup transform={flame} origin={vec(300, 224)}>
-        <SkPath path={FIRE.outer} color="#F97316" />
-        <SkPath path={FIRE.inner} color="#FDE047" />
       </SkGroup>
     </SkGroup>
   );
@@ -404,7 +356,6 @@ const SCENES: Record<string, (props: { t: SharedValue<number> }) => ReactElement
   jellyfish: Jellyfish,
   angler: Angler,
   cat_fish: CatFish,
-  island_camp: IslandCamp,
   glow_bay: GlowBay,
   koi_pond: KoiPond,
   starfall: Starfall,

@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useTapTabToTop } from '../lib/useTapTabToTop';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { readImage } from '../lib/upload';
@@ -229,6 +230,9 @@ export default function ProfileScreen() {
   // Reload on focus so purchases from the Shop tab and new balances show up.
   // Only the first load shows the full-screen spinner.
   const hasLoadedRef = useRef(false);
+  // tap Profile again to jump back to the top
+  const listRef = useRef<FlatList>(null);
+  useTapTabToTop(() => listRef.current?.scrollToOffset({ offset: 0, animated: true }));
   useFocusEffect(
     useCallback(() => {
       if (!hasLoadedRef.current) setIsLoading(true);
@@ -482,6 +486,7 @@ export default function ProfileScreen() {
         <SandGrain />
         <Wave water={bannerColor(profile.banner_color)} />
         <FlatList
+          ref={listRef}
           data={isOpen('gallery') ? gallery.slice(0, GALLERY_PREVIEW) : []}
           keyExtractor={(g) => g.id}
           numColumns={3}
