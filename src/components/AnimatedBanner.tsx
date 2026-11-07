@@ -10,7 +10,7 @@ import {
   vec,
 } from '@shopify/react-native-skia';
 import { Easing, cancelAnimation, useDerivedValue, useSharedValue, withRepeat, withTiming, type SharedValue } from 'react-native-reanimated';
-import { CAT } from './bannerShapes';
+import { CAT, KOI_POND, koiPose } from './bannerShapes';
 
 // Legendary banners that move: drawn with Skia and driven by one looping
 // clock, so the whole scene costs a single canvas. Same 400x260 scene and
@@ -212,7 +212,7 @@ function Angler({ t }: { t: SharedValue<number> }) {
 
 // --- a cat watching a fish swim round ---------------------------------------
 
-const CAT_AT = { x: 34, y: 214 };
+const CAT_AT = { x: 34, y: 230 };
 
 function CatFish({ t }: { t: SharedValue<number> }) {
   const fishAngle = useDerivedValue(() => t.value * TAU * 2);
@@ -235,6 +235,9 @@ function CatFish({ t }: { t: SharedValue<number> }) {
         <SkGroup transform={head} origin={vec(66, -6)}>
           <SkPath path={CAT.ears} color="#2A2533" />
           <SkPath path={CAT.head} color="#2A2533" />
+          <SkPath path={CAT.innerEars} color="#F9A8D4" />
+          <SkPath path={CAT.nose} color="#F9A8D4" />
+          <SkPath path={CAT.whiskers} style="stroke" strokeWidth={0.8} strokeCap="round" color="#E5E7EB" />
           <SkPath path={CAT.sleepy} style="stroke" strokeWidth={1.6} strokeCap="round" color="#C6E35B" opacity={asleep} />
           <SkGroup opacity={lift}>
             <SkCircle cx={75} cy={-14} r={2.6} color="#C6E35B" />
@@ -287,10 +290,8 @@ const KOI_SPOT = 'M-4,-6 C0,-8 6,-6 6,-2 C2,-2 -2,-3 -4,-6 Z';
 
 function Koi({ t, phase, body, spot }: { t: SharedValue<number>; phase: number; body: string; spot: string }) {
   const move = useDerivedValue(() => {
-    const a = t.value * TAU * 1.5 + phase;
-    // heading along the oval, so it always swims nose first
-    const heading = Math.atan2(70 * Math.cos(a), -160 * Math.sin(a));
-    return [{ translateX: 200 + 160 * Math.cos(a) }, { translateY: 130 + 70 * Math.sin(a) }, { rotate: heading }];
+    const pose = koiPose(t.value * TAU * 1.5 + phase);
+    return [{ translateX: pose.x }, { translateY: pose.y }, { rotate: pose.heading }];
   });
   return (
     <SkGroup transform={move}>
@@ -306,8 +307,8 @@ function KoiPond({ t }: { t: SharedValue<number> }) {
       <Sky top="#D8F0EA" bottom="#9FD6C8" />
       <SkPath path="M10,40 C10,18 50,18 50,40 C50,62 10,62 10,40 Z M340,200 C340,178 380,178 380,200 C380,222 340,222 340,200 Z M360,40 C360,26 384,26 384,40 C384,54 360,54 360,40 Z" color="#3FB585" opacity={0.85} />
       <SkCircle cx={360} cy={196} r={6} color="#F9A8D4" />
-      <Koi t={t} phase={0} body="#FB923C" spot="#FFFFFF" />
-      <Koi t={t} phase={Math.PI} body="#FFFFFF" spot="#F97316" />
+      <Koi t={t} phase={KOI_POND.orange} body="#FB923C" spot="#FFFFFF" />
+      <Koi t={t} phase={KOI_POND.white} body="#FFFFFF" spot="#F97316" />
     </SkGroup>
   );
 }

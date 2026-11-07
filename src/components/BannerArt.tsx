@@ -2,7 +2,7 @@ import { ReactElement } from 'react';
 import { StyleSheet } from 'react-native';
 import { useReducedMotion } from 'react-native-reanimated';
 import AnimatedBanner, { ANIMATED_BANNERS } from './AnimatedBanner';
-import { CAT } from './bannerShapes';
+import { CAT, KOI_POND, koiPose } from './bannerShapes';
 import { useScreenFocused } from '../lib/useScreenFocused';
 import { useSettings } from '../context/SettingsContext';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
@@ -78,7 +78,10 @@ function CatLoaf({ x, y }: { x: number; y: number }) {
       <Path d={CAT.body} fill="#2A2533" />
       <Path d={CAT.ears} fill="#2A2533" />
       <Path d={CAT.head} fill="#2A2533" />
+      <Path d={CAT.innerEars} fill="#F9A8D4" />
       <Path d={CAT.sleepy} stroke="#C6E35B" strokeWidth={1.6} fill="none" strokeLinecap="round" />
+      <Path d={CAT.nose} fill="#F9A8D4" />
+      <Path d={CAT.whiskers} stroke="#E5E7EB" strokeWidth={0.8} strokeLinecap="round" />
       <Path d={CAT.collar} stroke="#F472B6" strokeWidth={3.5} fill="none" strokeLinecap="round" />
       <Circle cx={CAT.bell.x} cy={CAT.bell.y} r={CAT.bell.r} fill="#FACC15" />
     </G>
@@ -563,8 +566,8 @@ const SCENES: Record<string, Scene> = {
     top: '#E8F1F7',
     art: () => (
       <G>
-        <CatLoaf x={34} y={214} />
         <Path d="M0,226 L400,226 L400,260 L0,260 Z" fill="#E9D3A4" />
+        <CatLoaf x={34} y={230} />
         <G transform="translate(300,90)">
           <Path d="M-14,0 C-6,-9 8,-9 14,0 C8,9 -6,9 -14,0 Z M-14,0 L-22,-7 L-22,7 Z" fill="#F97316" />
           <Circle cx={8} cy={-2} r={1.6} fill="#1F2937" />
@@ -606,14 +609,18 @@ const SCENES: Record<string, Scene> = {
         </G>
         <Path d="M30,40 L50,32 L50,48 Z" fill="#9FD6C8" />
         <Circle cx={360} cy={196} r={6} fill="#F9A8D4" />
-        <G transform="translate(80,180) rotate(-20)">
-          <Path d="M-18,0 C-10,-10 10,-10 20,0 C10,10 -10,10 -18,0 Z M-16,0 L-28,-8 L-25,0 L-28,8 Z" fill="#FB923C" />
-          <Path d="M-4,-6 C0,-8 6,-6 6,-2 C2,-2 -2,-3 -4,-6 Z" fill="#FFFFFF" />
-        </G>
-        <G transform="translate(320,90) rotate(160)">
-          <Path d="M-18,0 C-10,-10 10,-10 20,0 C10,10 -10,10 -18,0 Z M-16,0 L-28,-8 L-25,0 L-28,8 Z" fill="#FFFFFF" />
-          <Path d="M-4,-6 C0,-8 6,-6 6,-2 C2,-2 -2,-3 -4,-6 Z" fill="#F97316" />
-        </G>
+        {[
+          { a: KOI_POND.orange, body: '#FB923C', spot: '#FFFFFF' },
+          { a: KOI_POND.white, body: '#FFFFFF', spot: '#F97316' },
+        ].map(({ a, body, spot }) => {
+          const p = koiPose(a);
+          return (
+            <G key={body} transform={`translate(${p.x},${p.y}) rotate(${(p.heading * 180) / Math.PI})`}>
+              <Path d="M-18,0 C-10,-10 10,-10 20,0 C10,10 -10,10 -18,0 Z M-16,0 L-28,-8 L-25,0 L-28,8 Z" fill={body} />
+              <Path d="M-4,-6 C0,-8 6,-6 6,-2 C2,-2 -2,-3 -4,-6 Z" fill={spot} />
+            </G>
+          );
+        })}
       </G>
     ),
   },
