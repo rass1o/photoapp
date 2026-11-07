@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { View, StyleSheet, Pressable, ScrollView, Image, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import FrameDecoration, { frameColor } from '../components/AvatarFrame';
-import BannerArt, { bannerColor } from '../components/BannerArt';
+import BannerArt, { ON_DARK, bannerColor, bannerIsDark } from '../components/BannerArt';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { ProfileCategory, ShopItem, PROFILE_COLUMN, isOwned, loadShop, confirmPurchase } from '../lib/shop';
 import { OctopusData } from '../lib/octopus';
-import { Duplicate, Rarity, loadDuplicates, loadRarities, openBlindBox, sellDuplicate, tierOdds } from '../lib/blindBox';
+import { Duplicate, Rarity, clamName, loadDuplicates, loadRarities, openBlindBox, sellDuplicate, tierOdds } from '../lib/blindBox';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import SectionHeader from '../components/SectionHeader';
 import ShopTile, { TileStatus } from '../components/ShopTile';
@@ -231,7 +231,7 @@ export default function ShopScreen() {
       <View>
         <BannerArt value={shown.banner} bleedTop={insets.top} animated />
         <View style={styles.topBar}>
-          <Text style={styles.title}>Shop</Text>
+          <Text style={[styles.title, bannerIsDark(shown.banner) && ON_DARK.title]}>Shop</Text>
           <View style={styles.balancePill}>
             <Ionicons name="flash" size={13} color="#92400e" />
             <Text style={styles.balanceText}>{profile.currency_balance} shutters</Text>
@@ -249,7 +249,7 @@ export default function ShopScreen() {
             </View>
             <FrameDecoration value={shown.frame} size={68} />
           </View>
-          <Text style={styles.username}>{profile.username}</Text>
+          <Text style={[styles.username, bannerIsDark(shown.banner) && ON_DARK.title]}>{profile.username}</Text>
           <View style={styles.badgePill}>
             <Ionicons name={shown.badge as keyof typeof Ionicons.glyphMap} size={13} color="#92400e" />
             <Text style={styles.badgePillText}>{shownBadgeLabel}</Text>
@@ -294,7 +294,7 @@ export default function ShopScreen() {
                 <Pressable key={box.id} style={styles.clamCard} onPress={() => setOpenBoxId(box.id)}>
                   <Clam size={78} variant={box.value} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.clamTitle}>{box.label}</Text>
+                    <Text style={styles.clamTitle}>{clamName(box)}</Text>
                     <Text style={styles.octoBlurb}>
                       {box.value === 'pearl'
                         ? '2 surprises for your profile: designed frames and scene banners. Tap for the odds.'

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { ReactElement, useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import {
   Canvas,
@@ -10,6 +10,7 @@ import {
   vec,
 } from '@shopify/react-native-skia';
 import { Easing, cancelAnimation, useDerivedValue, useSharedValue, withRepeat, withTiming, type SharedValue } from 'react-native-reanimated';
+import { CAT, FIRE, HAMMOCK } from './bannerShapes';
 
 // Legendary banners that move: drawn with Skia and driven by one looping
 // clock, so the whole scene costs a single canvas. Same 400x260 scene and
@@ -19,7 +20,7 @@ const W = 400;
 const H = 260;
 const LOOP_MS = 12000;
 
-export const ANIMATED_BANNERS = ['sunset_sail', 'jellyfish'];
+export const ANIMATED_BANNERS = ['sunset_sail', 'jellyfish', 'angler', 'cat_fish', 'island_camp', 'glow_bay', 'koi_pond', 'starfall'];
 
 // A wave band: its top edge ripples, and it's drawn two periods wide so it
 // can slide sideways and loop without a seam
@@ -133,6 +134,282 @@ function Jellyfish({ t }: { t: SharedValue<number> }) {
   );
 }
 
+
+// --- shared bits for the newer scenes ---------------------------------------
+
+const TAU = Math.PI * 2;
+
+function Sky({ top, bottom }: { top: string; bottom: string }) {
+  return (
+    <SkRect x={0} y={0} width={W} height={H}>
+      <SkLinearGradient start={vec(0, 0)} end={vec(0, H)} colors={[top, bottom]} />
+    </SkRect>
+  );
+}
+
+function Twinkle({ t, x, y, r, phase }: { t: SharedValue<number>; x: number; y: number; r: number; phase: number }) {
+  const opacity = useDerivedValue(() => 0.35 + 0.55 * Math.abs(Math.sin(t.value * TAU * 4 + phase)));
+  return <SkCircle cx={x} cy={y} r={r} color="#FFFFFF" opacity={opacity} />;
+}
+
+const STARS = [
+  [30, 30, 1.6], [90, 60, 1.2], [160, 20, 2], [240, 40, 1.3], [310, 22, 1.8], [380, 70, 1.2], [50, 120, 1.4], [350, 130, 1.6], [120, 100, 1.1],
+] as const;
+
+// A fish pointing right at the origin
+const FISH = 'M-12,0 C-5,-8 7,-8 12,0 C7,8 -5,8 -12,0 Z M-11,0 L-19,-6 L-19,6 Z';
+
+// Something swimming round an oval: placed on it, and facing the way it's going
+function useSwim(t: SharedValue<number>, laps: number, cx: number, cy: number, rx: number, ry: number, lag: number, scale = 1) {
+  return useDerivedValue(() => {
+    const a = t.value * TAU * laps - lag;
+    const dx = -Math.sin(a);
+    return [
+      { translateX: cx + rx * Math.cos(a) },
+      { translateY: cy + ry * Math.sin(a) },
+      // turn round smoothly when it changes direction
+      { scaleX: scale * Math.max(-1, Math.min(1, dx * 4)) },
+      { scaleY: scale },
+    ];
+  });
+}
+
+// --- anglerfish chasing a little fish ---------------------------------------
+
+function Angler({ t }: { t: SharedValue<number> }) {
+  const fish = useSwim(t, 2, 200, 140, 150, 50, 0);
+  const angler = useSwim(t, 2, 200, 140, 150, 50, 0.9, 0.8);
+  // the bulb flickers, with the odd dip
+  const bulb = useDerivedValue(() => {
+    const flick = Math.abs(Math.sin(t.value * TAU * 9));
+    const dip = Math.sin(t.value * TAU * 2.3) < -0.75 ? 0.35 : 1;
+    return (0.55 + 0.45 * flick) * dip;
+  });
+  const glow = useDerivedValue(() => bulb.value * 0.35);
+  return (
+    <SkGroup>
+      <Sky top="#0B1C33" bottom="#16314F" />
+      {STARS.map(([x, y, r], i) => (
+        <SkCircle key={i} cx={x} cy={y} r={r * 0.8} color="#FFFFFF" opacity={0.35} />
+      ))}
+      <SkGroup transform={fish}>
+        <SkPath path={FISH} color="#FB923C" />
+        <SkCircle cx={7} cy={-2} r={1.4} color="#1F2937" />
+      </SkGroup>
+      <SkGroup transform={angler}>
+        <SkCircle cx={66} cy={-32} r={24} color="#FEF9C3" opacity={glow} />
+        <SkPath path="M14,-24 C26,-52 56,-54 66,-36" style="stroke" strokeWidth={2.5} color="#64748B" />
+        <SkPath path="M-34,0 L-52,-16 L-50,0 L-52,16 Z" color="#334155" />
+        <SkPath path="M-36,0 C-26,-38 48,-40 60,0 C48,38 -26,38 -36,0 Z" color="#334155" />
+        <SkPath path="M30,6 L36,-2 L40,8 L46,-1 L50,9 L56,0" style="stroke" strokeWidth={2.5} color="#FFFFFF" />
+        <SkCircle cx={30} cy={-12} r={6} color="#FDE047" />
+        <SkCircle cx={31} cy={-11} r={2.6} color="#0B1C33" />
+        <SkCircle cx={66} cy={-32} r={6} color="#FDE047" opacity={bulb} />
+      </SkGroup>
+    </SkGroup>
+  );
+}
+
+// --- a cat watching a fish swim round ---------------------------------------
+
+const CAT_AT = { x: 34, y: 214 };
+
+function CatFish({ t }: { t: SharedValue<number> }) {
+  const fishAngle = useDerivedValue(() => t.value * TAU * 2);
+  const fish = useSwim(t, 2, 210, 110, 170, 60, 0);
+  // the head comes up as the fish swims past the cat's end, then settles
+  const lift = useDerivedValue(() => {
+    const x = 210 + 170 * Math.cos(fishAngle.value);
+    const v = Math.max(0, Math.min(1, (200 - x) / 90));
+    return v * v * (3 - 2 * v);
+  });
+  const head = useDerivedValue(() => [{ translateY: -lift.value * 8 }, { rotate: -lift.value * 0.35 }]);
+  const asleep = useDerivedValue(() => 1 - lift.value);
+  return (
+    <SkGroup>
+      <Sky top="#E8F1F7" bottom="#C7DDEA" />
+      <SkRect x={0} y={226} width={W} height={H - 226} color="#E9D3A4" />
+      <SkGroup transform={[{ translateX: CAT_AT.x }, { translateY: CAT_AT.y }]}>
+        <SkPath path={CAT.tail} style="stroke" strokeWidth={6} strokeCap="round" color="#F59E0B" />
+        <SkPath path={CAT.body} color="#F59E0B" />
+        <SkPath path="M20,-18 L24,-10 M32,-20 L34,-12 M44,-20 L44,-12" style="stroke" strokeWidth={2} strokeCap="round" color="#D97706" />
+        <SkGroup transform={head} origin={vec(66, -6)}>
+          <SkPath path={CAT.ears} color="#F59E0B" />
+          <SkPath path={CAT.head} color="#F59E0B" />
+          <SkPath path={CAT.sleepy} style="stroke" strokeWidth={1.6} strokeCap="round" color="#7C2D12" opacity={asleep} />
+          <SkGroup opacity={lift}>
+            <SkCircle cx={75} cy={-14} r={2.6} color="#7C2D12" />
+            <SkCircle cx={85} cy={-14} r={2.6} color="#7C2D12" />
+          </SkGroup>
+        </SkGroup>
+      </SkGroup>
+      <SkGroup transform={fish}>
+        <SkPath path={FISH} color="#F97316" />
+        <SkCircle cx={7} cy={-2} r={1.4} color="#1F2937" />
+      </SkGroup>
+    </SkGroup>
+  );
+}
+
+// --- island camp: a hammock swaying and a campfire ---------------------------
+
+const PALM_LEAVES =
+  'M14,-74 C-2,-86 -18,-82 -26,-72 C-12,-78 2,-76 14,-74 Z M14,-74 C22,-90 38,-92 48,-86 C34,-86 24,-82 14,-74 Z M14,-74 C6,-92 10,-104 18,-110 C16,-96 16,-86 14,-74 Z M14,-74 C30,-78 42,-70 46,-60 C34,-68 24,-72 14,-74 Z M14,-74 C0,-68 -6,-58 -6,-50 C2,-60 8,-68 14,-74 Z';
+
+function SkPalm({ x, y, s, lean, t }: { x: number; y: number; s: number; lean: number; t: SharedValue<number> }) {
+  const leaves = useDerivedValue(() => [{ rotate: Math.sin(t.value * TAU * 3 + x) * 0.05 }]);
+  return (
+    <SkGroup transform={[{ translateX: x }, { translateY: y }, { scale: s }, { rotate: (lean * Math.PI) / 180 }]}>
+      <SkPath path="M0,0 C-2,-30 4,-56 14,-74" style="stroke" strokeWidth={6} strokeCap="round" color="#8B5A3C" />
+      <SkGroup transform={leaves} origin={vec(14, -74)}>
+        <SkPath path={PALM_LEAVES} color="#3FA796" />
+      </SkGroup>
+    </SkGroup>
+  );
+}
+
+function IslandCamp({ t }: { t: SharedValue<number> }) {
+  const sway = useDerivedValue(() => [{ rotate: Math.sin(t.value * TAU * 3) * 0.07 }]);
+  const flame = useDerivedValue(() => {
+    const f = Math.sin(t.value * TAU * 14) * 0.5 + Math.sin(t.value * TAU * 23) * 0.5;
+    return [{ scaleY: 1 + 0.14 * f }, { scaleX: 1 - 0.06 * f }];
+  });
+  const glow = useDerivedValue(() => 24 + 4 * Math.abs(Math.sin(t.value * TAU * 11)));
+  const water = useDerivedValue(() => [{ translateX: -((t.value * 3) % 1) * 100 }]);
+  return (
+    <SkGroup>
+      <Sky top="#FBE3CC" bottom="#F6C59E" />
+      <SkCircle cx={200} cy={186} r={34} color="#FDBA74" opacity={0.6} />
+      <SkGroup transform={water}>
+        <SkPath path={waveBand(190, 4, 100)} color="#7CBFD0" />
+      </SkGroup>
+      <SkPath path="M0,206 C80,190 150,196 180,216 L180,260 L0,260 Z" color="#F2D59A" />
+      <SkPath path="M400,210 C330,194 270,200 240,220 L240,260 L400,260 Z" color="#F2D59A" />
+      <SkPalm x={30} y={212} s={1} lean={8} t={t} />
+      <SkPalm x={146} y={220} s={0.95} lean={-8} t={t} />
+      <SkGroup transform={sway} origin={vec(96, 178)}>
+        <SkPath path={HAMMOCK.ropes} style="stroke" strokeWidth={2} color="#7C4A21" />
+        <SkPath path={HAMMOCK.cloth} color="#F472B6" />
+        <SkPath path={HAMMOCK.stripes} style="stroke" strokeWidth={2.5} color="#FDE68A" />
+      </SkGroup>
+      <SkCircle cx={300} cy={214} r={glow} color="#FDBA74" opacity={0.3} />
+      <SkPath path={FIRE.logs} style="stroke" strokeWidth={6} strokeCap="round" color="#7C4A21" />
+      <SkGroup transform={flame} origin={vec(300, 224)}>
+        <SkPath path={FIRE.outer} color="#F97316" />
+        <SkPath path={FIRE.inner} color="#FDE047" />
+      </SkGroup>
+    </SkGroup>
+  );
+}
+
+// --- a bay of glowing waves ------------------------------------------------
+
+function GlowBay({ t }: { t: SharedValue<number> }) {
+  const front = useDerivedValue(() => [{ translateX: -((t.value * 3) % 1) * 100 }]);
+  const back = useDerivedValue(() => [{ translateX: -(1 - ((t.value * 2) % 1)) * 100 }]);
+  const pulse = useDerivedValue(() => 0.45 + 0.4 * Math.abs(Math.sin(t.value * TAU * 3)));
+  return (
+    <SkGroup>
+      <Sky top="#10233D" bottom="#1E3A5C" />
+      {STARS.map(([x, y, r], i) => (
+        <Twinkle key={i} t={t} x={x} y={y * 0.9} r={r} phase={i * 1.7} />
+      ))}
+      <SkPath path={waveBand(180, 6, 100)} color="#173253" />
+      <SkGroup transform={back}>
+        <SkPath path={waveLine(210, 4, 100)} style="stroke" strokeWidth={2} color="#38BDF8" opacity={0.5} />
+      </SkGroup>
+      <SkGroup transform={front} opacity={pulse}>
+        <SkPath path={waveLine(186, 5, 100)} style="stroke" strokeWidth={3} color="#5EEAD4" />
+      </SkGroup>
+      {[[40, 230], [90, 200], [330, 222], [370, 196], [260, 240]].map(([x, y], i) => (
+        <Twinkle key={`g${i}`} t={t} x={x} y={y} r={2.4} phase={i * 2.1} />
+      ))}
+    </SkGroup>
+  );
+}
+
+// --- two koi circling a pond -----------------------------------------------
+
+const KOI = 'M-18,0 C-10,-10 10,-10 20,0 C10,10 -10,10 -18,0 Z M-16,0 L-28,-8 L-25,0 L-28,8 Z';
+const KOI_SPOT = 'M-4,-6 C0,-8 6,-6 6,-2 C2,-2 -2,-3 -4,-6 Z';
+
+function Koi({ t, phase, body, spot }: { t: SharedValue<number>; phase: number; body: string; spot: string }) {
+  const move = useDerivedValue(() => {
+    const a = t.value * TAU * 1.5 + phase;
+    // heading along the oval, so it always swims nose first
+    const heading = Math.atan2(70 * Math.cos(a), -160 * Math.sin(a));
+    return [{ translateX: 200 + 160 * Math.cos(a) }, { translateY: 130 + 70 * Math.sin(a) }, { rotate: heading }];
+  });
+  return (
+    <SkGroup transform={move}>
+      <SkPath path={KOI} color={body} />
+      <SkPath path={KOI_SPOT} color={spot} />
+    </SkGroup>
+  );
+}
+
+function KoiPond({ t }: { t: SharedValue<number> }) {
+  return (
+    <SkGroup>
+      <Sky top="#D8F0EA" bottom="#9FD6C8" />
+      <SkPath path="M10,40 C10,18 50,18 50,40 C50,62 10,62 10,40 Z M340,200 C340,178 380,178 380,200 C380,222 340,222 340,200 Z M360,40 C360,26 384,26 384,40 C384,54 360,54 360,40 Z" color="#3FB585" opacity={0.85} />
+      <SkCircle cx={360} cy={196} r={6} color="#F9A8D4" />
+      <Koi t={t} phase={0} body="#FB923C" spot="#FFFFFF" />
+      <Koi t={t} phase={Math.PI} body="#FFFFFF" spot="#F97316" />
+    </SkGroup>
+  );
+}
+
+// --- shooting stars ---------------------------------------------------------
+
+function ShootingStar({ t, x, y, offset }: { t: SharedValue<number>; x: number; y: number; offset: number }) {
+  const p = useDerivedValue(() => (t.value * 2 + offset) % 1);
+  // each one streaks across in the first fifth of its cycle, then waits
+  const move = useDerivedValue(() => [{ translateX: x + Math.min(p.value / 0.2, 1) * 90 }, { translateY: y + Math.min(p.value / 0.2, 1) * 50 }]);
+  const opacity = useDerivedValue(() => (p.value < 0.2 ? Math.sin((p.value / 0.2) * Math.PI) : 0));
+  return (
+    <SkGroup transform={move} opacity={opacity}>
+      <SkPath path="M0,0 L-40,-22" style="stroke" strokeWidth={2} strokeCap="round" color="#FFFFFF" />
+      <SkCircle cx={0} cy={0} r={2.4} color="#FFFFFF" />
+    </SkGroup>
+  );
+}
+
+function Starfall({ t }: { t: SharedValue<number> }) {
+  return (
+    <SkGroup>
+      <Sky top="#1A2448" bottom="#2F3E6E" />
+      {STARS.map(([x, y, r], i) => (
+        <Twinkle key={i} t={t} x={x} y={y} r={r} phase={i * 1.3} />
+      ))}
+      <ShootingStar t={t} x={50} y={30} offset={0} />
+      <ShootingStar t={t} x={270} y={50} offset={0.35} />
+      <ShootingStar t={t} x={140} y={10} offset={0.7} />
+      <SkPath path={waveBand(200, 5, 100)} color="#25335E" />
+    </SkGroup>
+  );
+}
+
+// Just the line of a wave (no fill), drawn two periods wide like waveBand
+function waveLine(top: number, amp: number, period: number) {
+  let d = `M0,${top}`;
+  for (let x = 0; x < W + period * 2; x += period) {
+    d += ` Q${x + period / 4},${top - amp} ${x + period / 2},${top} Q${x + (period * 3) / 4},${top + amp} ${x + period},${top}`;
+  }
+  return d;
+}
+
+const SCENES: Record<string, (props: { t: SharedValue<number> }) => ReactElement> = {
+  sunset_sail: SunsetSail,
+  jellyfish: Jellyfish,
+  angler: Angler,
+  cat_fish: CatFish,
+  island_camp: IslandCamp,
+  glow_bay: GlowBay,
+  koi_pond: KoiPond,
+  starfall: Starfall,
+};
+
 // Fills its parent (bleedTop extends it up behind the status bar, like BannerArt)
 export default function AnimatedBanner({ value, bleedTop = 0 }: { value: string; bleedTop?: number }) {
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -156,7 +433,10 @@ export default function AnimatedBanner({ value, bleedTop = 0 }: { value: string;
       {size.width > 0 && (
         <Canvas style={{ width: size.width, height: size.height }}>
           <SkGroup transform={fit}>
-            {value === 'sunset_sail' ? <SunsetSail t={t} /> : <Jellyfish t={t} />}
+            {(() => {
+              const Scene = SCENES[value] ?? Jellyfish;
+              return <Scene t={t} />;
+            })()}
           </SkGroup>
         </Canvas>
       )}

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, StyleSheet, Image, Pressable, FlatList, ActivityIndicator, Modal, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import FrameDecoration, { frameColor } from '../components/AvatarFrame';
-import BannerArt, { bannerColor } from '../components/BannerArt';
+import BannerArt, { ON_DARK, bannerColor, bannerIsDark } from '../components/BannerArt';
 import { Ionicons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -207,6 +207,7 @@ export default function UserProfileScreen({ route, navigation }: Props) {
       { text: 'Cancel', style: 'cancel' },
     ]);
 
+  const onDark = bannerIsDark(profile.banner_color);
   const showcaseUrls = [profile.showcase_url_1, profile.showcase_url_2, profile.showcase_url_3].filter(
     (url): url is string => !!url
   );
@@ -216,10 +217,11 @@ export default function UserProfileScreen({ route, navigation }: Props) {
       {/* top only: the sand sheet runs to the bottom edge, so no banner color shows under it */}
       <SafeAreaView edges={['top']} style={styles.flex}>
         <BackBar
+          tint={onDark ? ON_DARK.icon : undefined}
           right={
             !isMe && (
               <Pressable onPress={openAccountMenu} hitSlop={10} accessibilityLabel="Report or block">
-                <OchoIcon name="more" size={26} color={colors.deep} />
+                <OchoIcon name="more" size={26} color={onDark ? ON_DARK.icon : colors.deep} />
               </Pressable>
             )
           }
@@ -236,8 +238,8 @@ export default function UserProfileScreen({ route, navigation }: Props) {
             </View>
             <FrameDecoration value={profile.avatar_frame_color} size={68} />
           </View>
-          <Text style={styles.username}>{profile.username}</Text>
-          <Text style={styles.bio}>{profile.bio || 'No bio yet'}</Text>
+          <Text style={[styles.username, onDark && ON_DARK.title]}>{profile.username}</Text>
+          <Text style={[styles.bio, onDark && ON_DARK.text]}>{profile.bio || 'No bio yet'}</Text>
 
           {!isMe &&
             (friendStatus === 'incoming' && requestId ? (
@@ -291,16 +293,16 @@ export default function UserProfileScreen({ route, navigation }: Props) {
 
           <View style={styles.statsRow}>
             <View style={styles.stat}>
-              <Text style={styles.statValue}>{gallery.length}</Text>
-              <Text style={styles.statLabel}>submissions</Text>
+              <Text style={[styles.statValue, onDark && ON_DARK.title]}>{gallery.length}</Text>
+              <Text style={[styles.statLabel, onDark && ON_DARK.text]}>submissions</Text>
             </View>
             <View style={styles.stat}>
-              <Text style={styles.statValue}>{friends}</Text>
-              <Text style={styles.statLabel}>friends</Text>
+              <Text style={[styles.statValue, onDark && ON_DARK.title]}>{friends}</Text>
+              <Text style={[styles.statLabel, onDark && ON_DARK.text]}>friends</Text>
             </View>
             <View style={styles.stat}>
-              <Text style={styles.statValue}>{profile.currency_balance}</Text>
-              <Text style={styles.statLabel}>shutters</Text>
+              <Text style={[styles.statValue, onDark && ON_DARK.title]}>{profile.currency_balance}</Text>
+              <Text style={[styles.statLabel, onDark && ON_DARK.text]}>shutters</Text>
             </View>
           </View>
 

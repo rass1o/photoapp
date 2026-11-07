@@ -78,7 +78,7 @@ const SLIDES: Slide[] = [
       'Just entering the weekly theme earns 150 shutters',
       'Every daily photo earns 25 shutters',
       `Plus +${STREAK_BONUS} every ${STREAK_BONUS_EVERY} days you keep your day streak going`,
-      'Feeling lucky? A clam blind box in the Shop holds 2 surprises for Ocho, with a shot at an epic or legendary sidekick. Duplicates sell back for half',
+      'Feeling lucky? Ocho\u2019s Clam in the Shop holds 2 surprises for Ocho, with a shot at an epic or legendary sidekick. Duplicates sell back for half',
     ],
   },
   {

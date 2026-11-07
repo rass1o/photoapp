@@ -33,7 +33,7 @@ import { TAB_BAR_CLEARANCE } from '../components/SeaTabBar';
 import SandGrain from '../components/SandGrain';
 import StreakBanner from '../components/StreakBanner';
 import FrameDecoration, { frameColor } from '../components/AvatarFrame';
-import BannerArt, { bannerColor } from '../components/BannerArt';
+import BannerArt, { ON_DARK, bannerColor, bannerIsDark } from '../components/BannerArt';
 import BadgeEarnedModal from '../components/BadgeEarnedModal';
 import { liveDailyStreak } from '../lib/streaks';
 import OchoLoader from '../components/OchoLoader';
@@ -416,13 +416,14 @@ export default function ProfileScreen() {
 
   const badgeLabel = shopItems.find((i) => i.category === 'badge' && i.value === profile.badge)?.label ?? 'streak';
   const showcaseUrls = [profile.showcase_url_1, profile.showcase_url_2, profile.showcase_url_3];
+  const onDark = bannerIsDark(profile.banner_color);
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: bannerColor(profile.banner_color) }]} edges={['top']}>
       <View style={styles.header}>
         <BannerArt value={profile.banner_color} bleedTop={insets.top} animated />
         <Pressable style={styles.settingsButton} onPress={() => navigation.push('Settings')} hitSlop={10}>
-          <Ionicons name="settings-outline" size={22} color={colors.ink} />
+          <Ionicons name="settings-outline" size={22} color={onDark ? ON_DARK.icon : colors.ink} />
         </Pressable>
         <View style={styles.avatarWrap}>
           <Pressable onPress={pickAvatar} style={[styles.avatar, { borderColor: frameColor(profile.avatar_frame_color) }]}>
@@ -441,7 +442,7 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
-        <Text style={styles.username}>{profile.username}</Text>
+        <Text style={[styles.username, onDark && ON_DARK.title]}>{profile.username}</Text>
 
         {isEditingBio ? (
           <View style={styles.bioEditRow}>
@@ -458,7 +459,7 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
         ) : (
-          <Text style={styles.bio}>{profile.bio || 'Add a bio'}</Text>
+          <Text style={[styles.bio, onDark && ON_DARK.text]}>{profile.bio || 'Add a bio'}</Text>
         )}
 
         <Pressable style={styles.streakPill} onPress={() => setLockerCategory('badge')}>

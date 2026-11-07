@@ -9,19 +9,21 @@ type Props = {
   title?: string;
   // e.g. a ... menu on the right
   right?: ReactNode;
+  // color for the back arrow and text (light over a dark banner)
+  tint?: string;
 };
 
 // In-page back bar for pushed screens. The native stack header is hidden on
 // those screens because newer iOS draws it translucent over the content; this
 // sits inside the screen's top safe area instead, so nothing ends up under it.
-export default function BackBar({ title, right }: Props) {
+export default function BackBar({ title, right, tint = colors.deep }: Props) {
   const navigation = useNavigation();
 
   return (
     <View style={styles.bar}>
       <Pressable style={styles.back} onPress={() => navigation.goBack()} hitSlop={10}>
-        <Ionicons name="chevron-back" size={22} color={colors.deep} />
-        <Text style={styles.backText}>Back</Text>
+        <Ionicons name="chevron-back" size={22} color={tint} />
+        <Text style={[styles.backText, { color: tint }]}>Back</Text>
       </Pressable>
       {title ? (
         <Text style={styles.title} numberOfLines={1}>

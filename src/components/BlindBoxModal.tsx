@@ -9,7 +9,7 @@ import Sidekick from './Sidekick';
 import FrameDecoration, { frameColor } from './AvatarFrame';
 import BannerArt, { bannerColor } from './BannerArt';
 import { ShopItem } from '../lib/shop';
-import { Duplicate, ITEMS_PER_BOX, Pick, RARITY_COLORS, TierOdds, sellValue } from '../lib/blindBox';
+import { Duplicate, ITEMS_PER_BOX, Pick, RARITY_COLORS, TierOdds, clamName, sellValue } from '../lib/blindBox';
 import { colors, bubbly } from '../theme';
 
 type Props = {
@@ -207,7 +207,7 @@ export default function BlindBoxModal({
         <View style={styles.headerRow}>
           <View>
             <Text style={styles.kicker}>Blind box</Text>
-            <Text style={styles.title}>{box?.label ?? ''}</Text>
+            <Text style={styles.title}>{clamName(box)}</Text>
           </View>
           {phase !== 'opening' && (
             <Pressable onPress={onClose} hitSlop={10}>

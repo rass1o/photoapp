@@ -3,6 +3,15 @@ import { ShopItem } from './shop';
 
 export const ITEMS_PER_BOX = 2;
 
+// What each clam is called, by its value: one is full of things for Ocho,
+// the other of frames and banners for your own profile
+export const CLAM_NAMES: Record<string, string> = {
+  clam: 'Ocho\u2019s Clam',
+  pearl: 'Profile Clam',
+};
+export const clamName = (box: { value: string; label: string } | null | undefined) =>
+  box ? CLAM_NAMES[box.value] ?? box.label : '';
+
 export type Rarity = {
   id: string;
   label: string;
