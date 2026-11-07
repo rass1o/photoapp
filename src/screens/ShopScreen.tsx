@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react';
-import { View, StyleSheet, Pressable, ScrollView, Image, ActivityIndicator, Alert } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { View, StyleSheet, Pressable, ScrollView, Image, ActivityIndicator, Alert, LayoutAnimation } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import FrameDecoration, { frameColor } from '../components/AvatarFrame';
 import BannerArt, { ON_DARK, bannerColor, bannerIsDark } from '../components/BannerArt';
@@ -15,7 +16,6 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import SectionHeader from '../components/SectionHeader';
 import ShopTile, { TileStatus } from '../components/ShopTile';
 import Octopus from '../components/Octopus';
-import FilmStamp from '../components/FilmStamp';
 import CosmeticSwatch from '../components/CosmeticSwatch';
 import Clam from '../components/Clam';
 import BlindBoxModal from '../components/BlindBoxModal';
@@ -52,6 +52,9 @@ const STATUS_STYLES: Record<Suggestion['status'], { bg: string; fg: string; labe
   declined: { bg: '#fef2f2', fg: '#b91c1c', label: 'Declined' },
 };
 
+// Which Shop sections you've folded away, remembered on this phone
+const CLOSED_SECTIONS_KEY = 'shopClosedSections';
+
 export default function ShopScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -74,6 +77,26 @@ export default function ShopScreen() {
 
   // Tapping a tile previews it in the header without buying or equipping
   const [preview, setPreview] = useState<Partial<Record<ProfileCategory, ShopItem>>>({});
+
+  // Sections fold: tap a header to open or close it (remembered on this phone)
+  const [closedSections, setClosedSections] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    AsyncStorage.getItem(CLOSED_SECTIONS_KEY)
+      .then((raw) => raw && setClosedSections(new Set(JSON.parse(raw))))
+      .catch(() => {});
+  }, []);
+  const toggleSection = (key: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.create(200, 'easeInEaseOut', 'opacity'));
+    setClosedSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      AsyncStorage.setItem(CLOSED_SECTIONS_KEY, JSON.stringify([...next])).catch(() => {});
+      return next;
+    });
+  };
+  const isOpen = (key: string) => !closedSections.has(key);
+  const fold = (key: string) => ({ open: isOpen(key), onToggle: () => toggleSection(key) });
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -272,7 +295,8 @@ export default function ShopScreen() {
         >
           {octopus && (
             <>
-              <SectionHeader icon="happy-outline" label="Your octopus" />
+              <SectionHeader icon="happy-outline" label="Your octopus" {...fold('octopus')} />
+              {isOpen('octopus') && (
               <Pressable style={styles.octoCard} onPress={() => navigation.push('Octopus')}>
                 <Octopus color={octopus.color} accessory={octopus.accessory} heldItem={octopus.held_item} pet={octopus.pet} size={56} />
                 <View style={{ flex: 1 }}>
@@ -284,13 +308,14 @@ export default function ShopScreen() {
                   <Ionicons name="chevron-forward" size={14} color={colors.white} />
                 </View>
               </Pressable>
+              )}
             </>
           )}
 
           {blindBoxes.length > 0 && (
             <>
-              <SectionHeader icon="gift-outline" label="Blind boxes" />
-              {blindBoxes.map((box) => (
+              <SectionHeader icon="gift-outline" label="Blind boxes" {...fold('boxes')} />
+              {isOpen('boxes') && blindBoxes.map((box) => (
                 <Pressable key={box.id} style={styles.clamCard} onPress={() => setOpenBoxId(box.id)}>
                   <Clam size={78} variant={box.value} />
                   <View style={{ flex: 1 }}>
@@ -307,7 +332,7 @@ export default function ShopScreen() {
                   </View>
                 </Pressable>
               ))}
-              {duplicates.length > 0 && (
+              {isOpen('boxes') && duplicates.length > 0 && (
                 <Text style={styles.duplicatesNote}>
                   {duplicates.length} {duplicates.length === 1 ? 'duplicate' : 'duplicates'} to sell. Open either clam to sell them.
                 </Text>
@@ -317,7 +342,8 @@ export default function ShopScreen() {
 
           {PROFILE_SECTIONS.map((section) => (
             <View key={section.category}>
-              <SectionHeader icon={section.icon} label={section.label} />
+              <SectionHeader icon={section.icon} label={section.label} {...fold(section.category)} />
+              {isOpen(section.category) && (
               <View style={styles.grid}>
                 {items
                   .filter((i) => i.category === section.category)
@@ -337,36 +363,14 @@ export default function ShopScreen() {
                     />
                   ))}
               </View>
+              )}
             </View>
           ))}
 
-          <SectionHeader icon="film-outline" label="Film stamps" />
-          <Text style={styles.sectionBlurb}>
-            Tag your film submissions with the stock you shot on. Pick one when you submit a film photo.
-          </Text>
-          <View style={styles.grid}>
-            {items
-              .filter((i) => i.category === 'stamp')
-              .map((item) => (
-                <ShopTile
-                  key={item.id}
-                  label={item.label}
-                  swatch={
-                    <View style={styles.stampSwatch}>
-                      <FilmStamp stock={item.value} accent={item.accent} size="small" />
-                    </View>
-                  }
-                  status={isOwned(item, ownedIds) ? 'collected' : 'buy'}
-                  price={item.price}
-                  busy={busyItemId === item.id}
-                  onBuy={() => buy(item, false)}
-                />
-              ))}
-          </View>
-
           {ticket && (
             <>
-              <SectionHeader icon="ticket-outline" label="Theme tickets" />
+              <SectionHeader icon="ticket-outline" label="Theme tickets" {...fold('tickets')} />
+              {isOpen('tickets') && (
               <View style={styles.ticketCard}>
                 <View style={styles.ticketHeader}>
                   <Ionicons name="ticket" size={18} color="#92400e" />
@@ -407,8 +411,9 @@ export default function ShopScreen() {
                   )}
                 </Pressable>
               </View>
+              )}
 
-              {suggestions.length > 0 && (
+              {isOpen('tickets') && suggestions.length > 0 && (
                 <View style={styles.suggestionList}>
                   {suggestions.map((s) => {
                     const st = STATUS_STYLES[s.status];
@@ -509,7 +514,6 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 18 },
   sectionBlurb: { fontSize: 12, color: colors.muted, marginBottom: 10, lineHeight: 17 },
 
-  stampSwatch: { height: 40, justifyContent: 'center' },
 
   octoCard: {
     flexDirection: 'row',

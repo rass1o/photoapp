@@ -24,8 +24,6 @@ import { localDateString } from '../lib/date';
 import { useAuth } from '../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ShopItem, isOwned, loadShop } from '../lib/shop';
-import FilmStamp from '../components/FilmStamp';
 import SectionHeader from '../components/SectionHeader';
 import SandGrain from '../components/SandGrain';
 import StreakCalendar from '../components/StreakCalendar';
@@ -66,8 +64,6 @@ export default function CameraScreen() {
   const [format, setFormat] = useState<'digital' | 'film'>('digital');
   const [caption, setCaption] = useState('');
   const [isUploading, setIsUploading] = useState(false);
-  const [ownedStamps, setOwnedStamps] = useState<ShopItem[]>([]);
-  const [filmStamp, setFilmStamp] = useState<string | null>(null);
   // Film photos show in a 35mm strip in the feed unless you turn it off
   const [filmStrip, setFilmStrip] = useState(true);
 
@@ -188,16 +184,13 @@ export default function CameraScreen() {
     loadTheme();
   }, [user]);
 
-  // Refresh on focus so stamps bought in the Shop show up right away, and so
-  // the daily photo unlocks again after local midnight without a restart
+  // Refresh on focus so the daily photo unlocks again after local midnight
+  // without a restart
   useFocusEffect(
     useCallback(() => {
       if (!user) return;
       checkExistingDailySubmission();
       loadStreaks();
-      loadShop(user.id).then(({ items, ownedIds }) =>
-        setOwnedStamps(items.filter((i) => i.category === 'stamp' && isOwned(i, ownedIds)))
-      );
     }, [user])
   );
 
@@ -320,7 +313,6 @@ export default function CameraScreen() {
         image_url: publicUrlData.publicUrl,
         format,
         caption: caption.trim(),
-        film_stamp: format === 'film' ? filmStamp : null,
         film_strip: format === 'film' ? filmStrip : true,
       });
 
@@ -329,7 +321,6 @@ export default function CameraScreen() {
       setAlreadySubmitted(true);
       setImageUri(null);
       setCaption('');
-      setFilmStamp(null);
       // The weekly streak is bumped by a trigger when the submission lands
       const { weekly } = await loadStreaks();
       // the server pays 150 for entering (pay_theme_entry)
@@ -485,39 +476,10 @@ export default function CameraScreen() {
               {format === 'film' && (
                 <View style={styles.stripRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.stampPickerLabel}>Show in a film strip</Text>
+                    <Text style={styles.stripLabel}>Show in a film strip</Text>
                     <Text style={styles.stripHint}>A 35mm border with sprocket holes around your photo</Text>
                   </View>
                   <Switch value={filmStrip} onValueChange={setFilmStrip} trackColor={{ true: colors.reef, false: colors.sandDark }} />
-                </View>
-              )}
-
-              {format === 'film' && (
-                <View style={styles.stampPicker}>
-                  <Text style={styles.stampPickerLabel}>Film stamp</Text>
-                  {ownedStamps.length === 0 ? (
-                    <Text style={styles.stampPickerEmpty}>
-                      Pick up film stamps in the Shop to tag the stock you shot on.
-                    </Text>
-                  ) : (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.stampRow}>
-                      <Pressable
-                        style={[styles.stampOption, filmStamp === null && styles.stampOptionActive]}
-                        onPress={() => setFilmStamp(null)}
-                      >
-                        <Text style={styles.stampNoneText}>None</Text>
-                      </Pressable>
-                      {ownedStamps.map((stamp) => (
-                        <Pressable
-                          key={stamp.id}
-                          style={[styles.stampOption, filmStamp === stamp.value && styles.stampOptionActive]}
-                          onPress={() => setFilmStamp(stamp.value)}
-                        >
-                          <FilmStamp stock={stamp.value} accent={stamp.accent} size="small" />
-                        </Pressable>
-                      ))}
-                    </ScrollView>
-                  )}
                 </View>
               )}
 
@@ -641,20 +603,7 @@ export default function CameraScreen() {
 }
 
 const styles = StyleSheet.create({
-  stampPicker: { marginBottom: 12 },
-  stampPickerLabel: { fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 6 },
-  stampPickerEmpty: { fontSize: 12, color: colors.faint },
-  stampRow: { gap: 6, paddingVertical: 2 },
-  stampOption: {
-    borderWidth: 1,
-    borderColor: colors.sandBorder,
-    borderRadius: 8,
-    padding: 4,
-    minHeight: 32,
-    justifyContent: 'center',
-  },
-  stampOptionActive: { borderColor: colors.deep, borderWidth: 2, padding: 3 },
-  stampNoneText: { fontSize: 11, color: colors.muted, paddingHorizontal: 6 },
+  stripLabel: { fontSize: 12, fontWeight: '600', color: colors.muted, marginBottom: 6 },
   container: { flex: 1 },
   flex: { flex: 1 },
   scrollContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: TAB_BAR_CLEARANCE },
