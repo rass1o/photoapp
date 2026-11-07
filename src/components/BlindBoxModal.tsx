@@ -301,7 +301,7 @@ export default function BlindBoxModal({
               <Text style={styles.description}>
                 {box?.value === 'pearl'
                   ? `Crack it open for ${ITEMS_PER_BOX} surprises for your profile: designed avatar frames and scene banners, up to two animated legendary banners. Pull something you already have? Sell it back for half its price.`
-                  : `Crack it open for ${ITEMS_PER_BOX} surprises for your octopus: hats, gear and, if the tide\u2019s with you, a sidekick (epic or legendary). Pull something you already have? Sell it back for half its price.`}
+                  : `Crack it open for ${ITEMS_PER_BOX} surprises for your octopus: hats, gear and, if you\u2019re lucky, a sidekick (epic or legendary). Pull something you already have? Sell it back for half its price.`}
               </Text>
 
               <Text style={styles.sectionLabel}>Chances for each pull</Text>
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
   },
   openButton: { flex: 0, marginTop: 4, marginBottom: 8 },
-  primaryButton: { backgroundColor: colors.deep },
+  primaryButton: { backgroundColor: colors.coral },
   primaryText: { fontSize: 15, fontWeight: '600', color: colors.white },
   secondaryButton: { borderWidth: 1.5, borderColor: colors.sandBorder },
   secondaryText: { fontSize: 15, fontWeight: '600', color: colors.ink },

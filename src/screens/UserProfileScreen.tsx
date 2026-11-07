@@ -28,6 +28,7 @@ import SandGrain from '../components/SandGrain';
 import StreakBanner from '../components/StreakBanner';
 import { liveDailyStreak } from '../lib/streaks';
 import OchoLoader from '../components/OchoLoader';
+import OchoIcon from '../components/OchoIcon';
 import { BlockedCover, ReviewCover } from '../components/ModerationCovers';
 import { useModeration } from '../context/ModerationContext';
 
@@ -218,7 +219,7 @@ export default function UserProfileScreen({ route, navigation }: Props) {
           right={
             !isMe && (
               <Pressable onPress={openAccountMenu} hitSlop={10} accessibilityLabel="Report or block">
-                <Ionicons name="ellipsis-horizontal-circle" size={26} color={colors.deep} />
+                <OchoIcon name="more" size={26} color={colors.deep} />
               </Pressable>
             )
           }

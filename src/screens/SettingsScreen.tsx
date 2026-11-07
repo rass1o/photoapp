@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
   warning: { fontSize: 14, color: colors.ink, lineHeight: 20, marginBottom: 12 },
   saveButton: {
     alignSelf: 'stretch',
-    backgroundColor: colors.deep,
+    backgroundColor: colors.coral,
     borderRadius: 8,
     paddingVertical: 13,
     alignItems: 'center',

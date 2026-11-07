@@ -44,6 +44,9 @@ import SandGrain from '../components/SandGrain';
 import Wordmark from '../components/Wordmark';
 import ShareCardModal from '../components/ShareCardModal';
 import OchoLoader from '../components/OchoLoader';
+import OchoIcon from '../components/OchoIcon';
+import Stamp from '../components/Stamp';
+import FilmFrame from '../components/FilmFrame';
 import { CoveredComment, ReviewCover } from '../components/ModerationCovers';
 import { useModeration } from '../context/ModerationContext';
 
@@ -617,7 +620,7 @@ export default function HomeScreen() {
 
   const handleHeartTap = (item: Submission) => {
     if (isOwnSubmission(item.id)) {
-      Alert.alert('That\u2019s your own catch', 'Your friends can like it, though!');
+      Alert.alert('That\u2019s your photo', 'Your friends can like it, though!');
       return;
     }
     likes.toggle(item.id);
@@ -625,7 +628,7 @@ export default function HomeScreen() {
 
   const openVoting = (item: Submission) => {
     if (isOwnSubmission(item.id)) {
-      Alert.alert('That\u2019s your own catch', 'You can\u2019t vote for your own photo, but your friends can!');
+      Alert.alert('That\u2019s your photo', 'You can\u2019t vote for your own photo, but your friends can!');
       return;
     }
     if (phase !== 'vote') {
@@ -727,10 +730,10 @@ export default function HomeScreen() {
           </Pressable>
           <View style={[styles.topBarSide, styles.topBarIcons]}>
             <Pressable onPress={() => setSearchVisible((v) => !v)}>
-              <Ionicons name="search-outline" size={20} color={colors.ink} />
+              <OchoIcon name="search" size={22} color={colors.ink} />
             </Pressable>
             <Pressable onPress={() => setNotifVisible(true)} style={{ marginLeft: 14 }} hitSlop={8}>
-              <Ionicons name={unread > 0 ? 'notifications' : 'notifications-outline'} size={20} color={colors.ink} />
+              <OchoIcon name="bell" size={22} color={colors.ink} filled={unread > 0} detail={colors.sea} />
               {unread > 0 && (
                 <View style={styles.bellBadge}>
                   <Text style={styles.bellBadgeText}>{unread > 9 ? '9+' : unread}</Text>
@@ -831,7 +834,7 @@ export default function HomeScreen() {
             ) : (
               <Text style={styles.themeName}>No active theme</Text>
             )}
-            {theme && <Text style={styles.themeCountdown}>{themeStatus(theme.end_date)}</Text>}
+            {theme && <Stamp style={styles.themeCountdown}>{themeStatus(theme.end_date).toUpperCase()}</Stamp>}
             {hasSubmittedThisTheme && (
               <View style={styles.submittedPill}>
                 <Ionicons name="checkmark-circle" size={13} color="#166534" />
@@ -895,12 +898,12 @@ export default function HomeScreen() {
                 <View style={styles.centered}>
                   <Text style={styles.emptyText}>
                     {feed === 'friends'
-                      ? 'Nothing from your friends for this theme yet. Add friends from their profiles, or dive into Global.'
-                      : 'No submissions yet for this theme. Water you waiting for? Be the first!'}
+                      ? 'Nothing from your friends for this theme yet. Add friends from their profiles, or check Global.'
+                      : 'No photos for this theme yet. Water you waiting for?'}
                   </Text>
                   {feed === 'friends' && (
                     <Pressable style={styles.emptyButton} onPress={() => setFeed('global')}>
-                      <Text style={styles.emptyButtonText}>Browse Global</Text>
+                      <Text style={styles.emptyButtonText}>Sea the photos in Global</Text>
                     </Pressable>
                   )}
                 </View>
@@ -931,12 +934,13 @@ export default function HomeScreen() {
                             moderation.openContentMenu({ kind: 'photo', id: item.id, userId: item.user_id, username: item.username })
                           }
                         >
-                          <Ionicons name="ellipsis-horizontal" size={18} color={colors.muted} />
+                          <OchoIcon name="more" size={20} color={colors.muted} />
                         </Pressable>
                       )}
                     </Pressable>
 
-                    <Pressable onPress={() => !cover && handleImageTap(item.id)}>
+                    <Pressable style={styles.photoWrap} onPress={() => !cover && handleImageTap(item.id)}>
+                      <FilmFrame film={item.format === 'film'} frame={`${(visibleSubmissions.indexOf(item) % 36) + 1}A`}>
                       <Image
                         source={{ uri: item.image_url }}
                         style={[styles.image, { aspectRatio: aspectRatios[item.id] ?? 1 }]}
@@ -949,8 +953,9 @@ export default function HomeScreen() {
                           }
                         }}
                       />
+                      </FilmFrame>
                       {item.film_stamp && (
-                        <View style={styles.stampOverlay} pointerEvents="none">
+                        <View style={[styles.stampOverlay, item.format === 'film' && styles.stampOverlayFilm]} pointerEvents="none">
                           <FilmStamp stock={item.film_stamp} />
                         </View>
                       )}
@@ -970,24 +975,24 @@ export default function HomeScreen() {
 
                     <View style={styles.actionsRow}>
                       <Pressable style={styles.actionItem} onPress={() => handleHeartTap(item)}>
-                        <Ionicons
-                          name={likes.liked.has(item.id) ? 'heart' : 'heart-outline'}
-                          size={20}
-                          color={likes.liked.has(item.id) ? '#dc2626' : colors.text}
+                        <OchoIcon
+                          name="heart"
+                          size={22}
+                          color={likes.liked.has(item.id) ? colors.coral : colors.text}
+                          filled={likes.liked.has(item.id)}
                         />
-                        <Text style={[styles.actionText, likes.liked.has(item.id) && styles.actionTextActive]}>
-                          {item.like_count}
-                        </Text>
+                        <Stamp style={styles.actionCount}>{item.like_count}</Stamp>
                       </Pressable>
                       {phase === 'vote' ? (
                         <Pressable
                           style={[styles.voteButton, (overallHere || picksHere > 0) && styles.voteButtonActive]}
                           onPress={() => openVoting(item)}
                         >
-                          <Ionicons
-                            name={overallHere ? 'star' : 'star-outline'}
-                            size={16}
-                            color={overallHere || picksHere > 0 ? colors.white : '#B45309'}
+                          <OchoIcon
+                            name="vote"
+                            size={17}
+                            color={overallHere || picksHere > 0 ? colors.white : colors.coral}
+                            filled={overallHere}
                           />
                           <Text style={[styles.voteButtonText, (overallHere || picksHere > 0) && styles.voteButtonTextActive]}>
                             {overallHere || picksHere > 0
@@ -1002,11 +1007,11 @@ export default function HomeScreen() {
                         </Pressable>
                       )}
                       <Pressable style={styles.actionItem} onPress={() => openComments(item.id)}>
-                        <Ionicons name="chatbubble-outline" size={17} color={colors.text} />
-                        <Text style={styles.actionText}>{commentCounts[item.id] ?? 0}</Text>
+                        <OchoIcon name="comment" size={21} color={colors.text} />
+                        <Stamp style={styles.actionCount}>{commentCounts[item.id] ?? 0}</Stamp>
                       </Pressable>
                       <Pressable style={{ marginLeft: 'auto' }} onPress={() => shareSubmission(item)}>
-                        <Ionicons name="share-outline" size={18} color={colors.text} />
+                        <OchoIcon name="share" size={22} color={colors.text} />
                       </Pressable>
                     </View>
                   </View>
@@ -1231,9 +1236,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  themeBanner: { alignItems: 'center', paddingVertical: 16 },
+  themeBanner: { alignItems: 'flex-start', paddingVertical: 16, paddingHorizontal: 20 },
   themeLabel: { fontSize: 11, fontWeight: '600', color: colors.reefDark, letterSpacing: 1, marginBottom: 4 },
-  themeName: { ...bubbly, fontSize: 30, textAlign: 'center', paddingHorizontal: 16 },
+  themeName: { ...bubbly, fontSize: 30, textAlign: 'left' },
   themeLoading: { height: 38 },
   voteButton: {
     flexDirection: 'row',
@@ -1241,17 +1246,17 @@ const styles = StyleSheet.create({
     gap: 5,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#F59E0B',
-    backgroundColor: '#FEF3C7',
+    borderColor: colors.coral,
+    backgroundColor: colors.coralLight,
     paddingHorizontal: 11,
     paddingVertical: 4,
   },
-  voteButtonActive: { backgroundColor: '#F59E0B', borderColor: '#F59E0B' },
-  voteButtonText: { fontSize: 13, fontWeight: '700', color: '#B45309' },
+  voteButtonActive: { backgroundColor: colors.coral, borderColor: colors.coral },
+  voteButtonText: { fontSize: 13, fontWeight: '700', color: colors.coral },
   voteButtonTextActive: { color: colors.white },
   votingSoon: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   votingSoonText: { fontSize: 12, color: colors.muted },
-  themeCountdown: { fontSize: 12, color: colors.muted, marginTop: 6 },
+  themeCountdown: { fontSize: 12, marginTop: 6 },
   submittedPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1282,27 +1287,31 @@ const styles = StyleSheet.create({
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, paddingHorizontal: 30 },
   errorText: { color: '#b91c1c', fontSize: 13, textAlign: 'center' },
   emptyText: { color: colors.faint, fontSize: 13, textAlign: 'center' },
-  emptyButton: { marginTop: 12, backgroundColor: colors.deep, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 9 },
+  emptyButton: { marginTop: 12, backgroundColor: colors.coral, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 9 },
   emptyButtonText: { fontSize: 13, color: colors.white, fontWeight: '600' },
 
-  card: { paddingHorizontal: 16, paddingTop: 14 },
-  cardHeaderTouchable: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  // photos run nearly edge to edge; the text around them keeps its margin
+  card: { paddingTop: 16 },
+  photoWrap: { marginHorizontal: 6 },
+  cardHeaderTouchable: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8, paddingHorizontal: 14 },
   cardMenu: { marginLeft: 'auto', paddingHorizontal: 4 },
   avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.reefLight },
   username: { fontSize: 14, fontWeight: '600', color: colors.ink },
-  image: { width: '100%', borderRadius: 10, backgroundColor: colors.sand },
-  caption: { fontSize: 13, color: colors.text, marginTop: 8, lineHeight: 18 },
+  image: { width: '100%', borderRadius: 5, backgroundColor: colors.sand },
+  caption: { fontSize: 13, color: colors.text, marginTop: 8, lineHeight: 18, paddingHorizontal: 14 },
   captionUsername: { fontWeight: '600', color: colors.ink },
   stampOverlay: { position: 'absolute', left: 10, bottom: 10 },
+  stampOverlayFilm: { left: 14, bottom: 25 },
   burstOverlay: {
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 10 },
+  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingVertical: 10, paddingHorizontal: 14 },
   actionItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   actionText: { fontSize: 13, color: colors.text },
-  actionTextActive: { color: '#dc2626', fontWeight: '600' },
+  actionTextActive: { color: colors.coral, fontWeight: '600' },
+  actionCount: { fontSize: 14 },
 
   modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.backdrop },
   commentSheet: {
@@ -1331,7 +1340,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 13,
   },
-  commentSendButton: { backgroundColor: colors.deep, borderRadius: 20, padding: 10 },
+  commentSendButton: { backgroundColor: colors.coral, borderRadius: 20, padding: 10 },
 
   bellBadge: {
     position: 'absolute',

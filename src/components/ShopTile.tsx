@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     borderRadius: 6,
   },
-  buy: { backgroundColor: colors.deep },
+  buy: { backgroundColor: colors.coral },
   buyText: { fontSize: 12, color: colors.white, fontWeight: '600' },
   equip: { borderWidth: 1, borderColor: colors.reefBorder, backgroundColor: colors.reefLight },
   equipText: { fontSize: 12, color: colors.reef, fontWeight: '600' },

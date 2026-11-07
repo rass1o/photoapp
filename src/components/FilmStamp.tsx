@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
+import { fonts } from '../theme';
 
 // Stamp colors live in shop_items.accent; fetch them once per app session
 let accentCache: Map<string, string> | null = null;
@@ -80,6 +81,7 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     opacity: 0.45,
   },
-  text: { fontSize: 11, fontWeight: '800', letterSpacing: 0.4 },
-  textSmall: { fontSize: 10 },
+  // the camera date-stamp font, upper case like a film edge code
+  text: { fontFamily: fonts.stamp, fontSize: 12, letterSpacing: 0.8, textTransform: 'uppercase' },
+  textSmall: { fontSize: 10.5 },
 });

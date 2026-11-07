@@ -427,7 +427,7 @@ export default function CameraScreen() {
           {!theme ? (
             <View style={styles.section}>
               <Text style={styles.title}>No active theme right now</Text>
-              <Text style={styles.subtitle}>The tide's out. Check back once this week's theme is live.</Text>
+              <Text style={styles.subtitle}>No theme is live right now. Check back soon.</Text>
             </View>
           ) : themePhase(theme.end_date) === 'vote' && !alreadySubmitted ? (
             // The theme's last day is for voting, so new photos are closed
@@ -706,7 +706,7 @@ const styles = StyleSheet.create({
   doneButton: { alignSelf: 'flex-end', marginTop: -8, marginBottom: 12 },
   doneButtonText: { fontSize: 12, color: colors.reef, fontWeight: '600' },
   submitButton: {
-    backgroundColor: colors.deep,
+    backgroundColor: colors.coral,
     borderRadius: 8,
     paddingVertical: 13,
     alignItems: 'center',

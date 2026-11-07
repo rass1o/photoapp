@@ -27,6 +27,9 @@ import { formatTimeLeft, themePhase } from '../lib/themes';
 import { frameColor } from '../components/AvatarFrame';
 import SandGrain from '../components/SandGrain';
 import OchoLoader from '../components/OchoLoader';
+import OchoIcon from '../components/OchoIcon';
+import Stamp from '../components/Stamp';
+import FilmFrame from '../components/FilmFrame';
 import { BlockedCover, CoveredComment, ReviewCover } from '../components/ModerationCovers';
 import { useModeration } from '../context/ModerationContext';
 import { Text, TextInput } from '../components/Themed';
@@ -130,7 +133,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
   const toggleLike = () => {
     if (!user || !submission) return;
     if (submission.user_id === user.id) {
-      Alert.alert('That\u2019s your own catch', 'Your friends can like it, though!');
+      Alert.alert('That\u2019s your photo', 'Your friends can like it, though!');
       return;
     }
     if (phase === 'ended') return;
@@ -150,7 +153,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
   const openVoting = () => {
     if (!user || !submission) return;
     if (submission.user_id === user.id) {
-      Alert.alert('That\u2019s your own catch', 'You can\u2019t vote for your own photo, but your friends can!');
+      Alert.alert('That\u2019s your photo', 'You can\u2019t vote for your own photo, but your friends can!');
       return;
     }
     if (phase === 'submit') {
@@ -255,24 +258,26 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
                     })
                   }
                 >
-                  <Ionicons name="ellipsis-horizontal" size={20} color={colors.muted} />
+                  <OchoIcon name="more" size={22} color={colors.muted} />
                 </Pressable>
               )}
             </Pressable>
 
-            <View>
-              <Image
-                source={{ uri: submission.image_url }}
-                style={[styles.image, { aspectRatio }]}
-                onLoad={(e) => {
-                  const { width, height } = e.nativeEvent.source;
-                  if (width && height) {
-                    setAspectRatio(Math.min(Math.max(width / height, 0.5), 2));
-                  }
-                }}
-              />
+            <View style={styles.photoWrap}>
+              <FilmFrame film={submission.format === 'film'} frame="1A">
+                <Image
+                  source={{ uri: submission.image_url }}
+                  style={[styles.image, { aspectRatio }]}
+                  onLoad={(e) => {
+                    const { width, height } = e.nativeEvent.source;
+                    if (width && height) {
+                      setAspectRatio(Math.min(Math.max(width / height, 0.5), 2));
+                    }
+                  }}
+                />
+              </FilmFrame>
               {submission.film_stamp && (
-                <View style={styles.stampOverlay} pointerEvents="none">
+                <View style={[styles.stampOverlay, submission.format === 'film' && styles.stampOverlayFilm]} pointerEvents="none">
                   <FilmStamp stock={submission.film_stamp} />
                 </View>
               )}
@@ -281,14 +286,15 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
 
             <View style={styles.actionsRow}>
               <Pressable style={styles.actionItem} onPress={toggleLike}>
-                <Ionicons name={liked ? 'heart' : 'heart-outline'} size={22} color={liked ? '#dc2626' : colors.text} />
-                <Text style={[styles.actionText, liked && styles.likedText]}>{submission.like_count}</Text>
+                <OchoIcon name="heart" size={24} color={liked ? colors.coral : colors.text} filled={liked} />
+                <Stamp style={styles.actionCount}>{submission.like_count}</Stamp>
               </Pressable>
               <Pressable style={styles.actionItem} onPress={openVoting}>
-                <Ionicons
-                  name={overallHere ? 'star' : 'star-outline'}
-                  size={22}
-                  color={overallHere || picksHere > 0 ? '#F59E0B' : colors.text}
+                <OchoIcon
+                  name="vote"
+                  size={24}
+                  color={overallHere || picksHere > 0 ? colors.coral : colors.text}
+                  filled={overallHere}
                 />
                 <Text style={[styles.actionText, (overallHere || picksHere > 0) && styles.actionTextActive]}>
                   {phase === 'vote'
@@ -301,7 +307,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
                 </Text>
               </Pressable>
               <Pressable style={styles.actionItem} onPress={() => setSharing(true)} hitSlop={6}>
-                <Ionicons name="share-outline" size={21} color={colors.text} />
+                <OchoIcon name="share" size={24} color={colors.text} />
               </Pressable>
             </View>
 
@@ -369,6 +375,8 @@ const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.shell },
   page: { flex: 1, backgroundColor: colors.shell },
   stampOverlay: { position: 'absolute', left: 10, bottom: 10 },
+  stampOverlayFilm: { left: 14, bottom: 25 },
+  photoWrap: { marginHorizontal: 6 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.shell },
   emptyText: { color: colors.faint, fontSize: 13, textAlign: 'center', padding: 20 },
 
@@ -378,13 +386,13 @@ const styles = StyleSheet.create({
   avatarImage: { width: '100%', height: '100%' },
   username: { fontSize: 15, fontWeight: '600', color: colors.ink },
 
-  image: { width: '100%', backgroundColor: colors.sand },
+  image: { width: '100%', borderRadius: 5, backgroundColor: colors.sand },
 
   actionsRow: { flexDirection: 'row', gap: 22, padding: 16 },
   actionItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   actionText: { fontSize: 15, color: colors.text },
-  actionTextActive: { color: '#B45309', fontWeight: '600' },
-  likedText: { color: '#dc2626', fontWeight: '600' },
+  actionTextActive: { color: colors.coral, fontWeight: '600' },
+  actionCount: { fontSize: 15 },
   caption: { fontSize: 14, color: colors.text, paddingHorizontal: 16, paddingBottom: 12, lineHeight: 19 },
   captionUsername: { fontWeight: '600', color: colors.ink },
 
@@ -409,5 +417,5 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 13,
   },
-  commentSendButton: { backgroundColor: colors.deep, borderRadius: 20, padding: 10 },
+  commentSendButton: { backgroundColor: colors.coral, borderRadius: 20, padding: 10 },
 });

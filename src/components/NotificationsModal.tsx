@@ -6,7 +6,7 @@ import { Text } from './Themed';
 import { AppNotification, loadNotifications, timeAgo } from '../lib/notifications';
 import { respondToRequest } from '../lib/friends';
 import { useNotifications } from '../context/NotificationsContext';
-import { colors, bubbly } from '../theme';
+import { colors, bubbly, fonts } from '../theme';
 import { OchoPlain } from './OchoArt';
 import OchoLoader from './OchoLoader';
 
@@ -18,7 +18,7 @@ type Props = {
 };
 
 const TYPE_ICON: Record<AppNotification['type'], { name: keyof typeof Ionicons.glyphMap; color: string }> = {
-  like: { name: 'heart', color: '#dc2626' },
+  like: { name: 'heart', color: colors.coral },
   vote: { name: 'star', color: '#F59E0B' },
   comment: { name: 'chatbubble', color: colors.reef },
   friend_request: { name: 'person-add', color: colors.deep },
@@ -150,7 +150,7 @@ export default function NotificationsModal({ visible, onClose, onOpenSubmission,
                       {message(n)}
                       {n.type === 'report_update' && n.body ? ` ${n.body.replace(/^Ocho /, '')}` : null}
                       {n.type === 'comment' && n.body ? <Text style={styles.quote}>{`“${n.body}”`}</Text> : null}
-                      <Text style={styles.time}>{`  ${timeAgo(n.createdAt)}`}</Text>
+                      <Text style={styles.time}>{`  ${timeAgo(n.createdAt).toUpperCase()}`}</Text>
                     </Text>
 
                     {n.type === 'friend_request' && (
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   text: { fontSize: 13, color: colors.text, lineHeight: 18 },
   username: { fontWeight: '600', color: colors.ink },
   quote: { color: colors.ink },
-  time: { color: colors.faint, fontSize: 12 },
+  time: { color: colors.stamp, fontSize: 11.5, fontFamily: fonts.stamp },
   requestButtons: { flexDirection: 'row', gap: 8, marginTop: 8 },
   smallButton: { borderRadius: 14, paddingHorizontal: 14, paddingVertical: 6 },
   acceptButton: { backgroundColor: colors.deep },

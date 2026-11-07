@@ -24,7 +24,7 @@ const LINES = [
   'Ocho is fetching it…',
   'Swimming it over…',
   'Developing the film…',
-  'Checking the tide…',
+  'Loading the next roll…',
   'Almost there…',
 ];
 

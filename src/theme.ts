@@ -1,14 +1,15 @@
-// ShuttInk's under-the-sea look: deep water for headings and buttons,
-// shallow aqua for the "water" areas at the top of screens, and warm sand
-// and shell tones for the sheets and cards below the waves.
+// ShuttInk's look: quiet warm off-white paper and deep ink text, so the
+// photos carry the color. Sea blue is for navigation (headers, tabs, links),
+// coral is for the one main action on a screen, and the bright colors are
+// saved for Ocho, prizes and celebrations.
 export const colors = {
   // Water, darkest to lightest
   deep: '#0A3D62', // primary buttons, big titles, dark modals
   abyss: '#14507A', // placeholders on dark modals
-  ink: '#0B3049', // strong text
-  text: '#2C5872', // body text
-  muted: '#5B8299', // secondary text
-  faint: '#7D9BAC', // hints, placeholders, inactive icons
+  ink: '#14212B', // strong text
+  text: '#2F3B45', // body text
+  muted: '#66737D', // secondary text
+  faint: '#98A2AA', // hints, placeholders, inactive icons
   reef: '#0E86A8', // accent: links, active tabs, highlighted buttons
   reefDark: '#0B6E8C',
   reefBorder: '#A6DCEA',
@@ -16,18 +17,22 @@ export const colors = {
   sea: '#BDE6EF', // shallow water behind screen headers
   seaDeep: '#8FD3E3', // wave crests and accents on the sea
 
-  // Beach
-  shell: '#F2E2C2', // sheets, cards and the tab bar (dry sand)
-  sand: '#E8D3AA', // filled rows, chips, inputs (a shade darker than the sheet)
-  sandLight: '#EEDCB8',
-  sandBorder: '#D9BF8E',
-  sandDark: '#C9AB78',
+  // Paper (the names stay from the old sandy beach look)
+  shell: '#FAF6EF', // sheets and cards: warm off-white
+  sand: '#EFE8DC', // filled rows, chips, inputs (a shade darker than the sheet)
+  sandLight: '#F4EFE6',
+  sandBorder: '#E3D9C8',
+  sandDark: '#CDBFA8',
 
-  coral: '#E8664A', // avatar initials and playful accents
+  coral: '#E8664A', // the main action on each screen (Submit, Vote, Send)
   coralLight: '#FFE3D8',
 
   white: '#FFFFFF',
-  sandTrack: 'rgba(242, 226, 194, 0.6)', // toggle tracks sitting on the sea
+  sandTrack: 'rgba(250, 246, 239, 0.6)', // toggle tracks sitting on the sea
+
+  // Film-camera date imprint: orange digits for stamps, counts and timers
+  stamp: '#E2571B',
+  stampGlow: 'rgba(255, 122, 40, 0.35)',
   backdrop: 'rgba(6, 40, 64, 0.5)', // behind bottom sheets
 };
 
@@ -38,6 +43,8 @@ export const fonts = {
   medium: 'Fredoka_500Medium',
   semibold: 'Fredoka_600SemiBold',
   bold: 'Fredoka_700Bold',
+  // monospace, like the date a film camera prints in the corner of a photo
+  stamp: 'ShareTechMono_400Regular',
 };
 
 // Big playful headings: bold Fredoka with a solid drop shadow, like a

@@ -197,7 +197,7 @@ export default function ShopScreen() {
           setTicketTitle('');
           setTicketDescription('');
           load();
-          Alert.alert('Fin-tastic idea!', 'Your theme is in review. We\u2019ll let it soak.');
+          Alert.alert('Theme sent', 'We\u2019ll review it and it may show up in a future week.');
         },
       },
     ]);

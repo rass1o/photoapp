@@ -10,6 +10,7 @@ import {
   Fredoka_600SemiBold,
   Fredoka_700Bold,
 } from '@expo-google-fonts/fredoka';
+import { ShareTechMono_400Regular } from '@expo-google-fonts/share-tech-mono';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppNavigator from './src/navigation/AppNavigator';
 import AuthScreen from './src/screens/AuthScreen';
@@ -49,6 +50,7 @@ function Root() {
     Fredoka_500Medium,
     Fredoka_600SemiBold,
     Fredoka_700Bold,
+    ShareTechMono_400Regular,
   });
 
   useEffect(() => {

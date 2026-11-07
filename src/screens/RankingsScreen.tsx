@@ -17,6 +17,8 @@ import { colors, bubbly } from '../theme';
 import Wave, { WAVE_HEIGHT } from '../components/Wave';
 import SandGrain from '../components/SandGrain';
 import OchoLoader from '../components/OchoLoader';
+import OchoIcon from '../components/OchoIcon';
+import Stamp from '../components/Stamp';
 
 type Theme = {
   id: string;
@@ -209,7 +211,7 @@ export default function RankingsScreen() {
               <Text style={styles.extraText}>Each category winner {CATEGORY_REWARD}</Text>
             </View>
             <View style={styles.extraChip}>
-              <Ionicons name="heart" size={13} color="#dc2626" />
+              <OchoIcon name="heart" size={14} color={colors.coral} filled />
               <Text style={styles.extraText}>Most liked {MOST_LIKED_REWARD}</Text>
             </View>
             <View style={styles.extraChip}>
@@ -221,11 +223,11 @@ export default function RankingsScreen() {
 
         {theme && (
           <View style={[styles.phaseBanner, phase === 'vote' && styles.phaseBannerVote]}>
-            <Ionicons
-              name={phase === 'submit' ? 'heart' : phase === 'vote' ? 'star' : 'flag'}
-              size={15}
-              color={phase === 'submit' ? '#dc2626' : phase === 'vote' ? '#B45309' : colors.deep}
-            />
+            {phase === 'ended' ? (
+              <Ionicons name="flag" size={15} color={colors.deep} />
+            ) : (
+              <OchoIcon name={phase === 'submit' ? 'heart' : 'vote'} size={17} color={colors.coral} filled />
+            )}
             <Text style={styles.phaseText}>
               {phase === 'submit'
                 ? `Ranked by likes until voting day, ${votingOpensAt(theme.end_date).toLocaleDateString(undefined, { weekday: 'long' })}`
@@ -291,7 +293,7 @@ export default function RankingsScreen() {
                       <Text style={styles.leaderName} numberOfLines={1}>
                         {l.submission.user_id === user?.id ? 'You' : l.submission.username}
                       </Text>
-                      <Text style={styles.leaderVotes}>{l.votes}</Text>
+                      <Stamp style={styles.leaderVotes}>{l.votes}</Stamp>
                     </Pressable>
                   ))}
                   <Text style={[styles.leadersTitle, { marginTop: 14 }]}>Overall</Text>
@@ -335,8 +337,16 @@ export default function RankingsScreen() {
                     {isPrize && <Text style={styles.rewardText}>+{REWARDS[rank - 1]} shutters</Text>}
                   </Pressable>
                   <View style={styles.scores}>
-                    <Text style={[styles.votes, !byVotes && styles.scoreMain]}>{'\u2665'} {item.like_count}</Text>
-                    {byVotes && <Text style={[styles.votes, styles.scoreMain]}>{'\u2605'} {item.vote_count}</Text>}
+                    <View style={styles.scoreRow}>
+                      <OchoIcon name="heart" size={13} color={byVotes ? colors.faint : colors.coral} filled />
+                      <Stamp style={[styles.votes, byVotes && styles.scoreDim]}>{item.like_count}</Stamp>
+                    </View>
+                    {byVotes && (
+                      <View style={styles.scoreRow}>
+                        <OchoIcon name="vote" size={13} color={colors.coral} filled />
+                        <Stamp style={styles.votes}>{item.vote_count}</Stamp>
+                      </View>
+                    )}
                   </View>
                 </View>
               );
@@ -349,7 +359,7 @@ export default function RankingsScreen() {
             <Text style={styles.pinnedRank}>#{myRank}</Text>
             <CoverableImage uri={myRanking.image_url} id={myRanking.id} ownerId={myRanking.user_id} style={styles.thumb} tiny />
             <Text style={styles.pinnedUsername}>You</Text>
-            <Text style={styles.pinnedVotes}>{byVotes ? `${myRanking.vote_count} votes` : `${myRanking.like_count} likes`}</Text>
+            <Stamp style={styles.pinnedVotes}>{byVotes ? `${myRanking.vote_count} VOTES` : `${myRanking.like_count} LIKES`}</Stamp>
           </View>
         )}
       </View>
@@ -399,7 +409,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginTop: 10,
   },
-  phaseBannerVote: { backgroundColor: '#FEF3C7', borderWidth: 1.5, borderColor: '#F59E0B' },
+  phaseBannerVote: { backgroundColor: colors.coralLight, borderWidth: 1.5, borderColor: colors.coral },
   phaseText: { fontSize: 13, fontWeight: '700', color: colors.ink },
   friendsNote: { fontSize: 12, color: colors.reefDark, textAlign: 'center', marginTop: 6 },
 
@@ -437,7 +447,9 @@ const styles = StyleSheet.create({
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   username: { fontSize: 14, flexShrink: 1 },
   rewardText: { fontSize: 11, color: '#b45309', marginTop: 2 },
-  votes: { fontSize: 13, color: colors.muted },
+  votes: { fontSize: 14 },
+  scoreDim: { color: colors.faint, textShadowRadius: 0 },
+  scoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
   scores: { alignItems: 'flex-end', gap: 1 },
   scoreMain: { color: colors.ink, fontWeight: '600' },
   leaders: { marginBottom: 6 },
@@ -446,7 +458,7 @@ const styles = StyleSheet.create({
   leaderCategory: { width: 120, fontSize: 13, fontWeight: '600', color: colors.ink },
   leaderThumb: { width: 30, height: 30, borderRadius: 5, backgroundColor: colors.sand },
   leaderName: { flex: 1, fontSize: 13, color: colors.text },
-  leaderVotes: { fontSize: 13, fontWeight: '600', color: colors.reef },
+  leaderVotes: { fontSize: 14 },
 
   pinnedRow: {
     flexDirection: 'row',
@@ -460,5 +472,5 @@ const styles = StyleSheet.create({
   },
   pinnedRank: { width: 30, fontWeight: '600', color: colors.reef, fontSize: 14 },
   pinnedUsername: { flex: 1, fontSize: 14, color: colors.reef, fontWeight: '500' },
-  pinnedVotes: { fontSize: 13, color: colors.reef },
+  pinnedVotes: { fontSize: 13 },
 });

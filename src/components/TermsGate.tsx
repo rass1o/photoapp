@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
   button: {
     alignSelf: 'stretch',
     alignItems: 'center',
-    backgroundColor: colors.deep,
+    backgroundColor: colors.coral,
     borderRadius: 14,
     paddingVertical: 13,
     marginTop: 8,

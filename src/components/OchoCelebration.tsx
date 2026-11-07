@@ -25,17 +25,17 @@ type Props = {
 const PHRASES: Record<Kind, string[]> = {
   weekly: [
     'Shell yeah! Your "{theme}" shot is in. Good luck in the rankings!',
-    'Ink-credible catch! Fingers, all eight of them, crossed for a top 5 spot.',
-    'That one’s a keeper. May the votes flow in like the tide!',
+    'Fingers crossed for a top spot. All eight of them.',
+    'That one’s a keeper. Voting day will tell.',
     'You did it! I’ve got a good feeling about this one. Go get that podium!',
-    'Kraken work! Now let’s see how it does in the rankings.',
+    'Nice work. Now let’s see how it does in the rankings.',
   ],
   daily: [
     'Daily photo done! That’s {streak} in a row. Keep it rolling!',
     'Snap! {streak} day streak and counting. See you tomorrow!',
-    'Another day, another catch. {streak} days strong!',
-    'Look at you showing up! {streak} days and the tide’s on your side.',
-    'Fin-tastic! One shot a day keeps the rust away. {streak} day streak!',
+    '{streak} days strong.',
+    'Look at you showing up. {streak} days in a row.',
+    'One shot a day keeps the rust away. {streak} day streak.',
   ],
 };
 

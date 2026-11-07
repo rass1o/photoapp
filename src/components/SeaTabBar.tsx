@@ -1,6 +1,6 @@
 import { View, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
-import { Ionicons } from '@expo/vector-icons';
+import OchoIcon, { OchoIconName } from './OchoIcon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Text } from './Themed';
@@ -10,14 +10,12 @@ import { colors, fonts } from '../theme';
 // crest, little bubbles, the active tab glowing in a reef pill, and Submit
 // raised in the middle as a coral camera button.
 
-type IoniconName = keyof typeof Ionicons.glyphMap;
-
-const ICONS: Record<string, { on: IoniconName; off: IoniconName }> = {
-  Home: { on: 'home', off: 'home-outline' },
-  Submit: { on: 'camera', off: 'camera-outline' },
-  Rankings: { on: 'trophy', off: 'trophy-outline' },
-  Shop: { on: 'storefront', off: 'storefront-outline' },
-  Profile: { on: 'person', off: 'person-outline' },
+const ICONS: Record<string, OchoIconName> = {
+  Home: 'home',
+  Submit: 'camera',
+  Rankings: 'rankings',
+  Shop: 'shop',
+  Profile: 'profile',
 };
 
 const RAISED = 'Submit';
@@ -64,7 +62,7 @@ export default function SeaTabBar({ state, descriptors, navigation }: BottomTabB
           const focused = state.index === index;
           const { options } = descriptors[route.key];
           const label = (options.tabBarLabel as string) ?? options.title ?? route.name;
-          const icon = ICONS[route.name] ?? { on: 'ellipse', off: 'ellipse-outline' };
+          const icon = ICONS[route.name] ?? 'home';
           const badge = options.tabBarBadge;
 
           const onPress = () => {
@@ -85,7 +83,7 @@ export default function SeaTabBar({ state, descriptors, navigation }: BottomTabB
                 accessibilityLabel={label}
               >
                 <View style={[styles.raised, focused && styles.raisedFocused]}>
-                  <Ionicons name="camera" size={26} color={colors.white} />
+                  <OchoIcon name="camera" size={28} color={colors.white} filled detail={colors.coral} />
                 </View>
                 <Text style={[styles.label, styles.raisedLabel, focused && styles.labelFocused]}>{label}</Text>
               </Pressable>
@@ -103,7 +101,7 @@ export default function SeaTabBar({ state, descriptors, navigation }: BottomTabB
               accessibilityLabel={label}
             >
               <View style={[styles.pill, focused && styles.pillFocused]}>
-                <Ionicons name={focused ? icon.on : icon.off} size={21} color={focused ? colors.white : IDLE} />
+                <OchoIcon name={icon} size={23} color={focused ? colors.white : IDLE} filled={focused} detail={colors.reef} />
                 {badge !== undefined && (
                   <View style={styles.badge}>
                     <Text style={styles.badgeText}>{badge}</Text>

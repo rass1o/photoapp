@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
   },
   error: { color: '#b91c1c', fontSize: 12, marginBottom: 10 },
   submitButton: {
-    backgroundColor: colors.deep,
+    backgroundColor: colors.coral,
     borderRadius: 8,
     paddingVertical: 13,
     alignItems: 'center',
