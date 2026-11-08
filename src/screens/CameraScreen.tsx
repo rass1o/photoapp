@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { ensureCurrentTheme, themePhase, themeStatus } from '../lib/themes';
 import { readImage } from '../lib/upload';
+import { assertImageAppropriate, ModerationError } from '../lib/moderation';
 import { localDateString } from '../lib/date';
 import { useAuth } from '../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
@@ -301,6 +302,7 @@ export default function CameraScreen() {
       }
 
       const image = await readImage(imageUri);
+      await assertImageAppropriate(image.bytes, image.contentType);
       const filePath = `${user.id}/${Date.now()}.${image.ext}`;
 
       const { error: uploadError } = await supabase.storage
@@ -330,6 +332,10 @@ export default function CameraScreen() {
       // the server pays 150 for entering (pay_theme_entry)
       setCelebration({ kind: 'weekly', themeName: theme.name, streak: weekly, reward: 150 });
     } catch (err) {
+      if (err instanceof ModerationError) {
+        Alert.alert('Photo Not Allowed', err.message);
+        return;
+      }
       console.log('Submission failed:', err);
       Alert.alert('Something went wrong', err instanceof Error ? err.message : 'Please try again.');
     } finally {
@@ -357,6 +363,7 @@ export default function CameraScreen() {
       }
 
       const image = await readImage(dailyImageUri);
+      await assertImageAppropriate(image.bytes, image.contentType);
       const filePath = `${user.id}/daily-${Date.now()}.${image.ext}`;
 
       const { error: uploadError } = await supabase.storage
@@ -385,6 +392,10 @@ export default function CameraScreen() {
       loadStreaks();
       setCelebration({ kind: 'daily', streak: reward.streak, reward: reward.reward, bonus: reward.bonus ?? 0 });
     } catch (err) {
+      if (err instanceof ModerationError) {
+        Alert.alert('Photo Not Allowed', err.message);
+        return;
+      }
       console.log('Daily submission failed:', err);
       Alert.alert('Something went wrong', err instanceof Error ? err.message : 'Please try again.');
     } finally {

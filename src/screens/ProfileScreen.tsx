@@ -10,6 +10,7 @@ import { useTapTabToTop } from '../lib/useTapTabToTop';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { readImage } from '../lib/upload';
+import { assertImageAppropriate, ModerationError } from '../lib/moderation';
 import { ProfileCategory, ShopItem, PROFILE_COLUMN, isOwned, loadShop } from '../lib/shop';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import SectionHeader from '../components/SectionHeader';
@@ -276,6 +277,7 @@ export default function ProfileScreen() {
     try {
       const uri = result.assets[0].uri;
       const image = await readImage(uri);
+      await assertImageAppropriate(image.bytes, image.contentType);
       const filePath = `${user.id}/avatar-${Date.now()}.${image.ext}`;
 
       const { error: uploadError } = await supabase.storage
@@ -287,6 +289,10 @@ export default function ProfileScreen() {
       const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
       await updateProfile({ avatar_url: publicUrlData.publicUrl });
     } catch (err) {
+      if (err instanceof ModerationError) {
+        Alert.alert('Photo Not Allowed', err.message);
+        return;
+      }
       console.log('Avatar upload failed:', err);
       Alert.alert('Something went wrong', err instanceof Error ? err.message : 'Please try again.');
     } finally {
@@ -314,6 +320,7 @@ export default function ProfileScreen() {
     try {
       const uri = result.assets[0].uri;
       const image = await readImage(uri);
+      await assertImageAppropriate(image.bytes, image.contentType);
       const filePath = `${user.id}/showcase-${slotIndex}-${Date.now()}.${image.ext}`;
 
       const { error: uploadError } = await supabase.storage
@@ -325,6 +332,10 @@ export default function ProfileScreen() {
       const { data: publicUrlData } = supabase.storage.from('submissions').getPublicUrl(filePath);
       await updateProfile({ [SHOWCASE_KEYS[slotIndex]]: publicUrlData.publicUrl });
     } catch (err) {
+      if (err instanceof ModerationError) {
+        Alert.alert('Photo Not Allowed', err.message);
+        return;
+      }
       console.log('Showcase upload failed:', err);
       Alert.alert('Something went wrong', err instanceof Error ? err.message : 'Please try again.');
     } finally {
