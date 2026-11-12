@@ -19,10 +19,13 @@ import Reanimated, {
 import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
 import { colors } from '../theme';
 
-// Sidekick pets (epic and legendary) that sit beside your octopus. Same cartoon style as the
-// octopus: chunky outline, simple shapes.
+// Sidekick pets (epic and legendary) that sit beside your octopus. Drawn flat, unlike the
+// outlined octopus: no outlines, just shapes and color. Small line details (mouths,
+// limbs, glasses frames) are in ink, and white parts get a grey underside so they
+// still stand out on the off-white paper.
 
-const OUTLINE = colors.abyss;
+const INK = colors.ink;
+const SHADE = '#E2E8F0'; // underside of white fur, feathers and hoodies
 const GOLD = '#FBBF24';
 
 function Star({ x, y, r }: { x: number; y: number; r: number }) {
@@ -31,12 +34,12 @@ function Star({ x, y, r }: { x: number; y: number; r: number }) {
     const dist = i % 2 === 0 ? r : r * 0.45;
     return `${(x + dist * Math.cos(angle)).toFixed(1)},${(y + dist * Math.sin(angle)).toFixed(1)}`;
   });
-  return <Path d={`M${points.join(' L')} Z`} fill={GOLD} stroke={OUTLINE} strokeWidth={1.2} strokeLinejoin="round" />;
+  return <Path d={`M${points.join(' L')} Z`} fill={GOLD} />;
 }
 
 function Flower({ x, y, r, petal, center = '#FDE047' }: { x: number; y: number; r: number; petal: string; center?: string }) {
   return (
-    <G stroke={OUTLINE} strokeWidth={1.3}>
+    <G>
       {[0, 72, 144, 216, 288].map((deg) => {
         const a = ((deg - 90) * Math.PI) / 180;
         return <Circle key={deg} cx={x + r * Math.cos(a)} cy={y + r * Math.sin(a)} r={r * 0.75} fill={petal} />;
@@ -54,32 +57,37 @@ type CatLook = {
   eyes: string;
   chest?: string; // bib, muzzle and socks, for tuxedo cats
   patches?: { orange: string; black: string }; // calico spots
+  shade?: string; // underside, for white cats
 };
 
 const CATS: Record<'merlin' | 'tuxie' | 'ginger', CatLook> = {
   merlin: { fur: '#2A2533', earInner: '#F9A8D4', eyes: '#C6E35B' },
   tuxie: { fur: '#1F1D24', earInner: '#F9A8D4', eyes: '#7DD3FC', chest: '#FFFFFF' },
-  ginger: { fur: '#FFFBF5', earInner: '#F9A8D4', eyes: '#F59E0B', patches: { orange: '#E8893A', black: '#2A2533' } },
+  ginger: {
+    fur: '#FFFBF5',
+    earInner: '#F9A8D4',
+    eyes: '#F59E0B',
+    patches: { orange: '#E8893A', black: '#2A2533' },
+    shade: '#EADFCF',
+  },
 };
 
 function CatTail({ c }: { c: CatLook }) {
   return (
-    <G strokeLinecap="round">
-      <Path d="M70,88 C94,86 98,62 84,54" stroke={OUTLINE} strokeWidth={11} fill="none" />
-      <Path d="M70,88 C94,86 98,62 84,54" stroke={c.patches ? c.patches.orange : c.fur} strokeWidth={6} fill="none" />
-    </G>
+    <Path d="M70,88 C94,86 98,62 84,54" stroke={c.patches ? c.patches.orange : c.fur} strokeWidth={9} strokeLinecap="round" fill="none" />
   );
 }
 
 function CatPaw({ x, c }: { x: number; c: CatLook }) {
-  return <Ellipse cx={x} cy={92} rx={7} ry={4.5} fill={c.chest ?? c.fur} stroke={OUTLINE} strokeWidth={2.5} />;
+  return <Ellipse cx={x} cy={92} rx={7} ry={4.5} fill={c.chest ?? c.fur} />;
 }
 
 // paws: which front paws are drawn here ('none'/'left' when they move on their own)
 function Cat({ c, paws = 'both' }: { c: CatLook; paws?: 'both' | 'left' | 'none' }) {
   return (
-    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
+    <G>
       <Ellipse cx={50} cy={72} rx={24} ry={22} fill={c.fur} />
+      {c.shade && <Path d="M26,74 C28,88 38,94 50,94 C62,94 72,88 74,74 C70,86 60,90 50,90 C40,90 30,86 26,74 Z" fill={c.shade} />}
       {c.chest && <Ellipse cx={50} cy={76} rx={12} ry={15} fill={c.chest} strokeWidth={0} />}
       {c.patches && (
         <G strokeWidth={0}>
@@ -138,7 +146,7 @@ function CatPupils() {
 // Merlin: pink collar with a star tag, and a fish he caught
 function MerlinExtras() {
   return (
-    <G stroke={OUTLINE} strokeLinejoin="round" strokeLinecap="round">
+    <G strokeLinejoin="round" strokeLinecap="round">
       <Path d="M34,56 Q50,64 66,56" stroke="#EC4899" strokeWidth={5} fill="none" />
       <Star x={50} y={66} r={5.5} />
     </G>
@@ -148,7 +156,7 @@ function MerlinExtras() {
 // Held sideways in his mouth
 function MerlinFish() {
   return (
-    <G stroke={OUTLINE} strokeLinejoin="round" strokeLinecap="round">
+    <G strokeLinejoin="round" strokeLinecap="round">
       <Path d="M36,51 C40,46 52,46 56,51 C52,56 40,56 36,51 Z" fill="#7DB7D8" strokeWidth={1.8} />
       <Path d="M56,51 L64,46 L63,56 Z" fill="#7DB7D8" strokeWidth={1.8} />
       <Path d="M44,48 Q46,51 44,54" stroke="#4B8FB3" strokeWidth={1.2} fill="none" />
@@ -160,7 +168,7 @@ function MerlinFish() {
 // Tuxie: a bowtie, and thick nerd glasses with tape on the bridge
 function TuxieBowtie() {
   return (
-    <G stroke={OUTLINE} strokeLinejoin="round">
+    <G>
       <Path d="M44,58 L36,53 L36,63 Z M56,58 L64,53 L64,63 Z" fill="#DC2626" strokeWidth={1.8} />
       <Circle cx={50} cy={58} r={3} fill="#B91C1C" strokeWidth={1.5} />
     </G>
@@ -169,7 +177,7 @@ function TuxieBowtie() {
 
 function TuxieGlasses() {
   return (
-    <G stroke={OUTLINE} strokeLinejoin="round">
+    <G strokeLinejoin="round">
       <Rect x={34.5} y={32.5} width={15} height={13} rx={3} fill="#FFFFFF" fillOpacity={0.15} stroke="#111" strokeWidth={3} />
       <Rect x={50.5} y={32.5} width={15} height={13} rx={3} fill="#FFFFFF" fillOpacity={0.15} stroke="#111" strokeWidth={3} />
       <Rect x={48} y={35.5} width={4} height={4} fill="#F5F5F4" strokeWidth={1} />
@@ -178,12 +186,13 @@ function TuxieGlasses() {
   );
 }
 
-// His foreleg, raised in front of his chest to push his glasses up
+// His foreleg, raised in front of his chest to push his glasses up. Shaded so
+// it doesn't melt into his white bib.
 function TuxieLeg() {
   return (
-    <G stroke={OUTLINE} strokeWidth={2.5}>
-      <Rect x={54} y={66} width={10} height={40} rx={5} fill={colors.white} />
-      <Path d="M56.5,69 L56.5,71.5 M59,68 L59,70.5 M61.5,69 L61.5,71.5" strokeWidth={1.2} strokeLinecap="round" />
+    <G>
+      <Rect x={54} y={66} width={10} height={40} rx={5} fill={SHADE} />
+      <Path d="M56.5,69 L56.5,71.5 M59,68 L59,70.5 M61.5,69 L61.5,71.5" stroke="#94A3B8" strokeWidth={1.2} strokeLinecap="round" />
     </G>
   );
 }
@@ -205,7 +214,7 @@ function Glare({ streak, right }: { streak: string; right: number }) {
 function GingerExtras() {
   return (
     <G>
-      <Path d="M60,22 Q64,18 68,20 Q64,24 60,22 Z" fill="#4ADE80" stroke={OUTLINE} strokeWidth={1.3} />
+      <Path d="M60,22 Q64,18 68,20 Q64,24 60,22 Z" fill="#4ADE80" />
       <Flower x={56} y={20} r={4.5} petal="#F472B6" />
     </G>
   );
@@ -247,25 +256,22 @@ const BASSETS: Record<'susie' | 'scarlet', BassetColors> = {
 
 function BassetTail({ c }: { c: BassetColors }) {
   return (
-    <G strokeLinecap="round">
-      <Path d="M84,74 C98,66 100,52 95,44" stroke={OUTLINE} strokeWidth={10} fill="none" />
-      <Path d="M84,74 C98,66 100,52 95,44" stroke={c.body} strokeWidth={5} fill="none" />
-    </G>
+    <Path d="M84,74 C98,66 100,52 95,44" stroke={c.body} strokeWidth={8} strokeLinecap="round" fill="none" />
   );
 }
 
 function BassetEar({ side, c }: { side: 'left' | 'right'; c: BassetColors }) {
   return side === 'left' ? (
-    <Path d="M44,30 C28,33 22,74 32,88 C42,92 47,58 46,40 Z" fill={c.ears} stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" />
+    <Path d="M44,30 C28,33 22,74 32,88 C42,92 47,58 46,40 Z" fill={c.ears} />
   ) : (
-    <Path d="M72,30 C88,33 94,74 84,88 C74,92 69,58 70,40 Z" fill={c.ears} stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" />
+    <Path d="M72,30 C88,33 94,74 84,88 C74,92 69,58 70,40 Z" fill={c.ears} />
   );
 }
 
 // ears: false when they're drawn on their own layers so they can flare
 function Basset({ c, ears = true }: { c: BassetColors; ears?: boolean }) {
   return (
-    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
+    <G>
       <Ellipse cx={58} cy={74} rx={30} ry={20} fill={c.body} />
       <Ellipse cx={58} cy={80} rx={15} ry={13} fill={c.chest} strokeWidth={0} />
       <Ellipse cx={45} cy={93} rx={8} ry={4.5} fill={c.paws} />
@@ -304,7 +310,7 @@ function BassetFace() {
 // Stuck out now and then
 function Tongue() {
   return (
-    <G stroke={OUTLINE} strokeWidth={1.5} strokeLinejoin="round">
+    <G>
       <Path d="M53,57 Q52,69 58,69 Q64,69 63,57 Z" fill="#F472B6" />
       <Path d="M58,59 L58,65" stroke="#DB2777" strokeWidth={1.2} strokeLinecap="round" />
     </G>
@@ -319,7 +325,7 @@ function SusieFlower({ x }: { x: number }) {
 // Scarlet: a big snapback, bill off to the side
 function ScarletExtras() {
   return (
-    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round">
+    <G>
       <Path d="M70,28 C84,22 104,24 106,30 C98,34 80,34 70,32 Z" fill="#1D4ED8" />
       <Path d="M34,32 C32,4 84,4 82,32 Z" fill="#DC2626" />
       <Path d="M48,30 C48,14 68,14 68,30 Z" fill="#FFFFFF" strokeWidth={2} />
@@ -343,7 +349,7 @@ function MangoBody() {
   const pink = MANGO_PINK;
   const deep = MANGO_DEEP;
   return (
-    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
+    <G strokeLinejoin="round" strokeLinecap="round">
       {/* legs: one straight, one tucked */}
       <Path d="M50,70 L50,95 M44,96 L56,96" stroke={deep} strokeWidth={3} fill="none" />
       <Path d="M60,70 L68,82 L58,85" stroke={deep} strokeWidth={3} fill="none" />
@@ -356,10 +362,7 @@ function MangoBody() {
 
 function MangoNeck() {
   return (
-    <G strokeLinecap="round">
-      <Path d={NECK_UP} stroke={OUTLINE} strokeWidth={10} fill="none" />
-      <Path d={NECK_UP} stroke={MANGO_PINK} strokeWidth={5} fill="none" />
-    </G>
+    <Path d={NECK_UP} stroke={MANGO_PINK} strokeWidth={8} strokeLinecap="round" fill="none" />
   );
 }
 
@@ -367,7 +370,7 @@ function MangoHead() {
   const pink = MANGO_PINK;
   const deep = MANGO_DEEP;
   return (
-    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
+    <G strokeLinejoin="round" strokeLinecap="round">
       <Circle cx={38} cy={26} r={10} fill={pink} />
       {/* beak bends down, black tip */}
       <Path d="M45,23 C52,23 56,27 55,34 C53,30 50,29 45,30 Z" fill="#FFF1E6" />
@@ -388,9 +391,9 @@ function MangoEye() {
 // Sticking out the side of Mango's beak
 function MangoWheat() {
   return (
-    <G stroke={OUTLINE} strokeLinejoin="round" strokeLinecap="round">
+    <G strokeLinejoin="round" strokeLinecap="round">
       <Path d="M53,30 L72,22" stroke="#C99A2E" strokeWidth={1.8} fill="none" />
-      <G fill="#E8B84A" strokeWidth={1.2}>
+      <G fill="#DDA93A">
         <Ellipse cx={66} cy={22} rx={3.2} ry={1.6} rotation={-50} origin="66, 22" />
         <Ellipse cx={68} cy={26} rx={3.2} ry={1.6} rotation={30} origin="68, 26" />
         <Ellipse cx={71} cy={19} rx={3.2} ry={1.6} rotation={-50} origin="71, 19" />
@@ -404,11 +407,11 @@ function MangoWheat() {
 // Leila: a little film camera come to life
 function Leila() {
   return (
-    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
+    <G strokeLinejoin="round" strokeLinecap="round">
       {/* arms and legs */}
-      <Path d="M20,58 Q10,60 8,70" stroke={OUTLINE} strokeWidth={3} fill="none" />
+      <Path d="M20,58 Q10,60 8,70" stroke={INK} strokeWidth={3} fill="none" />
       <Circle cx={8} cy={71} r={4} fill="#F5D0A9" />
-      <Path d="M38,78 L36,92 M62,78 L64,92" stroke={OUTLINE} strokeWidth={3} fill="none" />
+      <Path d="M38,78 L36,92 M62,78 L64,92" stroke={INK} strokeWidth={3} fill="none" />
       <Ellipse cx={33} cy={94} rx={6} ry={3.5} fill="#E8664A" />
       <Ellipse cx={67} cy={94} rx={6} ry={3.5} fill="#E8664A" />
       {/* body: top plate, viewfinder, leather wrap */}
@@ -416,14 +419,13 @@ function Leila() {
       <Rect x={40} y={14} width={20} height={12} rx={3} fill="#3F4756" />
       <Rect x={18} y={24} width={64} height={56} rx={9} fill="#D9DEE5" />
       <Rect x={18} y={48} width={64} height={24} fill="#8B5A3C" strokeWidth={0} />
-      <Path d="M18,48 L82,48 M18,72 L82,72" />
       <Circle cx={71} cy={31} r={3.5} fill="#FDE68A" strokeWidth={1.8} />
       {/* big lens */}
       <Circle cx={50} cy={60} r={14} fill="#3F4756" />
       <Circle cx={50} cy={60} r={8.5} fill="#1E293B" />
       <Circle cx={46.5} cy={56.5} r={2.5} fill="#FFFFFF" opacity={0.75} stroke="none" />
       {/* face on the top half */}
-      <Path d="M46,42 Q50,45 54,42" strokeWidth={2} fill="none" />
+      <Path d="M46,42 Q50,45 54,42" stroke={INK} strokeWidth={2} fill="none" />
       <Ellipse cx={31} cy={42} rx={3.5} ry={2} fill="#FB7185" opacity={0.6} stroke="none" />
       <Ellipse cx={69} cy={42} rx={3.5} ry={2} fill="#FB7185" opacity={0.6} stroke="none" />
     </G>
@@ -432,7 +434,7 @@ function Leila() {
 
 function LeilaEyeWhites() {
   return (
-    <G stroke={OUTLINE} strokeWidth={1.8}>
+    <G>
       <Ellipse cx={39} cy={36} rx={4.5} ry={5.5} fill="#FFFFFF" />
       <Ellipse cx={61} cy={36} rx={4.5} ry={5.5} fill="#FFFFFF" />
     </G>
@@ -451,8 +453,8 @@ function LeilaPupils() {
 // Her waving arm, on its own so it can move
 function LeilaArm() {
   return (
-    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinecap="round">
-      <Path d="M80,58 Q90,56 92,46" strokeWidth={3} fill="none" />
+    <G strokeLinecap="round">
+      <Path d="M80,58 Q90,56 92,46" stroke={INK} strokeWidth={3} fill="none" />
       <Circle cx={92} cy={45} r={4} fill="#F5D0A9" />
     </G>
   );
@@ -478,7 +480,7 @@ function LeilaFlash() {
 function Gibson() {
   const fur = '#D9A066';
   return (
-    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
+    <G strokeLinejoin="round" strokeLinecap="round">
       <Circle cx={30} cy={36} r={8} fill={fur} />
       <Circle cx={70} cy={36} r={8} fill={fur} />
       <Circle cx={30} cy={36} r={4} fill="#F9A8D4" strokeWidth={0} />
@@ -491,8 +493,8 @@ function Gibson() {
       <Ellipse cx={70} cy={64} rx={6} ry={4} fill="#FB7185" opacity={0.45} strokeWidth={0} />
       <Path d="M36,84 Q40,78 44,84 Z M56,84 Q60,78 64,84 Z" fill="#F5C6A5" strokeWidth={1.8} />
       <Path d="M47,62 L53,62 L50,65 Z" fill="#F472B6" strokeWidth={1.5} />
-      <Path d="M50,65 Q47,69 44,67 M50,65 Q53,69 56,67" strokeWidth={1.5} fill="none" />
-      <Rect x={47.5} y={67.5} width={5} height={4} rx={1} fill="#FFFFFF" strokeWidth={1.2} />
+      <Path d="M50,65 Q47,69 44,67 M50,65 Q53,69 56,67" stroke={INK} strokeWidth={1.5} fill="none" />
+      <Rect x={47.5} y={67.5} width={5} height={4} rx={1} fill="#FFFFFF" />
     </G>
   );
 }
@@ -509,8 +511,8 @@ function GibsonEye({ x }: { x: number }) {
 
 function GibsonGlasses() {
   return (
-    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
-      <Path d="M28,50 L72,50" strokeWidth={3} />
+    <G strokeLinejoin="round" strokeLinecap="round">
+      <Path d="M28,50 L72,50" stroke={INK} strokeWidth={3} />
       <Path d="M30,49 L48,49 Q48,60 39,60 Q30,60 30,49 Z" fill="#111827" />
       <Path d="M52,49 L70,49 Q70,60 61,60 Q52,60 52,49 Z" fill="#111827" />
       <Path d="M34,52 L38,52 M56,52 L60,52" stroke="#FFFFFF" strokeWidth={1.8} opacity={0.7} />
@@ -521,26 +523,28 @@ function GibsonGlasses() {
 // Harold: a plump white chicken in a yellow apron
 function Harold() {
   return (
-    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
+    <G strokeLinejoin="round" strokeLinecap="round">
       {/* feet */}
       <Path d="M40,88 L40,96 M35,97 L40,95 L45,97 M60,88 L60,96 M55,97 L60,95 L65,97" stroke="#F59E0B" strokeWidth={3} fill="none" />
       {/* tail feathers */}
       <Path d="M72,58 C84,48 90,52 86,62 C92,60 92,70 82,72 Z" fill="#FFFFFF" />
       {/* body and wings */}
       <Ellipse cx={50} cy={66} rx={26} ry={24} fill="#FFFFFF" />
-      <Path d="M25,62 C18,70 22,80 30,78" fill="#F3F4F6" />
-      <Path d="M75,62 C82,70 78,80 70,78" fill="#F3F4F6" />
+      <Path d="M24,70 C26,84 38,90 50,90 C62,90 74,84 76,70 C72,82 62,86 50,86 C38,86 28,82 24,70 Z" fill={SHADE} />
+      <Path d="M25,62 C18,70 22,80 30,78" fill={SHADE} />
+      <Path d="M75,62 C82,70 78,80 70,78" fill={SHADE} />
       {/* apron: shoulder straps (under his head), bib, skirt, pocket, ties */}
-      <Path d="M43,53 C39,49 36,48 32,51 M57,53 C61,49 64,48 68,51" stroke={OUTLINE} strokeWidth={5} fill="none" />
-      <Path d="M43,53 C39,49 36,48 32,51 M57,53 C61,49 64,48 68,51" stroke="#FACC15" strokeWidth={2.5} fill="none" />
+      <Path d="M43,53 C39,49 36,48 32,51 M57,53 C61,49 64,48 68,51" stroke="#FACC15" strokeWidth={3.5} fill="none" />
       <Path d="M42,52 L58,52 L60,66 L40,66 Z" fill="#FDE047" />
       <Path d="M36,64 L64,64 C66,76 62,86 50,88 C38,86 34,76 36,64 Z" fill="#FDE047" />
       <Path d="M36,64 L64,64" stroke="#FFFFFF" strokeWidth={2} />
       <Path d="M44,72 L56,72 L55,80 L45,80 Z" fill="#FEF08A" strokeWidth={1.8} />
       <Path d="M50,74 C48,72 46,74 48,76 L50,78 L52,76 C54,74 52,72 50,74 Z" fill="#F472B6" strokeWidth={1} />
       <Path d="M36,64 L28,68 M64,64 L72,68" stroke="#FACC15" strokeWidth={2.5} />
-      {/* head */}
+      {/* head, with a shadow under his chin */}
+      <Ellipse cx={50} cy={51} rx={13} ry={4} fill={SHADE} />
       <Circle cx={50} cy={34} r={17} fill="#FFFFFF" />
+      <Path d="M33,36 C34,46 42,51 50,51 C58,51 66,46 67,36 C64,44 58,48 50,48 C42,48 36,44 33,36 Z" fill={SHADE} />
       {/* comb */}
       <Path d="M42,20 C40,12 46,10 47,16 C48,8 55,8 54,16 C56,10 62,13 58,21 Z" fill="#EF4444" />
       {/* beak and wattle */}
@@ -571,10 +575,9 @@ const CAPY_DARK = '#7A4F2E';
 
 function GoopPoolBack() {
   return (
-    <G stroke={OUTLINE} strokeWidth={2.5}>
+    <G>
       <Ellipse cx={50} cy={84} rx={46} ry={12} fill="#7DD3FC" />
       <Ellipse cx={50} cy={84} rx={46} ry={12} fill="none" stroke="#F472B6" strokeWidth={5} />
-      <Ellipse cx={50} cy={84} rx={46} ry={12} fill="none" />
     </G>
   );
 }
@@ -582,7 +585,7 @@ function GoopPoolBack() {
 function GoopLegs({ front }: { front: boolean }) {
   const xs = front ? [58, 68] : [30, 40];
   return (
-    <G stroke={OUTLINE} strokeWidth={2.5}>
+    <G>
       {xs.map((x) => (
         <Rect key={x} x={x} y={64} width={9} height={22} rx={4} fill={front ? CAPY : CAPY_DARK} />
       ))}
@@ -592,7 +595,7 @@ function GoopLegs({ front }: { front: boolean }) {
 
 function GoopBody() {
   return (
-    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round">
+    <G>
       <Ellipse cx={48} cy={58} rx={28} ry={18} fill={CAPY} />
       <Path d="M26,52 C34,44 56,42 70,48" stroke={CAPY_DARK} strokeWidth={2} fill="none" opacity={0.6} />
     </G>
@@ -601,15 +604,15 @@ function GoopBody() {
 
 function GoopHead() {
   return (
-    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
+    <G strokeLinejoin="round" strokeLinecap="round">
       <Path d="M64,42 C63,31 75,26 86,30 C95,33 97,44 93,52 C88,59 74,60 68,56 C64,53 64,47 64,42 Z" fill={CAPY} />
       <Ellipse cx={70} cy={30} rx={4} ry={3} fill={CAPY_DARK} />
       <Ellipse cx={90} cy={45} rx={6} ry={7} fill={CAPY_DARK} strokeWidth={2} />
       <Circle cx={92} cy={42} r={1.2} fill="#111" stroke="none" />
       {/* happy closed eyes */}
-      <Path d="M75,39 Q79,34 83,39" strokeWidth={2} fill="none" />
+      <Path d="M75,39 Q79,34 83,39" stroke={INK} strokeWidth={2} fill="none" />
       <Ellipse cx={78} cy={46} rx={4} ry={2.4} fill="#FB7185" opacity={0.5} stroke="none" />
-      <Path d="M84,52 Q87,54 90,52" strokeWidth={1.6} fill="none" />
+      <Path d="M84,52 Q87,54 90,52" stroke={INK} strokeWidth={1.6} fill="none" />
       {/* his orange */}
       <Circle cx={78} cy={25} r={6} fill="#FB923C" />
       <Path d="M78,19 Q82,15 85,17 Q82,20 78,19 Z" fill="#4ADE80" strokeWidth={1.5} />
@@ -623,7 +626,6 @@ function GoopPoolFront() {
     <G>
       <Path d="M4,84 Q50,104 96,84 Q50,92 4,84 Z" fill="#38BDF8" opacity={0.85} />
       <Path d="M4,84 Q50,98 96,84" stroke="#F472B6" strokeWidth={5} fill="none" />
-      <Path d="M4,84 Q50,98 96,84" stroke={OUTLINE} strokeWidth={2.5} fill="none" />
       <Path d="M30,84 Q36,82 42,84 M58,85 Q64,83 70,85" stroke="#FFFFFF" strokeWidth={1.8} fill="none" opacity={0.8} />
     </G>
   );
@@ -634,9 +636,7 @@ function GoopSplash() {
     <Path
       key={`${x},${y}`}
       d={`M${x},${y - r * 1.8} C${x + r},${y - r * 0.4} ${x + r},${y + r} ${x},${y + r} C${x - r},${y + r} ${x - r},${y - r * 0.4} ${x},${y - r * 1.8} Z`}
-      fill="#7DD3FC"
-      stroke={OUTLINE}
-      strokeWidth={1.2}
+      fill="#38BDF8"
     />
   );
   return <G>{[drop(22, 70), drop(32, 64, 2), drop(70, 64, 2), drop(82, 70), drop(50, 66, 1.8)]}</G>;
@@ -652,7 +652,7 @@ const PANDA_WHITE = '#FFF7ED';
 
 function MandBody() {
   return (
-    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
+    <G>
       <Ellipse cx={58} cy={74} rx={34} ry={16} fill={PANDA} />
       <Path d="M34,66 C46,58 72,58 86,66" stroke={PANDA_DARK} strokeWidth={2} fill="none" opacity={0.5} />
       {/* front paws tucked under his chin */}
@@ -665,16 +665,15 @@ function MandBody() {
 function MandTail() {
   return (
     <G strokeLinecap="round" fill="none">
-      <Path d="M88,72 C100,92 60,98 30,92" stroke={OUTLINE} strokeWidth={15} />
-      <Path d="M88,72 C100,92 60,98 30,92" stroke={PANDA} strokeWidth={10} />
-      <Path d="M88,72 C100,92 60,98 30,92" stroke={PANDA_DARK} strokeWidth={10} strokeDasharray="5 7" strokeLinecap="butt" />
+      <Path d="M88,72 C100,92 60,98 30,92" stroke={PANDA} strokeWidth={13} />
+      <Path d="M88,72 C100,92 60,98 30,92" stroke={PANDA_DARK} strokeWidth={13} strokeDasharray="5 7" strokeLinecap="butt" />
     </G>
   );
 }
 
 function MandHead() {
   return (
-    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
+    <G>
       {/* ears */}
       <Path d="M16,60 L14,45 L27,53 Z" fill={PANDA} />
       <Path d="M44,58 L46,43 L34,52 Z" fill={PANDA} />
@@ -700,8 +699,8 @@ function MandSleepyEyes() {
 }
 
 // Her dream: two little bubbles rising from her head into a puffy cloud
-// with a bone-in ham inside. Each puff is drawn outlined first, then filled
-// again on top, so the cloud has one clean outer edge.
+// with a bone-in ham inside. Pale blue-grey so it shows on the white paper.
+const CLOUD = '#E6EDF5';
 const DREAM_PUFFS = [
   { cx: 60, cy: 25, r: 8 },
   { cx: 70, cy: 17, r: 10 },
@@ -713,7 +712,7 @@ const DREAM_PUFFS = [
 
 function MandDreamBubbles() {
   return (
-    <G stroke={OUTLINE} strokeWidth={1.8} fill={colors.white}>
+    <G fill={CLOUD}>
       <Circle cx={47} cy={50} r={2.2} />
       <Circle cx={52.5} cy={43} r={3.4} />
     </G>
@@ -724,16 +723,12 @@ function MandDream() {
   return (
     <G>
       {DREAM_PUFFS.map((p, i) => (
-        <Circle key={`o${i}`} {...p} fill={colors.white} stroke={OUTLINE} strokeWidth={2.5} />
+        <Circle key={i} {...p} fill={CLOUD} />
       ))}
-      {DREAM_PUFFS.map((p, i) => (
-        <Circle key={`f${i}`} {...p} fill={colors.white} />
-      ))}
-      <Ellipse cx={74} cy={26} rx={21} ry={12} fill={colors.white} />
+      <Ellipse cx={74} cy={26} rx={21} ry={12} fill={CLOUD} />
       {/* the ham: a bone poking out of a big round roast */}
-      <G stroke={OUTLINE} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round">
-        <Path d="M77,22 L84,16" stroke={OUTLINE} strokeWidth={6} />
-        <Path d="M77,22 L84,16" stroke="#FFF7ED" strokeWidth={3} />
+      <G strokeLinejoin="round" strokeLinecap="round">
+        <Path d="M77,22 L84,16" stroke="#FFF7ED" strokeWidth={4.5} />
         <Circle cx={84} cy={13.5} r={2.6} fill="#FFF7ED" />
         <Circle cx={86.8} cy={16.4} r={2.6} fill="#FFF7ED" />
         <Path d="M60,30 C58,20 68,15 76,19 C82,22 82,30 76,34 C70,38 61,36 60,30 Z" fill="#C2552C" />
@@ -771,9 +766,8 @@ const HOODIE = '#F8FAFC';
 
 function SoupyPickaxe() {
   return (
-    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
-      <Path d="M26,90 L80,22" stroke={OUTLINE} strokeWidth={7} />
-      <Path d="M26,90 L80,22" stroke="#8B5A3C" strokeWidth={3.5} />
+    <G strokeLinejoin="round" strokeLinecap="round">
+      <Path d="M26,90 L80,22" stroke="#8B5A3C" strokeWidth={5} />
       <Path d="M64,14 C76,10 90,16 96,28 C88,22 78,20 72,24 L68,22 C70,18 68,16 64,14 Z" fill="#94A3B8" />
       <Path d="M72,24 C78,20 88,22 96,28" stroke="#CBD5E1" strokeWidth={1.5} fill="none" />
     </G>
@@ -782,9 +776,10 @@ function SoupyPickaxe() {
 
 function Soupy() {
   return (
-    <G stroke={OUTLINE} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round">
+    <G strokeLinejoin="round" strokeLinecap="round">
       {/* hoodie body, hood behind the head */}
       <Ellipse cx={50} cy={75} rx={23} ry={20} fill={HOODIE} />
+      <Path d="M27,78 C30,90 40,95 50,95 C60,95 70,90 73,78 C68,88 60,91 50,91 C40,91 32,88 27,78 Z" fill={SHADE} />
       <Path d="M27,44 C24,18 76,18 73,44 C73,50 27,50 27,44 Z" fill={HOODIE} />
       <Path d="M31,42 C30,24 70,24 69,42" stroke="#CBD5E1" strokeWidth={3} fill="none" />
       <Path d="M38,82 L62,82 L60,92 L40,92 Z" fill="#E2E8F0" strokeWidth={2} />
@@ -820,8 +815,8 @@ function SoupyEye({ x }: { x: number }) {
 
 function SoupyShades() {
   return (
-    <G stroke={OUTLINE} strokeWidth={2} strokeLinejoin="round">
-      <Path d="M28,37 L72,37" strokeWidth={3} />
+    <G strokeLinejoin="round">
+      <Path d="M28,37 L72,37" stroke={INK} strokeWidth={3} />
       <Path d="M30,37 L48,37 L46,46 Q38,50 32,45 Z" fill="#111827" />
       <Path d="M70,37 L52,37 L54,46 Q62,50 68,45 Z" fill="#111827" />
       <Path d="M33,39 L44,39 M56,39 L67,39" stroke="#2DD4BF" strokeWidth={1.6} opacity={0.8} />
@@ -1444,8 +1439,7 @@ function BendingNeck({ frame, dip }: { frame: Frame; dip: SharedValue<number> })
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
       <Canvas style={{ width: frame.size, height: frame.size }}>
         <SkGroup transform={[{ translateY: frame.offY }, { scale: frame.s }]}>
-          <SkPath path={path} style="stroke" strokeWidth={10} strokeCap="round" color={OUTLINE} />
-          <SkPath path={path} style="stroke" strokeWidth={5} strokeCap="round" color={MANGO_PINK} />
+          <SkPath path={path} style="stroke" strokeWidth={8} strokeCap="round" color={MANGO_PINK} />
         </SkGroup>
       </Canvas>
     </View>
