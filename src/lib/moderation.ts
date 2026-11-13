@@ -1,3 +1,4 @@
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 
 export class ModerationError extends Error {
@@ -29,22 +30,21 @@ export async function assertImageAppropriate(
   });
 
   if (error) {
-    // If the Edge function returned HTTP 400 with a structured rejection
-    if (data && data.ok === false && data.reason) {
-      throw new ModerationError(data.reason, data.category);
+    // A rejected photo comes back as HTTP 400, and supabase-js leaves `data`
+    // empty for any non-2xx reply, so the reason has to be read from the
+    // response stored on the error
+    if (error instanceof FunctionsHttpError) {
+      const body = await error.context.json().catch(() => null);
+      if (body && body.ok === false && body.category && body.reason) {
+        throw new ModerationError(body.reason, body.category);
+      }
     }
 
+    // Anything else (offline, function not deployed, Sightengine down) fails
+    // closed with a message the user can act on
     console.log('Moderation service error:', error);
-    // If the function is not yet deployed on Supabase, give a clear message
-    const rawMsg = error.message || '';
-    if (rawMsg.includes('Function not found') || rawMsg.includes('404')) {
-      throw new ModerationError(
-        'The moderation service is pending deployment on Supabase. Please deploy the "moderate-image" function.'
-      );
-    }
-
     throw new ModerationError(
-      'Unable to verify photo safety. Please check your connection and try again.'
+      'We couldn’t check this photo right now. Please try again in a moment.'
     );
   }
 
@@ -55,4 +55,3 @@ export async function assertImageAppropriate(
     );
   }
 }
-
