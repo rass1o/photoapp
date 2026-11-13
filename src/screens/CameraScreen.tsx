@@ -19,8 +19,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { ensureCurrentTheme, themePhase, themeStatus } from '../lib/themes';
-import { readImage } from '../lib/upload';
-import { assertImageAppropriate, ModerationError } from '../lib/moderation';
+import { readImage, type ImageUpload } from '../lib/upload';
+import { alertBlockedPhoto, assertImageAppropriate, ModerationError } from '../lib/moderation';
 import { localDateString } from '../lib/date';
 import { useAuth } from '../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
@@ -286,6 +286,7 @@ export default function CameraScreen() {
   const handleSubmit = async () => {
     if (!imageUri || !user || !theme || alreadySubmitted) return;
     setIsUploading(true);
+    let image: ImageUpload | undefined;
 
     try {
       const { data: existing } = await supabase
@@ -301,7 +302,7 @@ export default function CameraScreen() {
         return;
       }
 
-      const image = await readImage(imageUri);
+      image = await readImage(imageUri);
       await assertImageAppropriate(image.bytes, image.contentType);
       const filePath = `${user.id}/${Date.now()}.${image.ext}`;
 
@@ -332,8 +333,14 @@ export default function CameraScreen() {
       // the server pays 150 for entering (pay_theme_entry)
       setCelebration({ kind: 'weekly', themeName: theme.name, streak: weekly, reward: 150 });
     } catch (err) {
-      if (err instanceof ModerationError) {
-        Alert.alert('Photo Not Allowed', err.message);
+      if (err instanceof ModerationError && image) {
+        alertBlockedPhoto(err, image, user.id, {
+          kind: 'weekly',
+          theme_id: theme.id,
+          format,
+          caption: caption.trim(),
+          film_strip: format === 'film' ? filmStrip : true,
+        });
         return;
       }
       console.log('Submission failed:', err);
@@ -346,10 +353,10 @@ export default function CameraScreen() {
   const handleDailySubmit = async () => {
     if (!dailyImageUri || !user || dailyAlreadySubmitted) return;
     setIsUploadingDaily(true);
+    const today = localDateString();
+    let image: ImageUpload | undefined;
 
     try {
-      const today = localDateString();
-
       const { data: existing } = await supabase
         .from('daily_submissions')
         .select('id')
@@ -362,7 +369,7 @@ export default function CameraScreen() {
         return;
       }
 
-      const image = await readImage(dailyImageUri);
+      image = await readImage(dailyImageUri);
       await assertImageAppropriate(image.bytes, image.contentType);
       const filePath = `${user.id}/daily-${Date.now()}.${image.ext}`;
 
@@ -392,8 +399,8 @@ export default function CameraScreen() {
       loadStreaks();
       setCelebration({ kind: 'daily', streak: reward.streak, reward: reward.reward, bonus: reward.bonus ?? 0 });
     } catch (err) {
-      if (err instanceof ModerationError) {
-        Alert.alert('Photo Not Allowed', err.message);
+      if (err instanceof ModerationError && image) {
+        alertBlockedPhoto(err, image, user.id, { kind: 'daily', date: today });
         return;
       }
       console.log('Daily submission failed:', err);

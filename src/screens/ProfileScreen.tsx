@@ -9,8 +9,8 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useTapTabToTop } from '../lib/useTapTabToTop';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { readImage } from '../lib/upload';
-import { assertImageAppropriate, ModerationError } from '../lib/moderation';
+import { readImage, type ImageUpload } from '../lib/upload';
+import { alertBlockedPhoto, assertImageAppropriate, ModerationError } from '../lib/moderation';
 import { ProfileCategory, ShopItem, PROFILE_COLUMN, isOwned, loadShop } from '../lib/shop';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import SectionHeader from '../components/SectionHeader';
@@ -274,9 +274,10 @@ export default function ProfileScreen() {
     if (result.canceled || !result.assets[0]) return;
 
     setIsUploadingAvatar(true);
+    let image: ImageUpload | undefined;
     try {
       const uri = result.assets[0].uri;
-      const image = await readImage(uri);
+      image = await readImage(uri);
       await assertImageAppropriate(image.bytes, image.contentType);
       const filePath = `${user.id}/avatar-${Date.now()}.${image.ext}`;
 
@@ -289,8 +290,8 @@ export default function ProfileScreen() {
       const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
       await updateProfile({ avatar_url: publicUrlData.publicUrl });
     } catch (err) {
-      if (err instanceof ModerationError) {
-        Alert.alert('Photo Not Allowed', err.message);
+      if (err instanceof ModerationError && image) {
+        alertBlockedPhoto(err, image, user.id, { kind: 'avatar' });
         return;
       }
       console.log('Avatar upload failed:', err);
@@ -317,9 +318,10 @@ export default function ProfileScreen() {
     if (result.canceled || !result.assets[0]) return;
 
     setUploadingShowcaseSlot(slotIndex);
+    let image: ImageUpload | undefined;
     try {
       const uri = result.assets[0].uri;
-      const image = await readImage(uri);
+      image = await readImage(uri);
       await assertImageAppropriate(image.bytes, image.contentType);
       const filePath = `${user.id}/showcase-${slotIndex}-${Date.now()}.${image.ext}`;
 
@@ -332,8 +334,8 @@ export default function ProfileScreen() {
       const { data: publicUrlData } = supabase.storage.from('submissions').getPublicUrl(filePath);
       await updateProfile({ [SHOWCASE_KEYS[slotIndex]]: publicUrlData.publicUrl });
     } catch (err) {
-      if (err instanceof ModerationError) {
-        Alert.alert('Photo Not Allowed', err.message);
+      if (err instanceof ModerationError && image) {
+        alertBlockedPhoto(err, image, user.id, { kind: 'showcase', slot: slotIndex + 1 });
         return;
       }
       console.log('Showcase upload failed:', err);

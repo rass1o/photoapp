@@ -14,10 +14,10 @@ function evaluateModeration(data: any): { ok: boolean; reason?: string; category
 
   // --- Strict Nudity & 18+ (including nude sculptures & art) ---
   if (data.nudity) {
-    const { sexual_activity, sexual_display, erotica, very_suggestive, suggestive, context } = data.nudity;
+    const { sexual_activity, sexual_display, erotica, very_suggestive, context } = data.nudity;
     const isArt = (context?.art || 0) >= 0.15;
 
-    if (sexual_activity >= 0.05 || sexual_display >= 0.05) {
+    if (sexual_activity >= 0.3 || sexual_display >= 0.3) {
       return {
         ok: false,
         reason: isArt
@@ -26,7 +26,7 @@ function evaluateModeration(data: any): { ok: boolean; reason?: string; category
         category: 'nudity',
       };
     }
-    if (erotica >= 0.10) {
+    if (erotica >= 0.4) {
       return {
         ok: false,
         reason: isArt
@@ -35,10 +35,10 @@ function evaluateModeration(data: any): { ok: boolean; reason?: string; category
         category: 'nudity',
       };
     }
-    if (very_suggestive >= 0.20 || suggestive >= 0.35) {
+    if (very_suggestive >= 0.6) {
       return { ok: false, reason: 'Revealing or adult imagery is not permitted.', category: 'nudity' };
     }
-    if (isArt && (very_suggestive >= 0.10 || suggestive >= 0.15)) {
+    if (isArt && very_suggestive >= 0.4) {
       return {
         ok: false,
         reason: 'Artistic nudes and nude sculptures are not permitted under the strict 18+ policy.',
@@ -50,18 +50,18 @@ function evaluateModeration(data: any): { ok: boolean; reason?: string; category
   // --- Weapons ---
   if (data.weapon?.classes) {
     const { firearm, knife } = data.weapon.classes;
-    if ((firearm && firearm >= 0.40) || (knife && knife >= 0.40)) {
+    if ((firearm && firearm >= 0.6) || (knife && knife >= 0.9)) {
       return { ok: false, reason: 'Weapons and firearms are not permitted.', category: 'weapon' };
     }
   }
 
   // --- Violence ---
-  if (data.violence?.prob >= 0.40) {
+  if (data.violence?.prob >= 0.6) {
     return { ok: false, reason: 'Violent content is not permitted.', category: 'violence' };
   }
 
   // --- Gore & Blood ---
-  if (data.gore?.prob >= 0.30) {
+  if (data.gore?.prob >= 0.5) {
     return { ok: false, reason: 'Graphic gore or injury imagery is not permitted.', category: 'gore' };
   }
 
@@ -69,10 +69,10 @@ function evaluateModeration(data: any): { ok: boolean; reason?: string; category
   if (data.offensive) {
     const { nazi, confederate, supremacist, terrorist } = data.offensive;
     if (
-      (nazi && nazi >= 0.20) ||
-      (confederate && confederate >= 0.20) ||
-      (supremacist && supremacist >= 0.20) ||
-      (terrorist && terrorist >= 0.20)
+      (nazi && nazi >= 0.4) ||
+      (confederate && confederate >= 0.4) ||
+      (supremacist && supremacist >= 0.4) ||
+      (terrorist && terrorist >= 0.4)
     ) {
       return { ok: false, reason: 'Hate symbols or offensive imagery are not permitted.', category: 'hate' };
     }
