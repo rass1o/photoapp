@@ -160,6 +160,18 @@ serve(async (req) => {
     });
 
     const sightengineData = await sightengineRes.json();
+
+    // Sightengine itself failed (bad keys, out of credits, bad image): that's
+    // our problem, not the photo's, so fail closed without a rejection reason
+    // and keep Sightengine's message in the logs only
+    if (sightengineData.status !== 'success') {
+      console.error('Sightengine error:', sightengineData.error);
+      return new Response(
+        JSON.stringify({ ok: false, reason: 'Content moderation is currently unavailable. Please try again later.' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const result = evaluateModeration(sightengineData);
 
     if (!result.ok) {
