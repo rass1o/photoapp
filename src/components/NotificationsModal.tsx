@@ -15,6 +15,7 @@ type Props = {
   onClose: () => void;
   onOpenSubmission: (submissionId: string) => void;
   onOpenProfile: (userId: string) => void;
+  onOpenGroups?: () => void;
 };
 
 const TYPE_ICON: Record<AppNotification['type'], { name: keyof typeof Ionicons.glyphMap; color: string }> = {
@@ -25,6 +26,8 @@ const TYPE_ICON: Record<AppNotification['type'], { name: keyof typeof Ionicons.g
   friend_request: { name: 'person-add', color: colors.deep },
   friend_accepted: { name: 'people', color: '#047857' },
   report_update: { name: 'search', color: colors.reef },
+  group_invite: { name: 'people-circle', color: colors.deep },
+  group_theme: { name: 'images', color: colors.reef },
 };
 
 function message(n: AppNotification) {
@@ -43,6 +46,10 @@ function message(n: AppNotification) {
       return ' accepted your friend request. You’re in the same school now!';
     case 'report_update':
       return '';
+    case 'group_invite':
+      return ' invited you to join their group ';
+    case 'group_theme':
+      return ' posted a new group theme. ';
     default:
       return ' did something new';
   }
@@ -54,7 +61,7 @@ const FALLBACK_ICON = { name: 'notifications' as const, color: colors.deep };
 
 // Bottom sheet inbox: likes, comments and friend activity, newest first.
 // Opening it marks everything read; unread rows keep their dot while open.
-export default function NotificationsModal({ visible, onClose, onOpenSubmission, onOpenProfile }: Props) {
+export default function NotificationsModal({ visible, onClose, onOpenSubmission, onOpenProfile, onOpenGroups }: Props) {
   const { markAllRead, lastArrival } = useNotifications();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -95,6 +102,10 @@ export default function NotificationsModal({ visible, onClose, onOpenSubmission,
 
   const openItem = (n: AppNotification) => {
     if (n.type === 'report_update') return;
+    if (n.type === 'group_invite' || n.type === 'group_theme') {
+      onOpenGroups?.();
+      return;
+    }
     if (n.submissionId) onOpenSubmission(n.submissionId);
     else onOpenProfile(n.actor.id);
   };
@@ -153,6 +164,7 @@ export default function NotificationsModal({ visible, onClose, onOpenSubmission,
                       {message(n)}
                       {n.type === 'report_update' && n.body ? ` ${n.body.replace(/^Ocho /, '')}` : null}
                       {(n.type === 'comment' || n.type === 'reply') && n.body ? <Text style={styles.quote}>{`“${n.body}”`}</Text> : null}
+                      {(n.type === 'group_invite' || n.type === 'group_theme') && n.body ? <Text style={styles.username}>{n.body}</Text> : null}
                       <Text style={styles.time}>{`  ${timeAgo(n.createdAt).toUpperCase()}`}</Text>
                     </Text>
 

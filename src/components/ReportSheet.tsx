@@ -10,7 +10,7 @@ import { colors, bubbly, fonts } from '../theme';
 // note if you like, and send. Then Ocho takes it from there.
 
 export type ReportTarget = {
-  kind: 'photo' | 'daily' | 'comment' | 'account';
+  kind: 'photo' | 'daily' | 'group_photo' | 'comment' | 'account';
   id: string; // the photo, comment or account
   userId: string; // whose it is
   username: string;

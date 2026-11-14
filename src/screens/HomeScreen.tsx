@@ -52,6 +52,7 @@ import FilmFrame from '../components/FilmFrame';
 import { ReviewCover } from '../components/ModerationCovers';
 import CommentRow, { CommentItem, ReplyingTo, removedWith, threadComments } from '../components/CommentRow';
 import { useModeration } from '../context/ModerationContext';
+import GroupsPanel from '../components/GroupsPanel';
 
 type Theme = {
   id: string;
@@ -86,7 +87,7 @@ type Comment = {
   username: string;
 };
 
-type Feed = 'friends' | 'global';
+type Feed = 'friends' | 'global' | 'groups';
 
 const SUBMISSION_COLUMNS = 'id, user_id, image_url, format, caption, film_stamp, film_strip, vote_count, like_count, created_at';
 
@@ -389,6 +390,8 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
+    // the Groups tab loads its own groups and themes
+    if (feed === 'groups') return;
     setIsLoading(true);
     loadFirstPage(feed).finally(() => setIsLoading(false));
   }, [feed, loadFirstPage]);
@@ -856,6 +859,7 @@ export default function HomeScreen() {
           onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
           style={{ opacity: headerProgress }}
         >
+          {feed !== 'groups' && (
           <View style={styles.themeBanner}>
             <Text style={styles.themeLabel}>THIS WEEK'S THEME</Text>
             {theme ? (
@@ -873,6 +877,7 @@ export default function HomeScreen() {
               </View>
             )}
           </View>
+          )}
 
           <View style={styles.toggleRow}>
             <Pressable
@@ -891,6 +896,14 @@ export default function HomeScreen() {
                 Global
               </Text>
             </Pressable>
+            <Pressable
+              style={[styles.toggle, feed === 'groups' && styles.toggleActive]}
+              onPress={() => setFeed('groups')}
+            >
+              <Text style={feed === 'groups' ? styles.toggleTextActive : styles.toggleText}>
+                Groups
+              </Text>
+            </Pressable>
           </View>
 
         </Animated.View>
@@ -898,7 +911,22 @@ export default function HomeScreen() {
         <View style={styles.feedWrap}>
           <SandGrain />
           <Wave />
-          {isLoading ? (
+          {feed === 'groups' && user ? (
+            <GroupsPanel
+              userId={user.id}
+              scrollProps={{
+                onScroll: onFeedScroll,
+                scrollEventThrottle: 16,
+                onScrollBeginDrag: () => (userScrollingRef.current = true),
+                onMomentumScrollBegin: () => (userScrollingRef.current = true),
+                onScrollEndDrag: () => (userScrollingRef.current = false),
+                onMomentumScrollEnd: () => (userScrollingRef.current = false),
+              }}
+              contentPaddingTop={WAVE_HEIGHT + 8}
+              contentPaddingBottom={TAB_BAR_CLEARANCE}
+              onOpenProfile={(userId) => navigation.push('UserProfile', { userId })}
+            />
+          ) : isLoading ? (
             <View style={styles.centered}>
               <OchoLoader message="Ocho is fetching this week’s photos…" />
             </View>
@@ -1128,6 +1156,10 @@ export default function HomeScreen() {
         onOpenProfile={(userId) => {
           setNotifVisible(false);
           navigation.push('UserProfile', { userId });
+        }}
+        onOpenGroups={() => {
+          setNotifVisible(false);
+          setFeed('groups');
         }}
       />
 

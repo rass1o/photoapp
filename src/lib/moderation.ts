@@ -63,6 +63,7 @@ export async function assertImageAppropriate(
 export type ReviewFor =
   | { kind: 'weekly'; theme_id: string; format: string; caption: string; film_strip: boolean }
   | { kind: 'daily'; date: string }
+  | { kind: 'group'; group_theme_id: string; format: string; caption: string; film_strip: boolean }
   | { kind: 'avatar' }
   | { kind: 'showcase'; slot: number };
 

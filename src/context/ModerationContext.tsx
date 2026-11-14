@@ -41,6 +41,7 @@ const ModerationContext = createContext<ModerationValue>({
 const NOUN: Record<ReportTarget['kind'], string> = {
   photo: 'photo',
   daily: 'photo',
+  group_photo: 'photo',
   comment: 'comment',
   account: 'account',
 };
