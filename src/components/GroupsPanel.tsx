@@ -41,6 +41,7 @@ import {
   loadMyGroupVote,
   loadMyGroups,
   loadMyInvites,
+  orderGroupPhotos,
   pickCurrentTheme,
   respondToGroupInvite,
   topThree,
@@ -60,6 +61,8 @@ type Props = {
 };
 
 const SELECTED_KEY = 'selectedGroup';
+// Photos you've opened during a theme's voting, so you can tell what's left
+const seenKey = (themeId: string) => `groupSeen:${themeId}`;
 const MEDALS = { 1: '#F59E0B', 2: '#94A3B8', 3: '#B45309' } as Record<number, string>;
 
 export default function GroupsPanel({ userId, scrollProps, contentPaddingTop, contentPaddingBottom, onOpenProfile }: Props) {
@@ -74,6 +77,7 @@ export default function GroupsPanel({ userId, scrollProps, contentPaddingTop, co
   const [themeId, setThemeId] = useState<string | null>(null);
   const [photos, setPhotos] = useState<GroupPhoto[]>([]);
   const [myVote, setMyVote] = useState<string | null>(null);
+  const [seen, setSeen] = useState<Set<string>>(new Set());
   const [loadingGroup, setLoadingGroup] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -92,6 +96,9 @@ export default function GroupsPanel({ userId, scrollProps, contentPaddingTop, co
   const visiblePhotos = photos.filter((p) => !moderation.isBlocked(p.user_id));
   const mine = photos.find((p) => p.user_id === userId);
   const places = useMemo(() => (phase === 'ended' ? topThree(visiblePhotos) : new Map<string, number>()), [phase, visiblePhotos]);
+  const orderedPhotos = orderGroupPhotos(visiblePhotos, phase, `${userId}:${themeId}`);
+  const othersPhotos = visiblePhotos.filter((p) => p.user_id !== userId);
+  const seenCount = othersPhotos.filter((p) => seen.has(p.id)).length;
 
   // Countdowns and phases move on their own
   useEffect(() => {
@@ -105,11 +112,17 @@ export default function GroupsPanel({ userId, scrollProps, contentPaddingTop, co
       if (!id) {
         setPhotos([]);
         setMyVote(null);
+        setSeen(new Set());
         return;
       }
-      const [p, v] = await Promise.all([loadGroupPhotos(id), loadMyGroupVote(id, userId)]);
+      const [p, v, s] = await Promise.all([
+        loadGroupPhotos(id),
+        loadMyGroupVote(id, userId),
+        AsyncStorage.getItem(seenKey(id)).catch(() => null),
+      ]);
       setPhotos(p);
       setMyVote(v);
+      setSeen(new Set(s ? (JSON.parse(s) as string[]) : []));
     },
     [userId]
   );
@@ -166,6 +179,14 @@ export default function GroupsPanel({ userId, scrollProps, contentPaddingTop, co
       Alert.alert('Couldn’t do that', err instanceof Error ? err.message : 'Please try again.');
       loadAll(groupId);
     }
+  };
+
+  const openPhoto = (photo: GroupPhoto) => {
+    setViewing(photo);
+    if (phase !== 'vote' || !theme || seen.has(photo.id)) return;
+    const next = new Set(seen).add(photo.id);
+    setSeen(next);
+    AsyncStorage.setItem(seenKey(theme.id), JSON.stringify([...next])).catch(() => {});
   };
 
   const vote = async (photo: GroupPhoto) => {
@@ -423,6 +444,10 @@ export default function GroupsPanel({ userId, scrollProps, contentPaddingTop, co
               {phase === 'vote' && (
                 <Text style={styles.phaseHint}>
                   {myVote ? 'You’ve voted. Tap your pick again to take it back, or tap another photo to move your vote.' : 'Voting is open: tap a photo to vote. You get one vote, not for your own photo.'}
+                  {othersPhotos.length > 0 &&
+                    (seenCount < othersPhotos.length
+                      ? ` You’ve looked at ${seenCount} of ${othersPhotos.length}. The photos are in a different order for everyone.`
+                      : ' You’ve looked at every photo.')}
                 </Text>
               )}
               {phase === 'ended' && places.size > 0 && <Text style={styles.phaseHint}>Here’s the group’s top 3.</Text>}
@@ -436,34 +461,39 @@ export default function GroupsPanel({ userId, scrollProps, contentPaddingTop, co
               </Text>
             ) : (
               <View style={styles.grid}>
-                {[...visiblePhotos]
-                  .sort((a, b) => (places.get(a.id) ?? 9) - (places.get(b.id) ?? 9))
-                  .map((p) => {
-                    const cover = moderation.coverFor(p.id, p.user_id);
-                    const place = places.get(p.id);
-                    return (
-                      <Pressable key={p.id} style={{ width: tile }} onPress={() => !cover && setViewing(p)}>
-                        <View style={[styles.tile, { width: tile, height: tile }]}>
-                          <Image source={{ uri: p.image_url }} style={StyleSheet.absoluteFill} />
-                          {cover && <ReviewCover kind={cover} compact />}
-                          {myVote === p.id && (
-                            <View style={styles.votedBadge}>
-                              <OchoIcon name="vote" size={14} color={colors.white} filled />
-                            </View>
-                          )}
-                          {place && (
-                            <View style={[styles.placeBadge, { backgroundColor: MEDALS[place] }]}>
-                              <Text style={styles.placeText}>{place}</Text>
-                            </View>
-                          )}
-                        </View>
-                        <Text style={styles.tileName} numberOfLines={1}>
-                          {p.username}
-                          {phase === 'ended' ? ` · ${p.vote_count} ${p.vote_count === 1 ? 'vote' : 'votes'}` : ''}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
+                {orderedPhotos.map((p) => {
+                  const cover = moderation.coverFor(p.id, p.user_id);
+                  const place = places.get(p.id);
+                  // dimmed once you've opened it, so the bright ones are what's left to see
+                  const looked = phase === 'vote' && p.user_id !== userId && seen.has(p.id) && myVote !== p.id;
+                  return (
+                    <Pressable key={p.id} style={{ width: tile }} onPress={() => !cover && openPhoto(p)}>
+                      <View style={[styles.tile, { width: tile, height: tile }]}>
+                        <Image source={{ uri: p.image_url }} style={[StyleSheet.absoluteFill, looked && styles.looked]} />
+                        {looked && (
+                          <View style={styles.lookedBadge}>
+                            <Ionicons name="eye" size={12} color={colors.white} />
+                          </View>
+                        )}
+                        {cover && <ReviewCover kind={cover} compact />}
+                        {myVote === p.id && (
+                          <View style={styles.votedBadge}>
+                            <OchoIcon name="vote" size={14} color={colors.white} filled />
+                          </View>
+                        )}
+                        {place && (
+                          <View style={[styles.placeBadge, { backgroundColor: MEDALS[place] }]}>
+                            <Text style={styles.placeText}>{place}</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.tileName} numberOfLines={1}>
+                        {p.username}
+                        {phase === 'ended' ? ` · ${p.vote_count} ${p.vote_count === 1 ? 'vote' : 'votes'}` : ''}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
             )
           )}
@@ -657,6 +687,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: colors.white,
+  },
+  looked: { opacity: 0.55 },
+  lookedBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    borderRadius: 10,
+    padding: 4,
   },
   placeText: { color: colors.white, fontSize: 13, fontWeight: '700' },
 

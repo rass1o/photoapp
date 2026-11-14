@@ -96,6 +96,27 @@ export function topThree(photos: GroupPhoto[]) {
   return places;
 }
 
+// A number from a string (FNV-1a), the same every time for the same string
+function hashKey(text: string) {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
+// The order photos show in. While photos are coming in, newest first. During
+// voting, a shuffle that's different for each person but stays put for the
+// whole theme, so no photo ends up at the top (or the bottom) for when it
+// was posted. Once it ends, most votes first.
+export function orderGroupPhotos(photos: GroupPhoto[], phase: GroupPhase | null, seed: string) {
+  if (phase !== 'vote' && phase !== 'ended') return photos;
+  const keyed = photos.map((p) => ({ p, key: hashKey(`${seed}:${p.id}`) }));
+  keyed.sort((a, b) => (phase === 'ended' ? b.p.vote_count - a.p.vote_count : 0) || a.key - b.key);
+  return keyed.map(({ p }) => p);
+}
+
 export async function loadMyGroups(myId: string): Promise<Group[]> {
   const { data: memberships } = await supabase.from('group_members').select('group_id').eq('user_id', myId);
   const ids = (memberships ?? []).map((m) => m.group_id);
