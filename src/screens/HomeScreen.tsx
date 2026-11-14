@@ -115,6 +115,7 @@ function highlightMatch(username: string, query: string) {
 
 const DOUBLE_TAP_WINDOW_MS = 300;
 const PAGE_SIZE = 8;
+const seenKey = (themeId: string) => `themeSeen:${themeId}`;
 
 const clampRatio = (width: number, height: number) => Math.min(Math.max(width / height, 0.5), 2);
 
@@ -181,6 +182,10 @@ export default function HomeScreen() {
   const singleTapTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const currentThemeIdRef = useRef<string | null>(null);
+  // set with the first page, so more pages keep the same order
+  const shuffledFeedRef = useRef(false);
+  // Photos you've opened on voting day (see seenKey)
+  const [seenIds, setSeenIds] = useState<Set<string>>(new Set());
   // Whose posts the current feed shows: you plus your friends, or null for everyone
   const feedUserIdsRef = useRef<string[] | null>(null);
 
@@ -267,8 +272,18 @@ export default function HomeScreen() {
     }));
   };
 
-  // One page of this theme's submissions for the current feed
+  // One page of this theme's submissions for the current feed. On voting
+  // day it's a shuffle that's different for each person and stays put, so
+  // early photos don't sink to the bottom (see 20261127_voting_shuffle.sql).
   const fetchSubmissionsPage = (themeId: string, from: number) => {
+    if (shuffledFeedRef.current) {
+      return supabase.rpc('voting_feed', {
+        p_theme: themeId,
+        p_user_ids: feedUserIdsRef.current,
+        p_offset: from,
+        p_limit: PAGE_SIZE,
+      });
+    }
     let query = supabase.from('submissions').select(SUBMISSION_COLUMNS).eq('theme_id', themeId);
     if (feedUserIdsRef.current) query = query.in('user_id', feedUserIdsRef.current);
     return query.order('created_at', { ascending: false }).range(from, from + PAGE_SIZE - 1);
@@ -296,6 +311,9 @@ export default function HomeScreen() {
 
       setTheme(themeData);
       currentThemeIdRef.current = themeData?.id ?? null;
+      shuffledFeedRef.current = !!user && themePhase(themeData?.end_date) === 'vote';
+      const seenSaved = themeData ? await AsyncStorage.getItem(seenKey(themeData.id)).catch(() => null) : null;
+      setSeenIds(new Set(seenSaved ? (JSON.parse(seenSaved) as string[]) : []));
 
       // Show the "new theme" welcome screen once per theme, per device.
       if (themeData) {
@@ -639,6 +657,14 @@ export default function HomeScreen() {
     likes.toggle(item.id);
   };
 
+  // Marks a photo as looked at on voting day, so you can tell what's left
+  const markSeen = (submissionId: string) => {
+    if (phase !== 'vote' || !theme || seenIds.has(submissionId) || isOwnSubmission(submissionId)) return;
+    const next = new Set(seenIds).add(submissionId);
+    setSeenIds(next);
+    AsyncStorage.setItem(seenKey(theme.id), JSON.stringify([...next])).catch(() => {});
+  };
+
   const openVoting = (item: Submission) => {
     if (isOwnSubmission(item.id)) {
       Alert.alert('That\u2019s your photo', 'You can\u2019t vote for your own photo, but your friends can!');
@@ -654,6 +680,7 @@ export default function HomeScreen() {
       );
       return;
     }
+    markSeen(item.id);
     setVoteTarget({ id: item.id, username: item.username });
   };
 
@@ -679,6 +706,7 @@ export default function HomeScreen() {
     } else {
       lastTapRef.current[submissionId] = now;
       singleTapTimeoutRef.current[submissionId] = setTimeout(() => {
+        markSeen(submissionId);
         navigation.push('SubmissionDetail', { submissionId });
         delete singleTapTimeoutRef.current[submissionId];
       }, DOUBLE_TAP_WINDOW_MS);
@@ -985,6 +1013,12 @@ export default function HomeScreen() {
                       )}
                       <Text style={styles.username}>{item.username}</Text>
                       <FormatTag format={item.format} />
+                      {phase === 'vote' && seenIds.has(item.id) && (
+                        <View style={styles.seenTag}>
+                          <Ionicons name="eye" size={11} color={colors.muted} />
+                          <Text style={styles.seenText}>Seen</Text>
+                        </View>
+                      )}
                       {item.user_id !== user?.id && (
                         <Pressable
                           style={styles.cardMenu}
@@ -1365,6 +1399,8 @@ const styles = StyleSheet.create({
   cardMenu: { marginLeft: 'auto', paddingHorizontal: 4 },
   avatar: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.reefLight },
   username: { fontSize: 14, fontWeight: '600', color: colors.ink },
+  seenTag: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  seenText: { fontSize: 11, color: colors.muted },
   image: { width: '100%', borderRadius: 5, backgroundColor: colors.sand },
   caption: { fontSize: 13, color: colors.text, marginTop: 8, lineHeight: 18, paddingHorizontal: 14 },
   captionUsername: { fontWeight: '600', color: colors.ink },
