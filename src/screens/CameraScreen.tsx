@@ -330,8 +330,8 @@ export default function CameraScreen() {
       setCaption('');
       // The weekly streak is bumped by a trigger when the submission lands
       const { weekly } = await loadStreaks();
-      // the server pays 150 for entering (pay_theme_entry)
-      setCelebration({ kind: 'weekly', themeName: theme.name, streak: weekly, reward: 150 });
+      // the server pays 50 for entering (pay_theme_entry)
+      setCelebration({ kind: 'weekly', themeName: theme.name, streak: weekly, reward: 50 });
     } catch (err) {
       if (err instanceof ModerationError && image) {
         alertBlockedPhoto(err, image, user.id, {

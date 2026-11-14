@@ -44,10 +44,10 @@ type Feed = 'friends' | 'global';
 
 // Weekly prizes for 1st -> 5th, and for each category's winner, paid by
 // process_due_payouts on the server
-const REWARDS = [750, 500, 300];
-const CATEGORY_REWARD = 500;
+const REWARDS = [450, 350, 200];
+const CATEGORY_REWARD = 150;
 const MOST_LIKED_REWARD = 200; // most likes when voting opens
-const ENTRY_REWARD = 150; // for everyone who enters
+const ENTRY_REWARD = 50; // for everyone who enters
 
 const MEDALS = [
   { label: '1st', bg: '#FEF3C7', border: '#D4A017' },

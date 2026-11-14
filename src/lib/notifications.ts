@@ -72,6 +72,17 @@ export async function markAllRead() {
   await supabase.rpc('mark_notifications_read');
 }
 
+export async function deleteNotification(id: string) {
+  const { error } = await supabase.from('notifications').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// Everything in your inbox (the rules only let you delete your own)
+export async function clearNotifications(myId: string) {
+  const { error } = await supabase.from('notifications').delete().eq('user_id', myId);
+  if (error) throw error;
+}
+
 // "3m", "5h", "2d", then a date
 export function timeAgo(iso: string) {
   const seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);

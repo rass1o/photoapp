@@ -3,12 +3,14 @@ import { View, StyleSheet, Modal, Pressable, FlatList, Image, Alert } from 'reac
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from './Themed';
-import { AppNotification, loadNotifications, timeAgo } from '../lib/notifications';
+import { AppNotification, clearNotifications, deleteNotification, loadNotifications, timeAgo } from '../lib/notifications';
 import { respondToRequest } from '../lib/friends';
 import { useNotifications } from '../context/NotificationsContext';
+import { useAuth } from '../context/AuthContext';
 import { colors, bubbly, fonts } from '../theme';
 import { OchoPlain } from './OchoArt';
 import OchoLoader from './OchoLoader';
+import SwipeToDelete from './SwipeToDelete';
 
 type Props = {
   visible: boolean;
@@ -61,8 +63,11 @@ const FALLBACK_ICON = { name: 'notifications' as const, color: colors.deep };
 
 // Bottom sheet inbox: likes, comments and friend activity, newest first.
 // Opening it marks everything read; unread rows keep their dot while open.
+// Swipe a row left to delete it, or clear them all from the header.
 export default function NotificationsModal({ visible, onClose, onOpenSubmission, onOpenProfile, onOpenGroups }: Props) {
   const { markAllRead, lastArrival } = useNotifications();
+  const { user } = useAuth();
+  const [swiping, setSwiping] = useState(false);
   const [items, setItems] = useState<AppNotification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
@@ -100,6 +105,36 @@ export default function NotificationsModal({ visible, onClose, onOpenSubmission,
     load();
   };
 
+  // Gone from the list right away; put back if the delete didn't go through
+  const remove = async (n: AppNotification) => {
+    setItems((prev) => prev.filter((i) => i.id !== n.id));
+    try {
+      await deleteNotification(n.id);
+    } catch {
+      Alert.alert('Couldn’t delete that', 'Please try again.');
+      load();
+    }
+  };
+
+  const clearAll = () =>
+    Alert.alert('Clear all notifications?', 'This deletes everything in your inbox.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Clear all',
+        style: 'destructive',
+        onPress: async () => {
+          if (!user) return;
+          setItems([]);
+          try {
+            await clearNotifications(user.id);
+          } catch {
+            Alert.alert('Couldn’t clear your notifications', 'Please try again.');
+            load();
+          }
+        },
+      },
+    ]);
+
   const openItem = (n: AppNotification) => {
     if (n.type === 'report_update') return;
     if (n.type === 'group_invite' || n.type === 'group_theme') {
@@ -117,9 +152,16 @@ export default function NotificationsModal({ visible, onClose, onOpenSubmission,
         <View style={styles.handle} />
         <View style={styles.headerRow}>
           <Text style={styles.title}>Notifications</Text>
-          <Pressable onPress={onClose} hitSlop={10}>
-            <Ionicons name="close" size={22} color={colors.text} />
-          </Pressable>
+          <View style={styles.headerActions}>
+            {!isLoading && items.length > 0 && (
+              <Pressable onPress={clearAll} hitSlop={8}>
+                <Text style={styles.clearText}>Clear all</Text>
+              </Pressable>
+            )}
+            <Pressable onPress={onClose} hitSlop={10}>
+              <Ionicons name="close" size={22} color={colors.text} />
+            </Pressable>
+          </View>
         </View>
 
         {isLoading ? (
@@ -130,6 +172,7 @@ export default function NotificationsModal({ visible, onClose, onOpenSubmission,
           <FlatList
             data={items}
             keyExtractor={(n) => n.id}
+            scrollEnabled={!swiping}
             contentContainerStyle={{ paddingBottom: 16 }}
             ListEmptyComponent={
               <Text style={styles.emptyText}>
@@ -140,57 +183,59 @@ export default function NotificationsModal({ visible, onClose, onOpenSubmission,
               const icon = TYPE_ICON[n.type] ?? FALLBACK_ICON;
               const busy = busyIds.has(n.id);
               return (
-                <Pressable style={[styles.row, !n.read && styles.rowUnread]} onPress={() => openItem(n)}>
-                  <Pressable onPress={() => n.type !== 'report_update' && onOpenProfile(n.actor.id)}>
-                    {n.type === 'report_update' ? (
-                      <View style={[styles.avatar, styles.ochoAvatar]}>
-                        <OchoPlain size={30} />
+                <SwipeToDelete onDelete={() => remove(n)} onSwipingChange={setSwiping}>
+                  <Pressable style={[styles.row, !n.read && styles.rowUnread]} onPress={() => openItem(n)}>
+                    <Pressable onPress={() => n.type !== 'report_update' && onOpenProfile(n.actor.id)}>
+                      {n.type === 'report_update' ? (
+                        <View style={[styles.avatar, styles.ochoAvatar]}>
+                          <OchoPlain size={30} />
+                        </View>
+                      ) : n.actor.avatar_url ? (
+                        <Image source={{ uri: n.actor.avatar_url }} style={styles.avatar} />
+                      ) : (
+                        <View style={styles.avatar}>
+                          <Text style={styles.initials}>{(n.actor.username ?? '?').slice(0, 2).toUpperCase()}</Text>
+                        </View>
+                      )}
+                      <View style={styles.typeBadge}>
+                        <Ionicons name={icon.name} size={10} color={icon.color} />
                       </View>
-                    ) : n.actor.avatar_url ? (
-                      <Image source={{ uri: n.actor.avatar_url }} style={styles.avatar} />
-                    ) : (
-                      <View style={styles.avatar}>
-                        <Text style={styles.initials}>{(n.actor.username ?? '?').slice(0, 2).toUpperCase()}</Text>
-                      </View>
-                    )}
-                    <View style={styles.typeBadge}>
-                      <Ionicons name={icon.name} size={10} color={icon.color} />
+                    </Pressable>
+  
+                    <View style={styles.textCol}>
+                      <Text style={styles.text} numberOfLines={3}>
+                        <Text style={styles.username}>{n.type === 'report_update' ? 'Ocho' : n.actor.username}</Text>
+                        {message(n)}
+                        {n.type === 'report_update' && n.body ? ` ${n.body.replace(/^Ocho /, '')}` : null}
+                        {(n.type === 'comment' || n.type === 'reply') && n.body ? <Text style={styles.quote}>{`“${n.body}”`}</Text> : null}
+                        {(n.type === 'group_invite' || n.type === 'group_theme') && n.body ? <Text style={styles.username}>{n.body}</Text> : null}
+                        <Text style={styles.time}>{`  ${timeAgo(n.createdAt).toUpperCase()}`}</Text>
+                      </Text>
+  
+                      {n.type === 'friend_request' && (
+                        <View style={styles.requestButtons}>
+                          <Pressable
+                            style={[styles.smallButton, styles.acceptButton, busy && styles.busy]}
+                            onPress={() => respond(n, true)}
+                            disabled={busy}
+                          >
+                            <Text style={styles.acceptText}>Accept</Text>
+                          </Pressable>
+                          <Pressable
+                            style={[styles.smallButton, styles.declineButton, busy && styles.busy]}
+                            onPress={() => respond(n, false)}
+                            disabled={busy}
+                          >
+                            <Text style={styles.declineText}>Decline</Text>
+                          </Pressable>
+                        </View>
+                      )}
                     </View>
+  
+                    {n.imageUrl ? <Image source={{ uri: n.imageUrl }} style={styles.thumb} /> : null}
+                    {!n.read && <View style={styles.unreadDot} />}
                   </Pressable>
-
-                  <View style={styles.textCol}>
-                    <Text style={styles.text} numberOfLines={3}>
-                      <Text style={styles.username}>{n.type === 'report_update' ? 'Ocho' : n.actor.username}</Text>
-                      {message(n)}
-                      {n.type === 'report_update' && n.body ? ` ${n.body.replace(/^Ocho /, '')}` : null}
-                      {(n.type === 'comment' || n.type === 'reply') && n.body ? <Text style={styles.quote}>{`“${n.body}”`}</Text> : null}
-                      {(n.type === 'group_invite' || n.type === 'group_theme') && n.body ? <Text style={styles.username}>{n.body}</Text> : null}
-                      <Text style={styles.time}>{`  ${timeAgo(n.createdAt).toUpperCase()}`}</Text>
-                    </Text>
-
-                    {n.type === 'friend_request' && (
-                      <View style={styles.requestButtons}>
-                        <Pressable
-                          style={[styles.smallButton, styles.acceptButton, busy && styles.busy]}
-                          onPress={() => respond(n, true)}
-                          disabled={busy}
-                        >
-                          <Text style={styles.acceptText}>Accept</Text>
-                        </Pressable>
-                        <Pressable
-                          style={[styles.smallButton, styles.declineButton, busy && styles.busy]}
-                          onPress={() => respond(n, false)}
-                          disabled={busy}
-                        >
-                          <Text style={styles.declineText}>Decline</Text>
-                        </Pressable>
-                      </View>
-                    )}
-                  </View>
-
-                  {n.imageUrl ? <Image source={{ uri: n.imageUrl }} style={styles.thumb} /> : null}
-                  {!n.read && <View style={styles.unreadDot} />}
-                </Pressable>
+                </SwipeToDelete>
               );
             }}
           />
@@ -228,6 +273,8 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.ink,
   },
   title: { ...bubbly, fontSize: 22 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  clearText: { fontSize: 14, fontWeight: '600', color: colors.deep },
   emptyText: { color: colors.muted, fontSize: 13, textAlign: 'center', paddingVertical: 30, paddingHorizontal: 20 },
 
   row: {
