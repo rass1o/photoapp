@@ -53,6 +53,7 @@ import { ReviewCover } from '../components/ModerationCovers';
 import CommentRow, { CommentItem, ReplyingTo, removedWith, threadComments } from '../components/CommentRow';
 import { useModeration } from '../context/ModerationContext';
 import GroupsPanel from '../components/GroupsPanel';
+import { trackEvent } from '../lib/analytics';
 
 type Theme = {
   id: string;
@@ -153,6 +154,10 @@ export default function HomeScreen() {
   const [voteTarget, setVoteTarget] = useState<{ id: string; username: string } | null>(null);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [feed, setFeed] = useState<Feed>('friends');
+  const switchFeed = (next: Feed) => {
+    setFeed(next);
+    trackEvent('feed_toggled', { feed: next });
+  };
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -756,6 +761,7 @@ export default function HomeScreen() {
         ...prev,
         [commentSubmissionId]: (prev[commentSubmissionId] ?? 0) + 1,
       }));
+      trackEvent('comment_posted', { submission_id: commentSubmissionId });
     } else if (error) {
       console.log('Comment failed:', error.message);
     }
@@ -779,7 +785,10 @@ export default function HomeScreen() {
   };
 
   // Opens the share card: pick a style, add a message, send it anywhere
-  const shareSubmission = (item: Submission) => setShareItem(item);
+  const shareSubmission = (item: Submission) => {
+    setShareItem(item);
+    trackEvent('share_card_opened', { submission_id: item.id });
+  };
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
@@ -910,7 +919,7 @@ export default function HomeScreen() {
           <View style={styles.toggleRow}>
             <Pressable
               style={[styles.toggle, feed === 'friends' && styles.toggleActive]}
-              onPress={() => setFeed('friends')}
+              onPress={() => switchFeed('friends')}
             >
               <Text style={feed === 'friends' ? styles.toggleTextActive : styles.toggleText}>
                 Friends
@@ -918,7 +927,7 @@ export default function HomeScreen() {
             </Pressable>
             <Pressable
               style={[styles.toggle, feed === 'global' && styles.toggleActive]}
-              onPress={() => setFeed('global')}
+              onPress={() => switchFeed('global')}
             >
               <Text style={feed === 'global' ? styles.toggleTextActive : styles.toggleText}>
                 Global
@@ -926,7 +935,7 @@ export default function HomeScreen() {
             </Pressable>
             <Pressable
               style={[styles.toggle, feed === 'groups' && styles.toggleActive]}
-              onPress={() => setFeed('groups')}
+              onPress={() => switchFeed('groups')}
             >
               <Text style={feed === 'groups' ? styles.toggleTextActive : styles.toggleText}>
                 Groups
@@ -989,7 +998,7 @@ export default function HomeScreen() {
                       : 'No photos for this theme yet. Water you waiting for?'}
                   </Text>
                   {feed === 'friends' && (
-                    <Pressable style={styles.emptyButton} onPress={() => setFeed('global')}>
+                    <Pressable style={styles.emptyButton} onPress={() => switchFeed('global')}>
                       <Text style={styles.emptyButtonText}>Sea the photos in Global</Text>
                     </Pressable>
                   )}
@@ -1193,7 +1202,7 @@ export default function HomeScreen() {
         }}
         onOpenGroups={() => {
           setNotifVisible(false);
-          setFeed('groups');
+          switchFeed('groups');
         }}
       />
 

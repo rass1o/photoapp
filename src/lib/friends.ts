@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { trackEvent } from './analytics';
 
 export type FriendStatus = 'none' | 'outgoing' | 'incoming' | 'friends';
 
@@ -118,6 +119,7 @@ export async function sendFriendRequest(userId: string) {
   const { data, error } = await supabase.rpc('send_friend_request', { p_user: userId });
   if (error) throw error;
   notifyFriendsChanged();
+  trackEvent('friend_request_sent', { target_user_id: userId });
   return data as 'pending' | 'accepted';
 }
 
@@ -128,6 +130,7 @@ export async function respondToRequest(requestId: string, accept: boolean) {
   });
   if (error) throw error;
   notifyFriendsChanged();
+  trackEvent('friend_request_responded', { accepted: accept });
 }
 
 // Unfriend, or cancel a request you sent

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { supabase } from './supabase';
+import { trackEvent } from './analytics';
 
 // Likes: a heart any time during a theme, separate from voting. They rank
 // photos until voting day, and your liked photos are saved on your profile
@@ -43,6 +44,10 @@ export function useLikes(
       flip(wasLiked);
       onCountChange?.(submissionId, wasLiked ? 1 : -1);
       Alert.alert('Couldn’t like that', error.message);
+    } else if (wasLiked) {
+      trackEvent('photo_unliked', { submission_id: submissionId });
+    } else {
+      trackEvent('photo_liked', { submission_id: submissionId });
     }
   };
 

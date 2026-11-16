@@ -18,6 +18,7 @@ import OnboardingScreen from './src/screens/OnboardingScreen';
 import FriendRequestPopup from './src/components/FriendRequestPopup';
 import LaunchScreen, { LAUNCH_BG } from './src/components/LaunchScreen';
 import TermsGate from './src/components/TermsGate';
+import { initAnalytics, identifyUser, resetUser } from './src/lib/analytics';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { NotificationsProvider } from './src/context/NotificationsContext';
 import { ModerationProvider } from './src/context/ModerationContext';
@@ -59,6 +60,19 @@ function Root() {
     AsyncStorage.getItem(onboardingKey(userId))
       .then((value) => setOnboarding({ userId, seen: value === 'true' }))
       .catch(() => setOnboarding({ userId, seen: true }));
+  }, [user?.id]);
+
+  // PostHog: initialize analytics and sync identity with auth state
+  useEffect(() => {
+    initAnalytics();
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      identifyUser(user.id, { email: user.email, username: user.username });
+    } else {
+      resetUser();
+    }
   }, [user?.id]);
 
   const finishOnboarding = () => {

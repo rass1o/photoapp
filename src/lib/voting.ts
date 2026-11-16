@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { supabase } from './supabase';
+import { trackEvent } from './analytics';
 
 // Weekly voting: on a theme's last day everyone gets one overall vote plus
 // one vote in each category. Voting for a new photo in a category you've
@@ -73,6 +74,8 @@ export function useThemeVotes(
       setMine(before);
       if (category === 'overall') onOverallMoved?.(removing ? null : submissionId, before.overall ?? null);
       Alert.alert('Couldn’t vote', error.message);
+    } else if (!removing) {
+      trackEvent('vote_cast', { category, submission_id: submissionId });
     }
   };
 
