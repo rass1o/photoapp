@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { ShopItem } from './shop';
+import { trackEvent } from './analytics';
 
 export const ITEMS_PER_BOX = 2;
 
@@ -61,11 +62,13 @@ export async function openBlindBox(boxId: string, items: ShopItem[]) {
   if (error) throw error;
   const result = data as { balance: number; picks: Array<{ item_id: string; duplicate_id: string | null }> };
   const byId = new Map(items.map((i) => [i.id, i]));
+  const picks = result.picks
+    .map((p) => ({ item: byId.get(p.item_id), duplicateId: p.duplicate_id }))
+    .filter((p): p is Pick => !!p.item);
+  trackEvent('blind_box_opened', { box_id: boxId, items_received: picks.length });
   return {
     balance: result.balance,
-    picks: result.picks
-      .map((p) => ({ item: byId.get(p.item_id), duplicateId: p.duplicate_id }))
-      .filter((p): p is Pick => !!p.item),
+    picks,
   };
 }
 
@@ -84,5 +87,7 @@ export async function loadDuplicates(userId: string, items: ShopItem[]): Promise
 export async function sellDuplicate(duplicateId: string) {
   const { data, error } = await supabase.rpc('sell_duplicate', { p_duplicate_id: duplicateId });
   if (error) throw error;
-  return data as { balance: number; refund: number };
+  const result = data as { balance: number; refund: number };
+  trackEvent('duplicate_sold', { refund: result.refund });
+  return result;
 }

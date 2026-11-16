@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { trackEvent } from '../lib/analytics';
 
 type User = {
   id: string;
@@ -86,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthError(friendlyAuthError(error.message));
         return 'error';
       }
+      trackEvent('sign_in_completed', { method: 'email' });
       return 'done';
     } catch (err) {
       console.log('signIn threw:', err);
@@ -113,7 +115,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthError(friendlyAuthError('already registered'));
         return 'error';
       }
-      return data.session ? 'done' : 'confirm';
+      if (data.session) {
+        trackEvent('sign_up_completed', { method: 'email' });
+        return 'done';
+      }
+      return 'confirm';
     } catch (err) {
       console.log('signUp threw:', err);
       setAuthError(err instanceof Error ? err.message : 'Something went wrong. Check your connection.');
@@ -148,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     setAuthError(null);
     await supabase.auth.signOut();
+    trackEvent('sign_out');
   };
 
   return (

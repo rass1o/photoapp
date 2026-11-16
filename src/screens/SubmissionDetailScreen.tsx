@@ -16,6 +16,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { trackEvent } from '../lib/analytics';
 import FilmStamp from '../components/FilmStamp';
 import FormatTag from '../components/FormatTag';
 import BackBar from '../components/BackBar';
@@ -187,6 +188,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
 
     if (!error && data) {
       setComments((prev) => [...prev, { ...data, username: user.username }]);
+      trackEvent('comment_posted', { submission_id: submissionId });
     }
   };
 
@@ -344,7 +346,14 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
                       : 'Voting on the last day'}
                 </Text>
               </Pressable>
-              <Pressable style={styles.actionItem} onPress={() => setSharing(true)} hitSlop={6}>
+              <Pressable
+                style={styles.actionItem}
+                onPress={() => {
+                  setSharing(true);
+                  if (submission) trackEvent('share_card_opened', { submission_id: submission.id });
+                }}
+                hitSlop={6}
+              >
                 <OchoIcon name="share" size={24} color={colors.text} />
               </Pressable>
             </View>

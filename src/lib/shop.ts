@@ -1,5 +1,6 @@
 import { Alert } from 'react-native';
 import { supabase } from './supabase';
+import { trackEvent } from './analytics';
 
 export type ProfileCategory = 'frame' | 'banner' | 'badge';
 export type OctoCategory = 'octo_color' | 'octo_accessory' | 'octo_item' | 'octo_pet' | 'octo_dialogue';
@@ -76,6 +77,12 @@ export function confirmPurchase(
           return;
         }
         onBought(data as number);
+        trackEvent('shop_item_purchased', {
+          item_id: item.id,
+          category: item.category,
+          price: item.price,
+          rarity: item.rarity,
+        });
       },
     },
   ]);

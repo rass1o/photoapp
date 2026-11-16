@@ -21,6 +21,7 @@ import { supabase } from '../lib/supabase';
 import { ensureCurrentTheme, themePhase, themeStatus } from '../lib/themes';
 import { readImage, type ImageUpload } from '../lib/upload';
 import { alertBlockedPhoto, assertImageAppropriate, ModerationError } from '../lib/moderation';
+import { trackEvent } from '../lib/analytics';
 import { localDateString } from '../lib/date';
 import { useAuth } from '../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
@@ -326,6 +327,11 @@ export default function CameraScreen() {
       if (insertError) throw insertError;
 
       setAlreadySubmitted(true);
+      trackEvent('weekly_submission_created', {
+        theme_id: theme.id,
+        theme_name: theme.name,
+        format,
+      });
       setImageUri(null);
       setCaption('');
       // The weekly streak is bumped by a trigger when the submission lands
@@ -334,6 +340,7 @@ export default function CameraScreen() {
       setCelebration({ kind: 'weekly', themeName: theme.name, streak: weekly, reward: 50 });
     } catch (err) {
       if (err instanceof ModerationError && image) {
+        trackEvent('submission_moderation_blocked', { reason: err.message, type: 'weekly' });
         alertBlockedPhoto(err, image, user.id, {
           kind: 'weekly',
           theme_id: theme.id,
@@ -398,8 +405,13 @@ export default function CameraScreen() {
       setCalendarKey((k) => k + 1);
       loadStreaks();
       setCelebration({ kind: 'daily', streak: reward.streak, reward: reward.reward, bonus: reward.bonus ?? 0 });
+      trackEvent('daily_photo_submitted', {
+        streak: reward.streak,
+        reward: reward.reward,
+      });
     } catch (err) {
       if (err instanceof ModerationError && image) {
+        trackEvent('submission_moderation_blocked', { reason: err.message, type: 'daily' });
         alertBlockedPhoto(err, image, user.id, { kind: 'daily', date: today });
         return;
       }
