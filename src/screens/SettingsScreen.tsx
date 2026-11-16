@@ -461,7 +461,8 @@ export default function SettingsScreen({ navigation }: Props) {
         <ScrollView style={{ maxHeight: 360 }}>
           {[
             'Photos you post, your username, bio, avatar, octopus and streaks are visible to everyone who uses ShuttInk.',
-            'Your email is only used to sign you in. Other people can’t see it.',
+            'Your email is used to sign you in. Other people can’t see it.',
+            'ShuttInk records how you use the app (like posting, voting and opening clams) with our analytics provider, PostHog, to fix problems and improve it.',
             'Your phone’s camera and photo library are only used when you choose to take or pick a photo.',
             'Feedback and problem reports you send are read by the ShuttInk team.',
             'Reports are private: the person you report is never told who sent it. Blocking someone is private too.',
