@@ -26,20 +26,27 @@ function detectType(bytes: ArrayBuffer): Omit<ImageUpload, 'bytes'> | null {
   return null;
 }
 
-// Longest side of an uploaded photo. Plenty for a full-screen phone view,
-// and it keeps 4 MB camera files down to a few hundred KB.
-const MAX_SIDE = 2048;
+// Longest side of an uploaded photo. Still sharp full-screen on any phone
+// (the widest are about 1320 px across), and about half the size of 2048,
+// which saves storage and every download. Profile photos only show small.
+export const PHOTO_SIDE = 1440;
+export const AVATAR_SIDE = 512;
 
-// Re-encodes a picked photo as a JPEG no bigger than MAX_SIDE. iPhones hand
+// Every upload gets a new file name, so a file never changes: phones and the
+// CDN can keep it for a year instead of downloading it again every hour
+// (Storage's default), which is most of the bandwidth the app uses
+export const PHOTO_CACHE_SECONDS = '31536000';
+
+// Re-encodes a picked photo as a JPEG no bigger than maxSide. iPhones hand
 // over HEIC, which Android can't display, so everything is saved as JPEG.
 // The photo is shrunk while it's decoded: newer iPhones shoot 24-48 MP, and
 // loading that at full size (as this used to, twice) can run out of memory.
-async function toJpeg(uri: string) {
-  const context = ImageManipulator.manipulate(uri, { maxWidth: MAX_SIDE, maxHeight: MAX_SIDE });
+async function toJpeg(uri: string, maxSide: number) {
+  const context = ImageManipulator.manipulate(uri, { maxWidth: maxSide, maxHeight: maxSide });
   try {
     const image = await context.renderAsync();
     try {
-      const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.8 });
+      const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.75 });
       return saved.uri;
     } finally {
       image.release();
@@ -53,10 +60,10 @@ async function toJpeg(uri: string) {
 // fetch(localUri) works on iOS but on Android it can return the text
 // "File not found" instead of the image, which then uploads as a broken
 // 14-byte file. expo-file-system reads local files on both platforms.
-export async function readImage(uri: string): Promise<ImageUpload> {
+export async function readImage(uri: string, maxSide = PHOTO_SIDE): Promise<ImageUpload> {
   let jpegUri: string | null = null;
   try {
-    jpegUri = await toJpeg(uri);
+    jpegUri = await toJpeg(uri, maxSide);
   } catch (err) {
     // Fall back to the file as picked rather than blocking the post
     console.log('Couldn’t convert photo to JPEG:', err);

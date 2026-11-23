@@ -6,7 +6,7 @@ import { Text, TextInput } from './Themed';
 import { Sheet, sheetStyles } from './GroupSheets';
 import { colors } from '../theme';
 import { supabase } from '../lib/supabase';
-import { readImage, type ImageUpload } from '../lib/upload';
+import { PHOTO_CACHE_SECONDS, readImage, type ImageUpload } from '../lib/upload';
 import { alertBlockedPhoto, assertImageAppropriate, ModerationError } from '../lib/moderation';
 import { GroupTheme } from '../lib/groups';
 
@@ -71,7 +71,7 @@ export default function GroupPostSheet({ visible, theme, userId, onClose, onPost
       const filePath = `${userId}/group-${Date.now()}.${image.ext}`;
       const { error: uploadError } = await supabase.storage
         .from('submissions')
-        .upload(filePath, image.bytes, { contentType: image.contentType });
+        .upload(filePath, image.bytes, { contentType: image.contentType, cacheControl: PHOTO_CACHE_SECONDS });
       if (uploadError) throw uploadError;
       const { data: publicUrlData } = supabase.storage.from('submissions').getPublicUrl(filePath);
 

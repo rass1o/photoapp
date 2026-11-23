@@ -1,7 +1,7 @@
 import { Alert } from 'react-native';
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from './supabase';
-import type { ImageUpload } from './upload';
+import { PHOTO_CACHE_SECONDS, type ImageUpload } from './upload';
 
 export class ModerationError extends Error {
   category?: string;
@@ -101,7 +101,7 @@ async function requestPhotoReview(err: ModerationError, image: ImageUpload, user
     const filePath = `${userId}/review-${Date.now()}.${image.ext}`;
     const { error: uploadError } = await supabase.storage
       .from('submissions')
-      .upload(filePath, image.bytes, { contentType: image.contentType });
+      .upload(filePath, image.bytes, { contentType: image.contentType, cacheControl: PHOTO_CACHE_SECONDS });
     if (uploadError) throw uploadError;
     const { data: publicUrlData } = supabase.storage.from('submissions').getPublicUrl(filePath);
 

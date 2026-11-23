@@ -19,7 +19,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { ensureCurrentTheme, themePhase, themeStatus } from '../lib/themes';
-import { readImage, type ImageUpload } from '../lib/upload';
+import { PHOTO_CACHE_SECONDS, readImage, type ImageUpload } from '../lib/upload';
 import { alertBlockedPhoto, assertImageAppropriate, ModerationError } from '../lib/moderation';
 import { trackEvent } from '../lib/analytics';
 import { localDateString } from '../lib/date';
@@ -309,7 +309,7 @@ export default function CameraScreen() {
 
       const { error: uploadError } = await supabase.storage
         .from('submissions')
-        .upload(filePath, image.bytes, { contentType: image.contentType });
+        .upload(filePath, image.bytes, { contentType: image.contentType, cacheControl: PHOTO_CACHE_SECONDS });
 
       if (uploadError) throw uploadError;
 
@@ -382,7 +382,7 @@ export default function CameraScreen() {
 
       const { error: uploadError } = await supabase.storage
         .from('submissions')
-        .upload(filePath, image.bytes, { contentType: image.contentType });
+        .upload(filePath, image.bytes, { contentType: image.contentType, cacheControl: PHOTO_CACHE_SECONDS });
 
       if (uploadError) throw uploadError;
 

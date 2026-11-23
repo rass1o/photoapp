@@ -9,7 +9,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useTapTabToTop } from '../lib/useTapTabToTop';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { readImage, type ImageUpload } from '../lib/upload';
+import { PHOTO_CACHE_SECONDS, AVATAR_SIDE, readImage, type ImageUpload } from '../lib/upload';
 import { alertBlockedPhoto, assertImageAppropriate, ModerationError } from '../lib/moderation';
 import { ProfileCategory, ShopItem, PROFILE_COLUMN, isOwned, loadShop } from '../lib/shop';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -277,13 +277,13 @@ export default function ProfileScreen() {
     let image: ImageUpload | undefined;
     try {
       const uri = result.assets[0].uri;
-      image = await readImage(uri);
+      image = await readImage(uri, AVATAR_SIDE);
       await assertImageAppropriate(image.bytes, image.contentType);
       const filePath = `${user.id}/avatar-${Date.now()}.${image.ext}`;
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, image.bytes, { contentType: image.contentType });
+        .upload(filePath, image.bytes, { contentType: image.contentType, cacheControl: PHOTO_CACHE_SECONDS });
 
       if (uploadError) throw uploadError;
 
@@ -327,7 +327,7 @@ export default function ProfileScreen() {
 
       const { error: uploadError } = await supabase.storage
         .from('submissions')
-        .upload(filePath, image.bytes, { contentType: image.contentType });
+        .upload(filePath, image.bytes, { contentType: image.contentType, cacheControl: PHOTO_CACHE_SECONDS });
 
       if (uploadError) throw uploadError;
 
