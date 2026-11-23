@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, DefaultTheme, Theme } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
+import { requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
 import {
   useFonts,
   Fredoka_400Regular,
@@ -63,8 +64,12 @@ function Root() {
   }, [user?.id]);
 
   // PostHog: initialize analytics and sync identity with auth state
+  // ATT: prompt iOS tracking transparency for ad personalization
   useEffect(() => {
     initAnalytics();
+    if (Platform.OS === 'ios') {
+      requestTrackingPermissionsAsync().catch(() => {});
+    }
   }, []);
 
   useEffect(() => {
