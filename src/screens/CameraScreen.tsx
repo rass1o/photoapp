@@ -33,6 +33,7 @@ import StreakCalendar from '../components/StreakCalendar';
 import OchoCelebration from '../components/OchoCelebration';
 import StreakLostModal, { LostStreaks } from '../components/StreakLostModal';
 import StreakBanner from '../components/StreakBanner';
+import { showRewardedAd } from '../lib/ads';
 import { STREAK_BONUS, STREAK_BONUS_EVERY, liveDailyStreak } from '../lib/streaks';
 import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
@@ -82,6 +83,10 @@ export default function CameraScreen() {
   const [cheatSheetVisible, setCheatSheetVisible] = useState(false);
   const [calendarKey, setCalendarKey] = useState(0);
   const [lostStreaks, setLostStreaks] = useState<LostStreaks | null>(null);
+  const [restoreProgress, setRestoreProgress] = useState<{ daily: number; weekly: number }>({ daily: 0, weekly: 0 });
+  const [restoreSessions, setRestoreSessions] = useState<{ daily: string; weekly: string }>({ daily: '', weekly: '' });
+  const [lostAt, setLostAt] = useState<string | null>(null);
+  const [isRestoringAd, setIsRestoringAd] = useState(false);
   const [celebration, setCelebration] = useState<
     | { kind: 'weekly'; themeName: string; streak: number; reward: number }
     | { kind: 'daily'; streak: number; reward: number; bonus: number }
@@ -142,7 +147,116 @@ export default function CameraScreen() {
     const key = `streakLostSeen:${user.id}:${lostDaily ? data.last_daily_submission_date : ''}:${lostWeekly ? lastThemeId : ''}`;
     if (await AsyncStorage.getItem(key)) return;
     AsyncStorage.setItem(key, '1');
+
+    const makeSessionId = () =>
+      'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
+
+    const sessions = {
+      daily: lostDaily ? makeSessionId() : '',
+      weekly: lostWeekly ? makeSessionId() : '',
+    };
+    setLostAt(new Date().toISOString());
+    setRestoreSessions(sessions);
+    setRestoreProgress({ daily: 0, weekly: 0 });
     setLostStreaks({ daily: lostDaily, weekly: lostWeekly });
+
+    trackEvent('streak_restore_offered', {
+      lost_daily: lostDaily,
+      lost_weekly: lostWeekly,
+    });
+  };
+
+  const handleWatchRestoreAd = async (streakType: 'daily' | 'weekly') => {
+    if (!user) return;
+    const makeSessionId = () =>
+      'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+      });
+
+    const session = restoreSessions[streakType] || makeSessionId();
+    if (!restoreSessions[streakType]) {
+      setRestoreSessions((prev) => ({ ...prev, [streakType]: session }));
+    }
+
+    setIsRestoringAd(true);
+    try {
+      await showRewardedAd({
+        userId: user.id,
+        streakType,
+        restoreSession: session,
+      });
+
+      // Check verified ad progress from database
+      const { count, error: countErr } = await supabase
+        .from('streak_restore_progress')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('restore_session', session);
+
+      const verifiedCount = countErr ? restoreProgress[streakType] + 1 : (count ?? restoreProgress[streakType] + 1);
+      setRestoreProgress((prev) => ({ ...prev, [streakType]: verifiedCount }));
+
+      trackEvent('streak_restore_ad_watched', {
+        streak_type: streakType,
+        progress: `${verifiedCount}/3`,
+      });
+
+      if (verifiedCount >= 3) {
+        const { data: result, error: rpcErr } = await supabase.rpc('restore_streak', {
+          p_streak_type: streakType,
+          p_restore_session: session,
+          p_lost_at: lostAt || new Date().toISOString(),
+        });
+
+        if (rpcErr) {
+          Alert.alert('Restore Failed', rpcErr.message || 'Could not restore streak');
+        } else if (result?.restored) {
+          trackEvent('streak_restored', {
+            streak_type: streakType,
+            streak_value: result.streak_value,
+          });
+
+          await loadStreaks();
+          Alert.alert(
+            'Streak Restored! 🎉',
+            `Your ${streakType} streak has been restored!`
+          );
+
+          setLostStreaks((prev) => {
+            if (!prev) return null;
+            const next = { ...prev, [streakType]: 0 };
+            return next.daily === 0 && next.weekly === 0 ? null : next;
+          });
+        }
+      }
+    } catch (err: any) {
+      console.log('Reward ad error or dismissed:', err?.message);
+      trackEvent('streak_restore_ad_failed', {
+        streak_type: streakType,
+        error: err?.message || 'unknown',
+      });
+      if (err?.message !== 'Ad closed before completion') {
+        Alert.alert('Ad Unavailable', 'Could not load ad right now. Please try again shortly.');
+      }
+    } finally {
+      setIsRestoringAd(false);
+    }
+  };
+
+  const handleCloseStreakLost = () => {
+    if (lostStreaks) {
+      trackEvent('streak_restore_declined', {
+        daily: lostStreaks.daily,
+        weekly: lostStreaks.weekly,
+      });
+    }
+    setLostStreaks(null);
   };
 
   const checkExistingSubmission = async (themeId: string) => {
@@ -592,7 +706,13 @@ export default function CameraScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <StreakLostModal lost={lostStreaks} onClose={() => setLostStreaks(null)} />
+      <StreakLostModal
+        lost={lostStreaks}
+        onClose={handleCloseStreakLost}
+        onRestore={handleWatchRestoreAd}
+        restoreProgress={restoreProgress}
+        isRestoring={isRestoringAd}
+      />
 
       <OchoCelebration
         visible={!!celebration}

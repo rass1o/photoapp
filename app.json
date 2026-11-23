@@ -28,6 +28,19 @@
         "resizeMode": "contain",
         "backgroundColor": "#1D6FA3"
       }
+    ],
+    [
+      "expo-tracking-transparency",
+      {
+        "userTrackingPermission": "ShuttInk uses this to show you relevant ads. You can still watch ads without allowing tracking."
+      }
+    ],
+    [
+      "react-native-google-mobile-ads",
+      {
+        "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+        "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+      }
     ]
   ],
   "extra": {
@@ -51,6 +64,9 @@
     "supportsTablet": false,
     "config": {
       "usesNonExemptEncryption": false
+    },
+    "infoPlist": {
+      "NSUserTrackingUsageDescription": "ShuttInk uses this to show you relevant ads. You can still watch ads without allowing tracking."
     }
   }
 }
