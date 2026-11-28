@@ -12,7 +12,8 @@ const OCHO_SIZE = 100;
 interface StreakLostModalProps {
   lost: LostStreaks | null;
   onClose: () => void;
-  onRestore?: (streakType: 'daily' | 'weekly') => void;
+  onRestore?: (streakType: 'daily' | 'weekly') => void; // watch ads (left out when this build can't show them)
+  onRestoreWithShutters?: (streakType: 'daily' | 'weekly') => void;
   restoreProgress?: { daily: number; weekly: number };
   isRestoring?: boolean;
 }
@@ -39,11 +40,15 @@ function ProgressDots({ completed, total = 3 }: { completed: number; total?: num
   );
 }
 
-// Shown when a streak breaks: Ocho with a tear and the option to watch ads to restore, or start fresh
+export const RESTORE_PRICE = 200; // shutters, checked again by restore_streak_with_shutters
+
+// Shown when a streak breaks: Ocho with a tear and the option to bring it
+// back with shutters or by watching ads, or start fresh
 export default function StreakLostModal({
   lost,
   onClose,
   onRestore,
+  onRestoreWithShutters,
   restoreProgress = { daily: 0, weekly: 0 },
   isRestoring = false,
 }: StreakLostModalProps) {
@@ -88,28 +93,43 @@ export default function StreakLostModal({
             </Text>
           )}
 
-          {/* Ad-based Streak Restore Section */}
-          {onRestore && (
+          {/* Bring a streak back: shutters, or ads where this build has them */}
+          {(onRestore || onRestoreWithShutters) && (
             <View style={styles.restoreContainer}>
               {lost && lost.daily > 0 && (
                 <View style={styles.restoreCard}>
                   <View style={styles.restoreHeader}>
                     <Text style={styles.restoreTitle}>Restore daily streak ({lost.daily} days)</Text>
-                    <ProgressDots completed={restoreProgress.daily} total={3} />
+                    {onRestore && <ProgressDots completed={restoreProgress.daily} total={3} />}
                   </View>
-                  <Pressable
-                    style={[styles.adButton, isRestoring && styles.buttonDisabled]}
-                    onPress={() => onRestore('daily')}
-                    disabled={isRestoring}
-                  >
-                    {isRestoring ? (
-                      <ActivityIndicator size="small" color={colors.white} />
-                    ) : (
-                      <Text style={styles.adButtonText}>
-                        🎬 Watch ad to restore ({restoreProgress.daily}/3)
-                      </Text>
-                    )}
-                  </Pressable>
+                  {onRestoreWithShutters && (
+                    <Pressable
+                      style={[styles.shutterButton, isRestoring && styles.buttonDisabled]}
+                      onPress={() => onRestoreWithShutters('daily')}
+                      disabled={isRestoring}
+                    >
+                      {isRestoring ? (
+                        <ActivityIndicator size="small" color={colors.white} />
+                      ) : (
+                        <Text style={styles.adButtonText}>Use {RESTORE_PRICE} shutters</Text>
+                      )}
+                    </Pressable>
+                  )}
+                  {onRestore && (
+                    <Pressable
+                      style={[styles.adButton, isRestoring && styles.buttonDisabled]}
+                      onPress={() => onRestore('daily')}
+                      disabled={isRestoring}
+                    >
+                      {isRestoring ? (
+                        <ActivityIndicator size="small" color={colors.white} />
+                      ) : (
+                        <Text style={styles.adButtonText}>
+                          🎬 Watch ad to restore ({restoreProgress.daily}/3)
+                        </Text>
+                      )}
+                    </Pressable>
+                  )}
                 </View>
               )}
 
@@ -117,21 +137,36 @@ export default function StreakLostModal({
                 <View style={styles.restoreCard}>
                   <View style={styles.restoreHeader}>
                     <Text style={styles.restoreTitle}>Restore weekly streak ({lost.weekly} weeks)</Text>
-                    <ProgressDots completed={restoreProgress.weekly} total={3} />
+                    {onRestore && <ProgressDots completed={restoreProgress.weekly} total={3} />}
                   </View>
-                  <Pressable
-                    style={[styles.adButton, isRestoring && styles.buttonDisabled]}
-                    onPress={() => onRestore('weekly')}
-                    disabled={isRestoring}
-                  >
-                    {isRestoring ? (
-                      <ActivityIndicator size="small" color={colors.white} />
-                    ) : (
-                      <Text style={styles.adButtonText}>
-                        🎬 Watch ad to restore ({restoreProgress.weekly}/3)
-                      </Text>
-                    )}
-                  </Pressable>
+                  {onRestoreWithShutters && (
+                    <Pressable
+                      style={[styles.shutterButton, isRestoring && styles.buttonDisabled]}
+                      onPress={() => onRestoreWithShutters('weekly')}
+                      disabled={isRestoring}
+                    >
+                      {isRestoring ? (
+                        <ActivityIndicator size="small" color={colors.white} />
+                      ) : (
+                        <Text style={styles.adButtonText}>Use {RESTORE_PRICE} shutters</Text>
+                      )}
+                    </Pressable>
+                  )}
+                  {onRestore && (
+                    <Pressable
+                      style={[styles.adButton, isRestoring && styles.buttonDisabled]}
+                      onPress={() => onRestore('weekly')}
+                      disabled={isRestoring}
+                    >
+                      {isRestoring ? (
+                        <ActivityIndicator size="small" color={colors.white} />
+                      ) : (
+                        <Text style={styles.adButtonText}>
+                          🎬 Watch ad to restore ({restoreProgress.weekly}/3)
+                        </Text>
+                      )}
+                    </Pressable>
+                  )}
                 </View>
               )}
 
@@ -232,6 +267,14 @@ const styles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     backgroundColor: colors.white,
+  },
+  shutterButton: {
+    backgroundColor: colors.deep,
+    borderRadius: 9,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
   },
   adButton: {
     backgroundColor: colors.coral,

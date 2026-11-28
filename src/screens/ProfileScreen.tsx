@@ -10,6 +10,7 @@ import { useTapTabToTop } from '../lib/useTapTabToTop';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
 import { PHOTO_CACHE_SECONDS, AVATAR_SIDE, readImage, type ImageUpload } from '../lib/upload';
+import { useTourTarget } from '../context/TourContext';
 import { alertBlockedPhoto, assertImageAppropriate, ModerationError } from '../lib/moderation';
 import { ProfileCategory, ShopItem, PROFILE_COLUMN, isOwned, loadShop } from '../lib/shop';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -139,6 +140,8 @@ export default function ProfileScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [uploadingShowcaseSlot, setUploadingShowcaseSlot] = useState<number | null>(null);
+  // the first-time walkthrough points at the showcase
+  const showcaseTarget = useTourTarget('profile.showcase');
 
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [draftBio, setDraftBio] = useState('');
@@ -574,6 +577,7 @@ export default function ProfileScreen() {
                 </>
               )}
 
+              <View {...showcaseTarget}>
               <SectionHeader icon="images-outline" label="Showcase" {...fold('showcase')} />
               {isOpen('showcase') && (
                 <View style={styles.showcaseRow}>
@@ -602,6 +606,7 @@ export default function ProfileScreen() {
                   ))}
                 </View>
               )}
+              </View>
 
               <SectionHeader icon="camera-outline" label="Camera collection" {...fold('cameras')} />
               {isOpen('cameras') && (

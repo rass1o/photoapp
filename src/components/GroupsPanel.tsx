@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Text } from './Themed';
 import Stamp from './Stamp';
 import FormatTag from './FormatTag';
+import PhotoDate from './PhotoDate';
 import OchoIcon from './OchoIcon';
 import { OchoPlain } from './OchoArt';
 import OchoLoader from './OchoLoader';
@@ -541,7 +542,10 @@ export default function GroupsPanel({ userId, scrollProps, contentPaddingTop, co
                   </Pressable>
                 )}
               </View>
-              <Image source={{ uri: viewing.image_url }} style={styles.viewerImage} resizeMode="contain" />
+              <View>
+                <Image source={{ uri: viewing.image_url }} style={styles.viewerImage} resizeMode="contain" />
+                <PhotoDate date={viewing.created_at} />
+              </View>
               {viewing.caption ? <Text style={styles.viewerCaption}>{viewing.caption}</Text> : null}
               {phase === 'vote' && viewing.user_id !== userId && (
                 <Pressable style={[styles.voteButton, myVote === viewing.id && styles.voteButtonActive]} onPress={() => vote(viewing)}>

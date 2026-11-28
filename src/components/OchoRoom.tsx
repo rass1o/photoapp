@@ -1,7 +1,8 @@
 import { ReactNode } from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
-import { colors } from '../theme';
+// fixed light colors: drawings look the same in dark mode
+import { artColors as colors } from '../theme';
 
 // The room Ocho gets dressed up in. Each room is a palette for the same
 // furniture for now; more rooms (and buying them) can be added to ROOMS later.

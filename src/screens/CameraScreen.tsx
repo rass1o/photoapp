@@ -31,9 +31,10 @@ import SectionHeader from '../components/SectionHeader';
 import SandGrain from '../components/SandGrain';
 import StreakCalendar from '../components/StreakCalendar';
 import OchoCelebration from '../components/OchoCelebration';
-import StreakLostModal, { LostStreaks } from '../components/StreakLostModal';
+import StreakLostModal, { LostStreaks, RESTORE_PRICE } from '../components/StreakLostModal';
 import StreakBanner from '../components/StreakBanner';
-import { showRewardedAd } from '../lib/ads';
+import { adsAvailable, showRewardedAd } from '../lib/ads';
+import { useTourTarget } from '../context/TourContext';
 import { STREAK_BONUS, STREAK_BONUS_EVERY, liveDailyStreak } from '../lib/streaks';
 import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
@@ -93,6 +94,9 @@ export default function CameraScreen() {
     | null
   >(null);
   const [streaks, setStreaks] = useState({ daily: 0, weekly: 0 });
+  // parts the first-time walkthrough points at
+  const streaksTarget = useTourTarget('submit.streaks');
+  const weeklyTarget = useTourTarget('submit.weekly');
 
   const loadStreaks = async () => {
     if (!user) return { daily: 0, weekly: 0 };
@@ -247,6 +251,40 @@ export default function CameraScreen() {
     } finally {
       setIsRestoringAd(false);
     }
+  };
+
+  // Pay 200 shutters to bring a streak back (the server checks it just broke)
+  const handleShutterRestore = (streakType: 'daily' | 'weekly') => {
+    Alert.alert(
+      `Bring back your ${streakType === 'daily' ? 'day' : 'week'} streak?`,
+      `This uses ${RESTORE_PRICE} shutters. You can bring back each streak once a week.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: `Use ${RESTORE_PRICE}`,
+          onPress: async () => {
+            setIsRestoringAd(true);
+            const { data: result, error } = await supabase.rpc('restore_streak_with_shutters', {
+              p_streak_type: streakType,
+              p_today: localDateString(new Date()),
+            });
+            setIsRestoringAd(false);
+            if (error) {
+              Alert.alert('Couldn’t bring it back', error.message);
+              return;
+            }
+            trackEvent('streak_restored', { streak_type: streakType, streak_value: result?.streak_value, method: 'shutters' });
+            await loadStreaks();
+            setLostStreaks((prev) => {
+              if (!prev) return null;
+              const next = { ...prev, [streakType]: 0 };
+              return next.daily === 0 && next.weekly === 0 ? null : next;
+            });
+            Alert.alert('Streak saved!', `Your ${streakType === 'daily' ? 'day' : 'week'} streak is back. Keep it going!`);
+          },
+        },
+      ]
+    );
   };
 
   const handleCloseStreakLost = () => {
@@ -564,11 +602,12 @@ export default function CameraScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.streaks}>
+          <View style={styles.streaks} {...streaksTarget}>
             <StreakBanner daily={streaks.daily} weekly={streaks.weekly} showBonusHint />
           </View>
 
           {/* ---------- Weekly submission (main) ---------- */}
+          <View {...weeklyTarget}>
           {!theme ? (
             <View style={styles.section}>
               <Text style={styles.title}>No active theme right now</Text>
@@ -664,6 +703,8 @@ export default function CameraScreen() {
             </View>
           )}
 
+          </View>
+
           {/* ---------- Daily freelance photo (secondary) ---------- */}
           <View style={styles.dailySection}>
             <SectionHeader icon="sunny-outline" label="Daily photo" />
@@ -709,7 +750,8 @@ export default function CameraScreen() {
       <StreakLostModal
         lost={lostStreaks}
         onClose={handleCloseStreakLost}
-        onRestore={handleWatchRestoreAd}
+        onRestore={adsAvailable ? handleWatchRestoreAd : undefined}
+        onRestoreWithShutters={handleShutterRestore}
         restoreProgress={restoreProgress}
         isRestoring={isRestoringAd}
       />

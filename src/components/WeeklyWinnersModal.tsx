@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { View, StyleSheet, Modal, Image, Pressable, ScrollView, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Text } from './Themed';
-import { colors, bubbly } from '../theme';
+import { artColors, colors, bubbly } from '../theme';
 
 export type Winner = {
   submissionId: string;
@@ -120,7 +120,7 @@ export default function WeeklyWinnersModal({ visible, themeName, winners, onClos
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.deep },
+  container: { flex: 1, backgroundColor: artColors.deep }, // stays deep navy in dark mode
   header: { alignItems: 'center', paddingTop: 60, paddingBottom: 10 },
   closeIcon: { position: 'absolute', top: 56, right: 20 },
   headerTitle: { ...bubbly, fontSize: 28, color: colors.white, textShadowColor: colors.reef },

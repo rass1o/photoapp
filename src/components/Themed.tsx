@@ -8,7 +8,7 @@ import {
   StyleProp,
   TextStyle,
 } from 'react-native';
-import { colors, fonts } from '../theme';
+import { colors, fonts, isDarkMode } from '../theme';
 
 // Drop-in replacements for React Native's Text and TextInput that use the
 // app font. They turn fontWeight into the matching Fredoka family, since
@@ -28,6 +28,9 @@ const InsideText = createContext(false);
 
 function withFont(style: StyleProp<TextStyle>, nested: boolean): StyleProp<TextStyle> {
   const flat = StyleSheet.flatten(style) ?? {};
+  // Text with no color of its own is black by default, which disappears on
+  // dark mode's dark paper; there it gets the body text color instead
+  if (!nested && flat.color == null && isDarkMode()) style = [{ color: colors.text }, style];
   if (flat.fontFamily) return style;
   if (nested && flat.fontWeight == null) return style;
   return [style, { fontFamily: familyFor(flat.fontWeight), fontWeight: 'normal' }];

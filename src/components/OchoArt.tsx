@@ -1,5 +1,6 @@
 import Svg, { Circle, ClipPath, Defs, Ellipse, G, Path } from 'react-native-svg';
-import { colors } from '../theme';
+// fixed light colors: drawings look the same in dark mode
+import { artColors as colors } from '../theme';
 
 // Ocho in a few set poses, drawn plain (no Skia) so they're cheap to show
 // anywhere: studying a reported photo through a magnifying glass, guarding

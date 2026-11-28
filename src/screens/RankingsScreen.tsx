@@ -409,7 +409,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     alignSelf: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.card,
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 6,

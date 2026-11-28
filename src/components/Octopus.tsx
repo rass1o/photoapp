@@ -29,7 +29,8 @@ import Reanimated, {
 import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
 import { Text } from './Themed';
 import Sidekick from './Sidekick';
-import { colors } from '../theme';
+// fixed light colors: drawings look the same in dark mode
+import { artColors as colors } from '../theme';
 
 // Placeholder mascot art — a simple cartoon octopus drawn in SVG so it can be
 // recolored and dressed up. Swap the shapes out once there's a real design.

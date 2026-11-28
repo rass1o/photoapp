@@ -10,6 +10,8 @@ import {
   Platform,
   ActivityIndicator,
   Linking,
+  Alert,
+  DevSettings,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,7 +27,25 @@ import BackBar from '../components/BackBar';
 import SandGrain from '../components/SandGrain';
 import PasswordRules from '../components/PasswordRules';
 import { useModeration } from '../context/ModerationContext';
-import { colors, bubbly } from '../theme';
+import { colors, bubbly, COLOR_MODE_KEY, isDarkMode } from '../theme';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Updates from 'expo-updates';
+
+// Saves light or dark and restarts the app, since every screen picks its
+// colors when it first loads (see App.tsx)
+function setColorMode(dark: boolean) {
+  Alert.alert(dark ? 'Switch to dark mode?' : 'Switch to light mode?', 'ShuttInk will restart to change its colors.', [
+    { text: 'Cancel', style: 'cancel' },
+    {
+      text: 'Restart',
+      onPress: async () => {
+        await AsyncStorage.setItem(COLOR_MODE_KEY, dark ? 'dark' : 'light').catch(() => {});
+        if (__DEV__) DevSettings.reload();
+        else Updates.reloadAsync().catch(() => DevSettings.reload());
+      },
+    },
+  ]);
+}
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 type IoniconName = keyof typeof Ionicons.glyphMap;
@@ -302,6 +322,17 @@ export default function SettingsScreen({ navigation }: Props) {
         </Note>
 
         <Section title="Display">
+          <Row
+            icon="moon-outline"
+            label="Dark mode"
+            right={
+              <Switch
+                value={isDarkMode()}
+                onValueChange={setColorMode}
+                trackColor={{ true: colors.reef, false: colors.sandDark }}
+              />
+            }
+          />
           <Row
             icon="sparkles-outline"
             label="Animated Ocho & sidekicks"

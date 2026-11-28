@@ -1,5 +1,6 @@
 import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
-import { colors } from '../theme';
+// fixed light colors: drawings look the same in dark mode
+import { artColors as colors } from '../theme';
 
 const OUTLINE = colors.abyss;
 // Shell colors for each blind box

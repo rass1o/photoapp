@@ -33,10 +33,12 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import WeeklyWinnersModal, { Winner } from '../components/WeeklyWinnersModal';
 import ThemeWelcomeModal from '../components/ThemeWelcomeModal';
 import FilmStamp from '../components/FilmStamp';
+import PhotoDate, { formatPhotoDate } from '../components/PhotoDate';
 import FormatTag from '../components/FormatTag';
 import { loadFriendIds, onFriendsChanged } from '../lib/friends';
 import NotificationsModal from '../components/NotificationsModal';
 import { useNotifications } from '../context/NotificationsContext';
+import { useTourTarget } from '../context/TourContext';
 import { Text, TextInput } from '../components/Themed';
 import { colors, bubbly } from '../theme';
 import Wave, { WAVE_HEIGHT } from '../components/Wave';
@@ -59,7 +61,7 @@ type Theme = {
   id: string;
   name: string;
   end_date: string;
-  recommended_films?: string | null;
+  overview?: string | null;
   example_image_url?: string | null;
 };
 
@@ -246,9 +248,15 @@ export default function HomeScreen() {
 
   // Daily freelance photos strip (BeReal-style, no theme, just today's posts)
   const [dailyPhotos, setDailyPhotos] = useState<
-    Array<{ id: string; user_id: string; image_url: string; username: string }>
+    Array<{ id: string; user_id: string; image_url: string; username: string; created_at: string }>
   >([]);
-  const [dailyViewer, setDailyViewer] = useState<{ id: string; user_id: string; image_url: string; username: string } | null>(null);
+  const [dailyViewer, setDailyViewer] = useState<{
+    id: string;
+    user_id: string;
+    image_url: string;
+    username: string;
+    created_at: string;
+  } | null>(null);
 
   // Weekly winners reveal
   const [winnersVisible, setWinnersVisible] = useState(false);
@@ -256,6 +264,9 @@ export default function HomeScreen() {
   const [winners, setWinners] = useState<Winner[]>([]);
 
   const [themeWelcomeVisible, setThemeWelcomeVisible] = useState(false);
+  // parts the first-time walkthrough points at
+  const feedsTarget = useTourTarget('home.feeds');
+  const themeTarget = useTourTarget('home.theme');
   // iOS can only present one modal at a time; trying to open two at once can
   // leave an invisible layer that blocks every tap. So the theme welcome waits
   // until the weekly results have been checked (and closed, if they showed).
@@ -302,7 +313,7 @@ export default function HomeScreen() {
       const nowIso = new Date().toISOString();
       const { data: themeData, error: themeError } = await supabase
         .from('themes')
-        .select('id, name, end_date, recommended_films, example_image_url')
+        .select('id, name, end_date, overview, example_image_url')
         .lte('start_date', nowIso)
         .gte('end_date', nowIso)
         .order('start_date', { ascending: false })
@@ -433,7 +444,7 @@ export default function HomeScreen() {
     const today = localDateString();
     const { data } = await supabase
       .from('daily_submissions')
-      .select('id, user_id, image_url')
+      .select('id, user_id, image_url, created_at')
       .eq('submission_date', today)
       .order('created_at', { ascending: false })
       .limit(20);
@@ -456,6 +467,7 @@ export default function HomeScreen() {
         user_id: r.user_id,
         image_url: r.image_url,
         username: usernameById.get(r.user_id) ?? 'unknown',
+        created_at: r.created_at,
       }))
     );
   }, []);
@@ -797,7 +809,7 @@ export default function HomeScreen() {
         <View style={styles.topBar}>
           <View style={styles.topBarSide} />
           <Pressable onPress={scrollToTop} hitSlop={6}>
-            <Wordmark size={27} />
+            <Wordmark size={22} />
           </Pressable>
           <View style={[styles.topBarSide, styles.topBarIcons]}>
             <Pressable onPress={() => setSearchVisible((v) => !v)}>
@@ -897,7 +909,9 @@ export default function HomeScreen() {
           style={{ opacity: headerProgress }}
         >
           {feed !== 'groups' && (
-          <View style={styles.themeBanner}>
+          // Tap to see the theme's overview again
+          <View {...themeTarget}>
+          <Pressable style={styles.themeBanner} onPress={() => setThemeWelcomeVisible(true)} disabled={!theme}>
             <Text style={styles.themeLabel}>THIS WEEK'S THEME</Text>
             {theme ? (
               <Text style={styles.themeName}>{theme.name}</Text>
@@ -913,10 +927,12 @@ export default function HomeScreen() {
                 <Text style={styles.submittedText}>Your submission is in</Text>
               </View>
             )}
+            {theme?.overview && <Text style={styles.themeAbout}>About this theme ›</Text>}
+          </Pressable>
           </View>
           )}
 
-          <View style={styles.toggleRow}>
+          <View style={styles.toggleRow} {...feedsTarget}>
             <Pressable
               style={[styles.toggle, feed === 'friends' && styles.toggleActive]}
               onPress={() => switchFeed('friends')}
@@ -1061,6 +1077,7 @@ export default function HomeScreen() {
                           <FilmStamp stock={item.film_stamp} />
                         </View>
                       )}
+                      {!cover && <PhotoDate date={item.created_at} film={item.format === 'film' && item.film_strip !== false} />}
                       {burstId === item.id && (
                         <View style={styles.burstOverlay} pointerEvents="none">
                           <Ionicons name="heart" size={80} color={colors.white} />
@@ -1211,6 +1228,9 @@ export default function HomeScreen() {
           {dailyViewer && (
             <Image source={{ uri: dailyViewer.image_url }} style={styles.dailyViewerImage} resizeMode="contain" />
           )}
+          {dailyViewer && (
+            <Stamp style={styles.dailyViewerDate}>{formatPhotoDate(dailyViewer.created_at)}</Stamp>
+          )}
           <Pressable style={styles.dailyViewerCloseButton} onPress={() => setDailyViewer(null)}>
             <Ionicons name="close" size={22} color={colors.white} />
           </Pressable>
@@ -1245,7 +1265,7 @@ export default function HomeScreen() {
       <ThemeWelcomeModal
         visible={themeWelcomeVisible && welcomeReady}
         themeName={theme?.name ?? ''}
-        recommendedFilms={theme?.recommended_films}
+        overview={theme?.overview}
         exampleImageUrl={theme?.example_image_url}
         onClose={() => setThemeWelcomeVisible(false)}
       />
@@ -1334,6 +1354,7 @@ const styles = StyleSheet.create({
   dailyThumbUsername: { fontSize: 10, color: colors.muted, marginTop: 4, width: 64, textAlign: 'center' },
   dailyViewerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', alignItems: 'center', justifyContent: 'center' },
   dailyViewerImage: { width: '100%', height: '80%' },
+  dailyViewerDate: { marginTop: 10, fontSize: 14 },
   dailyViewerMenuButton: { right: undefined, left: 20 },
   dailyViewerCloseButton: {
     position: 'absolute',
@@ -1348,6 +1369,7 @@ const styles = StyleSheet.create({
   },
 
   themeBanner: { alignItems: 'flex-start', paddingVertical: 16, paddingHorizontal: 20 },
+  themeAbout: { fontSize: 12, fontWeight: '600', color: colors.reef, marginTop: 6 },
   themeLabel: { fontSize: 11, fontWeight: '600', color: colors.reefDark, letterSpacing: 1, marginBottom: 4 },
   themeName: { ...bubbly, fontSize: 30, textAlign: 'left' },
   themeLoading: { height: 38 },

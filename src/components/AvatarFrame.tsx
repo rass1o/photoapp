@@ -15,7 +15,8 @@ import Reanimated, {
 } from 'react-native-reanimated';
 import { useSettings } from '../context/SettingsContext';
 import { useScreenFocused } from '../lib/useScreenFocused';
-import { colors } from '../theme';
+// fixed light colors: drawings look the same in dark mode
+import { artColors as colors } from '../theme';
 
 // Designed avatar frames. A frame's value is either a plain color (the
 // original frames) or one of these design names, which have a ring color

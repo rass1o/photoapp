@@ -17,7 +17,8 @@ import Reanimated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
-import { colors } from '../theme';
+// fixed light colors: drawings look the same in dark mode
+import { artColors as colors } from '../theme';
 
 // Sidekick pets (epic and legendary) that sit beside your octopus. Drawn flat, unlike the
 // outlined octopus: no outlines, just shapes and color. Small line details (mouths,

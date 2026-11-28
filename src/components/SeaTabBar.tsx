@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Text } from './Themed';
 import { colors, fonts } from '../theme';
+import { useTour } from '../context/TourContext';
 
 // The bottom tab bar as a strip of deep sea: a wavy top edge with a lighter
 // crest, little bubbles, the active tab glowing in a reef pill, and Submit
@@ -41,6 +42,7 @@ function wavePath(width: number, height: number) {
 
 export default function SeaTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const { width } = useWindowDimensions();
+  const tour = useTour(); // the walkthrough points at the tabs
   const insets = useSafeAreaInsets();
   const height = WAVE_TOP + BODY + insets.bottom;
   const wave = wavePath(width, height);
@@ -51,7 +53,7 @@ export default function SeaTabBar({ state, descriptors, navigation }: BottomTabB
         <Defs>
           <LinearGradient id="tabSea" x1="0" y1="0" x2="0" y2="1">
             <Stop offset="0" stopColor="#0E4F7A" />
-            <Stop offset="1" stopColor={colors.ink} />
+            <Stop offset="1" stopColor="#14212B" />
           </LinearGradient>
         </Defs>
         <Path d={wave.fill} fill="url(#tabSea)" />
@@ -80,6 +82,7 @@ export default function SeaTabBar({ state, descriptors, navigation }: BottomTabB
             return (
               <Pressable
                 key={route.key}
+                ref={(view) => tour.register(`tab.${route.name}` as never, view)}
                 style={styles.tab}
                 onPress={onPress}
                 onLongPress={onLongPress}
@@ -98,6 +101,7 @@ export default function SeaTabBar({ state, descriptors, navigation }: BottomTabB
           return (
             <Pressable
               key={route.key}
+              ref={(view) => tour.register(`tab.${route.name}` as never, view)}
               style={styles.tab}
               onPress={onPress}
               onLongPress={onLongPress}

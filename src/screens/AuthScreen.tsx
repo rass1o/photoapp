@@ -152,7 +152,7 @@ export default function AuthScreen() {
       >
         <View style={styles.content}>
           <View style={styles.logo}>
-            <Wordmark size={38} />
+            <Wordmark size={32} />
           </View>
           <Text style={styles.tagline}>A new theme every week. Shoot it your way.</Text>
 

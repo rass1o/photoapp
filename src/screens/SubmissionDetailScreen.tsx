@@ -17,6 +17,7 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { trackEvent } from '../lib/analytics';
+import PhotoDate from '../components/PhotoDate';
 import FilmStamp from '../components/FilmStamp';
 import FormatTag from '../components/FormatTag';
 import BackBar from '../components/BackBar';
@@ -50,6 +51,7 @@ type Submission = {
   caption: string;
   film_stamp: string | null;
   film_strip: boolean;
+  created_at: string;
   username: string;
   avatar_url: string | null;
   avatar_frame_color: string;
@@ -80,7 +82,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
   const load = async () => {
     const { data: subData, error } = await supabase
       .from('submissions')
-      .select('id, user_id, theme_id, image_url, format, vote_count, like_count, caption, film_stamp, film_strip')
+      .select('id, user_id, theme_id, image_url, format, vote_count, like_count, caption, film_stamp, film_strip, created_at')
       .eq('id', submissionId)
       .single();
 
@@ -321,6 +323,7 @@ export default function SubmissionDetailScreen({ route, navigation }: Props) {
                   <FilmStamp stock={submission.film_stamp} />
                 </View>
               )}
+              {!cover && <PhotoDate date={submission.created_at} film={submission.format === 'film' && submission.film_strip} />}
               {cover && <ReviewCover kind={cover} />}
             </View>
 

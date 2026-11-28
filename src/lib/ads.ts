@@ -1,9 +1,17 @@
-import {
-  RewardedAd,
-  RewardedAdEventType,
-  AdEventType,
-  TestIds,
-} from 'react-native-google-mobile-ads';
+import { TurboModuleRegistry } from 'react-native';
+
+// The ads library is native code that's only in builds made after it was
+// added. Expo Go and older TestFlight builds don't have it, and importing it
+// there crashes the app on launch, so it's loaded only if it's there.
+let ads: typeof import('react-native-google-mobile-ads') | null = null;
+try {
+  if (TurboModuleRegistry.get('RNGoogleMobileAdsRewardedModule')) ads = require('react-native-google-mobile-ads');
+} catch {
+  ads = null;
+}
+
+// Whether this build can show ads (the restore-with-ads buttons hide if not)
+export const adsAvailable = !!ads;
 
 export interface AdServerData {
   userId: string;
@@ -13,9 +21,11 @@ export interface AdServerData {
 
 // Rewarded Ad Unit ID: Uses Google's official test ad unit ID in development,
 // or the configured production ad unit ID from environment variables.
-const AD_UNIT_ID = __DEV__
-  ? TestIds.REWARDED
-  : process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID || TestIds.REWARDED;
+const AD_UNIT_ID = !ads
+  ? ''
+  : __DEV__
+    ? ads.TestIds.REWARDED
+    : process.env.EXPO_PUBLIC_ADMOB_REWARDED_UNIT_ID || ads.TestIds.REWARDED;
 
 /**
  * Loads and displays a single rewarded video ad configured with Server-Side Verification (S2SV).
@@ -24,6 +34,11 @@ const AD_UNIT_ID = __DEV__
  */
 export function showRewardedAd(serverData: AdServerData): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (!ads) {
+      reject(new Error('Ads aren’t available in this version of the app'));
+      return;
+    }
+    const { RewardedAd, RewardedAdEventType, AdEventType } = ads;
     let earned = false;
     let unsubLoaded: (() => void) | null = null;
     let unsubEarned: (() => void) | null = null;
