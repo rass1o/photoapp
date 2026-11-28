@@ -1,17 +1,16 @@
 import { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import Svg, { Circle, Ellipse, G, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { Text } from './Themed';
-import { colors, bubbly } from '../theme';
+import { artColors as colors, artBubbly as bubbly } from '../theme';
 
 // The ShuttInk title: the S is one of Ocho's tentacles, and the word sits on
-// a strip of film pulled out of a 35mm film canister, seen from the side,
-// with Ocho on its label like a film brand's logo. Fixed colors, so the logo
-// looks the same in light and dark mode.
+// a strip of film unrolling from a reel. Fixed light colors, so the logo
+// looks the same in dark mode.
 
-const FILM = '#14212B';
+const FILM = colors.ink;
 const TENTACLE = '#a78bfa'; // Ocho's starting lilac
-const OUTLINE = '#14507A';
+const OUTLINE = colors.abyss;
 
 const S_MAIN = 'M47,15 C43,5 24,3 16,10 C7,18 13,31 28,37 C43,43 52,52 46,64 C40,74 22,76 13,67';
 const S_TIP = 'M13,67 C8,62 10,55 16,57 C19,58 19,62 16,62'; // the curled tip, thinner
@@ -38,44 +37,16 @@ function TentacleS({ size }: { size: number }) {
   );
 }
 
-// Drawn in a 50 x 92 box: the spool's end on top, ridged metal caps, the
-// dark body with a label wrapped round it, and the felt slot on the right
-// that the film comes out of
-const CANISTER_W = 50;
-const CANISTER_H = 92;
-
-function Canister({ height }: { height: number }) {
+function Reel({ size }: { size: number }) {
   return (
-    <Svg width={(height * CANISTER_W) / CANISTER_H} height={height} viewBox={`0 0 ${CANISTER_W} ${CANISTER_H}`}>
-      <G transform="translate(2,3)" stroke={OUTLINE} strokeWidth={2}>
-        <Rect x={17} y={0} width={12} height={8} rx={2} fill="#CBD5E1" />
-        <Rect x={2} y={6} width={42} height={9} rx={3} fill="#9FB0C2" />
-        <Rect x={5} y={14} width={36} height={64} fill="#2B3A4F" />
-        <Rect x={2} y={77} width={42} height={9} rx={3} fill="#9FB0C2" />
-        {/* ridges on the caps */}
-        {[10, 16, 22, 28, 34].map((x) => (
-          <Path key={x} d={`M${x},8 V13 M${x},79 V84`} stroke="#7C8DA0" strokeWidth={1.2} />
-        ))}
-        <Rect x={40} y={20} width={6} height={52} rx={2} fill={FILM} />
-        {/* the label, with Ocho as the brand */}
-        <Rect x={5} y={26} width={36} height={40} fill="#FAF6EF" strokeWidth={0} />
-        <Rect x={5} y={26} width={36} height={4} fill="#E8664A" strokeWidth={0} />
-        <Rect x={5} y={62} width={36} height={4} fill="#E8664A" strokeWidth={0} />
-        <Path
-          d="M16,52 C14,58 11,59 10,62 M20,53 C20,58 18,60 18,63 M26,53 C26,58 28,60 28,63 M30,52 C32,58 35,59 36,62"
-          fill="none"
-          stroke={TENTACLE}
-          strokeWidth={3}
-          strokeLinecap="round"
-        />
-        <Ellipse cx={23} cy={45} rx={9} ry={8.5} fill={TENTACLE} strokeWidth={1.5} />
-        <Circle cx={19.5} cy={45} r={2.2} fill="#FFFFFF" strokeWidth={0} />
-        <Circle cx={26.5} cy={45} r={2.2} fill="#FFFFFF" strokeWidth={0} />
-        <Circle cx={20} cy={45.4} r={1.1} fill={FILM} strokeWidth={0} />
-        <Circle cx={27} cy={45.4} r={1.1} fill={FILM} strokeWidth={0} />
-        {/* a shine down the metal */}
-        <Rect x={8} y={16} width={3} height={60} fill="#FFFFFF" opacity={0.15} strokeWidth={0} />
-      </G>
+    <Svg width={size} height={size} viewBox="0 0 100 100">
+      <Circle cx={50} cy={50} r={46} fill="#2B3A4F" stroke={OUTLINE} strokeWidth={5} />
+      <Circle cx={50} cy={50} r={36} fill="none" stroke="#3E5068" strokeWidth={3} />
+      {[0, 72, 144, 216, 288].map((deg) => {
+        const a = ((deg - 90) * Math.PI) / 180;
+        return <Circle key={deg} cx={50 + 24 * Math.cos(a)} cy={50 + 24 * Math.sin(a)} r={10} fill={colors.sea} />;
+      })}
+      <Circle cx={50} cy={50} r={8} fill="#CBD5E1" stroke={OUTLINE} strokeWidth={3} />
     </Svg>
   );
 }
@@ -84,17 +55,15 @@ function Canister({ height }: { height: number }) {
 export default function Wordmark({ size = 34 }: { size?: number }) {
   const [width, setWidth] = useState(0);
   const height = size * 1.6;
-  // the canister's body is about as tall as the film coming out of it
-  const canister = height * 1.68;
-  const canisterWidth = (canister * CANISTER_W) / CANISTER_H;
+  const reel = height * 1.12;
   const hole = { w: size * 0.26, h: size * 0.17, gap: size * 0.2, edge: size * 0.11 };
   const count = Math.max(0, Math.floor((width - hole.gap) / (hole.w + hole.gap)));
   const start = (width - (count * hole.w + (count - 1) * hole.gap)) / 2;
 
   return (
-    <View style={[styles.wrap, { height: canister, paddingLeft: canisterWidth * 0.86 }]} accessible accessibilityLabel="ShuttInk">
+    <View style={[styles.wrap, { paddingLeft: reel * 0.62 }]} accessible accessibilityLabel="ShuttInk">
       <View
-        style={[styles.film, { height, paddingLeft: size * 0.3, paddingRight: size * 0.4 }]}
+        style={[styles.film, { height, paddingLeft: reel * 0.48, paddingRight: size * 0.4 }]}
         onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
       >
         {width > 0 && (
@@ -127,9 +96,9 @@ export default function Wordmark({ size = 34 }: { size?: number }) {
         <TentacleS size={size} />
         <Text style={[styles.word, { fontSize: size, lineHeight: size * 1.15 }]}>huttInk</Text>
       </View>
-      {/* drawn last so the film looks like it comes out of its slot */}
-      <View style={[styles.canister, { top: (height - canister) / 2 }]}>
-        <Canister height={canister} />
+      {/* drawn last so it sits on top of the end of the film */}
+      <View style={[styles.reel, { top: (height - reel) / 2 }]}>
+        <Reel size={reel} />
       </View>
     </View>
   );
@@ -139,5 +108,5 @@ const styles = StyleSheet.create({
   wrap: { justifyContent: 'center' },
   film: { flexDirection: 'row', alignItems: 'center' },
   word: { ...bubbly, color: colors.white, textShadowColor: colors.reef, includeFontPadding: false },
-  canister: { position: 'absolute', left: 0 },
+  reel: { position: 'absolute', left: 0 },
 });

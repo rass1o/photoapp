@@ -163,5 +163,5 @@ const styles = StyleSheet.create({
   body: { gap: 10, paddingBottom: 20 },
   description: { minHeight: 70, textAlignVertical: 'top' },
   deleteButton: { alignItems: 'center', paddingVertical: 10 },
-  deleteText: { color: '#B91C1C', fontSize: 15, fontWeight: '600' },
+  deleteText: { color: colors.danger, fontSize: 15, fontWeight: '600' },
 });

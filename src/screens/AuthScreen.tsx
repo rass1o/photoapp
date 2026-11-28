@@ -152,7 +152,7 @@ export default function AuthScreen() {
       >
         <View style={styles.content}>
           <View style={styles.logo}>
-            <Wordmark size={32} />
+            <Wordmark size={38} />
           </View>
           <Text style={styles.tagline}>A new theme every week. Shoot it your way.</Text>
 
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.sandBorder,
   },
-  error: { color: '#b91c1c', fontSize: 12, marginBottom: 10 },
+  error: { color: colors.danger, fontSize: 12, marginBottom: 10 },
   submitButton: {
     backgroundColor: colors.coral,
     borderRadius: 8,

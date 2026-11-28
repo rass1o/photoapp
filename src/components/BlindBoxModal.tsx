@@ -277,12 +277,12 @@ export default function BlindBoxModal({
                       <View style={styles.foundArt}>
                         <ItemPreview item={item} color={octopusColor} size={84} />
                       </View>
-                      <Text style={styles.foundLabel}>{item.label}</Text>
+                      <Text style={[styles.foundLabel, legendary && styles.foundTextLegendary]}>{item.label}</Text>
                       <RarityChip rarityId={item.rarity} label={rarityLabel(item.rarity)} />
                       {duplicateId ? (
                         <SellButton duplicateId={duplicateId} item={item} />
                       ) : (
-                        <Text style={styles.addedText}>Added to your collection</Text>
+                        <Text style={[styles.addedText, legendary && styles.foundMutedLegendary]}>Added to your collection</Text>
                       )}
                     </View>
                   );
@@ -487,6 +487,9 @@ const styles = StyleSheet.create({
     borderColor: colors.sandBorder,
   },
   foundCardLegendary: { backgroundColor: '#FDF1C7', borderColor: '#D4A017', borderWidth: 3 },
+  // the gold card is light in both modes, so its text stays dark
+  foundTextLegendary: { color: '#14212B' },
+  foundMutedLegendary: { color: '#66737D' },
   foundArt: { height: 105, justifyContent: 'center' },
   foundLabel: { fontSize: 15, fontWeight: '600', color: colors.ink, textAlign: 'center' },
   newTag: {

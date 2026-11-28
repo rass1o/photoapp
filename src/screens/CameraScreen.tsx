@@ -714,7 +714,7 @@ export default function CameraScreen() {
               <OchoLoader size={44} compact />
             ) : dailyAlreadySubmitted ? (
               <View style={styles.dailyDoneRow}>
-                <Ionicons name="checkmark-circle" size={16} color="#166534" />
+                <Ionicons name="checkmark-circle" size={16} color={colors.success} />
                 <Text style={styles.dailyDoneText}>Posted for today — see you tomorrow</Text>
               </View>
             ) : (
@@ -888,7 +888,7 @@ const styles = StyleSheet.create({
   },
   dailySubtitle: { fontSize: 12, color: colors.muted, marginBottom: 12, lineHeight: 17 },
   dailyDoneRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8 },
-  dailyDoneText: { fontSize: 13, color: '#166534' },
+  dailyDoneText: { fontSize: 13, color: colors.success },
   dailyCaptureButton: {
     height: 140,
     borderRadius: 10,

@@ -34,7 +34,7 @@ export default function ThemeWelcomeModal({ visible, themeName, overview, exampl
           {overview ? (
             <View style={styles.overview}>
               <View style={styles.overviewHeader}>
-                <Ionicons name="bulb-outline" size={16} color={colors.sea} />
+                <Ionicons name="bulb-outline" size={16} color={artColors.sea} />
                 <Text style={styles.overviewTitle}>About this theme</Text>
               </View>
               <Text style={styles.overviewText}>{overview}</Text>
@@ -88,13 +88,13 @@ const styles = StyleSheet.create({
   },
   overview: {
     width: '100%',
-    backgroundColor: colors.abyss,
+    backgroundColor: artColors.abyss,
     borderRadius: 14,
     padding: 16,
     marginBottom: 20,
   },
   overviewHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  overviewTitle: { fontSize: 13, fontWeight: '700', color: colors.sea, letterSpacing: 0.3 },
+  overviewTitle: { fontSize: 13, fontWeight: '700', color: artColors.sea, letterSpacing: 0.3 },
   overviewText: { fontSize: 15, lineHeight: 22, color: colors.white },
   goodLuckWrap: { alignItems: 'center', marginTop: 12 },
   goodLuckText: { fontSize: 18, fontWeight: '700', color: colors.white },

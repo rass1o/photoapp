@@ -90,7 +90,7 @@ function Row({
       onPress={onPress}
       disabled={!onPress}
     >
-      <Ionicons name={icon} size={18} color={danger ? '#b91c1c' : colors.reef} />
+      <Ionicons name={icon} size={18} color={danger ? colors.danger : colors.reef} />
       <Text style={[styles.rowLabel, danger && styles.danger]}>{label}</Text>
       {value ? (
         <Text style={styles.rowValue} numberOfLines={1}>
@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
   rowPressed: { backgroundColor: colors.sandLight },
   rowLabel: { flex: 1, fontSize: 14, color: colors.ink, fontWeight: '500' },
   rowValue: { maxWidth: '45%', fontSize: 13, color: colors.muted },
-  danger: { color: '#b91c1c' },
+  danger: { color: colors.danger },
   note: { fontSize: 12, color: colors.muted, marginTop: 6, marginHorizontal: 6, lineHeight: 17 },
 
   signOutButton: {
@@ -615,7 +615,7 @@ const styles = StyleSheet.create({
   },
   multiline: { minHeight: 120, textAlignVertical: 'top' },
   hint: { fontSize: 12, color: colors.muted, marginBottom: 10 },
-  error: { color: '#b91c1c', fontSize: 12, marginBottom: 10 },
+  error: { color: colors.danger, fontSize: 12, marginBottom: 10 },
   warning: { fontSize: 14, color: colors.ink, lineHeight: 20, marginBottom: 12 },
   saveButton: {
     alignSelf: 'stretch',

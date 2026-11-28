@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textAlignVertical: 'top',
   },
-  error: { color: '#B91C1C', fontSize: 13, marginTop: 8 },
+  error: { color: colors.danger, fontSize: 13, marginTop: 8 },
   button: {
     flexDirection: 'row',
     gap: 6,

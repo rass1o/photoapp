@@ -26,7 +26,7 @@ const TYPE_ICON: Record<AppNotification['type'], { name: keyof typeof Ionicons.g
   comment: { name: 'chatbubble', color: colors.reef },
   reply: { name: 'return-down-forward', color: colors.reef },
   friend_request: { name: 'person-add', color: colors.deep },
-  friend_accepted: { name: 'people', color: '#047857' },
+  friend_accepted: { name: 'people', color: colors.success },
   report_update: { name: 'search', color: colors.reef },
   group_invite: { name: 'people-circle', color: colors.deep },
   group_theme: { name: 'images', color: colors.reef },

@@ -118,7 +118,7 @@ export default function LaunchScreen({ ready, fontsReady, onDone }: Props) {
       </Reanimated.View>
       {fontsReady && (
         <Reanimated.View style={[styles.words, wordStyle]}>
-          <Wordmark size={26} />
+          <Wordmark size={30} />
           <Text style={styles.tagline}>Snap the theme. Make some waves.</Text>
         </Reanimated.View>
       )}

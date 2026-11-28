@@ -14,7 +14,7 @@ import FormatTag from '../components/FormatTag';
 import { loadFriendIds, onFriendsChanged } from '../lib/friends';
 import { Text } from '../components/Themed';
 import { CoverableImage } from '../components/ModerationCovers';
-import { colors, bubbly } from '../theme';
+import { artBubbly, artColors, colors, bubbly } from '../theme';
 import Wave, { WAVE_HEIGHT } from '../components/Wave';
 import { TAB_BAR_CLEARANCE } from '../components/SeaTabBar';
 import SandGrain from '../components/SandGrain';
@@ -204,7 +204,7 @@ export default function RankingsScreen() {
                 <Ionicons name="trophy" size={14} color={MEDALS[i].border} />
                 <Text style={styles.medalPlace}>{MEDALS[i].label}</Text>
                 <View style={styles.medalAmountRow}>
-                  <Ionicons name="flash" size={11} color={colors.ink} />
+                  <Ionicons name="flash" size={11} color={artColors.ink} />
                   <Text style={styles.medalAmount}>{reward}</Text>
                 </View>
               </View>
@@ -389,9 +389,10 @@ const styles = StyleSheet.create({
   },
   medalRow: { flexDirection: 'row', gap: 8 },
   medal: { flex: 1, alignItems: 'center', borderRadius: 10, borderWidth: 2, paddingVertical: 6 },
-  medalPlace: { fontSize: 12, fontWeight: '700', color: colors.ink, marginTop: 1 },
+  // the medals are light in both modes, so their text stays dark
+  medalPlace: { fontSize: 12, fontWeight: '700', color: artColors.ink, marginTop: 1 },
   medalAmountRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  medalAmount: { ...bubbly, fontSize: 18, textShadowOffset: { width: 0, height: 1 } },
+  medalAmount: { ...artBubbly, fontSize: 18, textShadowOffset: { width: 0, height: 1 } },
   extraRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 8 },
   extraChip: {
     flexDirection: 'row',
@@ -433,7 +434,7 @@ const styles = StyleSheet.create({
   toggleTextActive: { fontWeight: '600', fontSize: 13, color: colors.deep },
 
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, paddingHorizontal: 30 },
-  errorText: { color: '#b91c1c', fontSize: 13, textAlign: 'center' },
+  errorText: { color: colors.danger, fontSize: 13, textAlign: 'center' },
   emptyText: { color: colors.faint, fontSize: 13, textAlign: 'center' },
 
   row: {
@@ -448,11 +449,11 @@ const styles = StyleSheet.create({
   // stay lined up with everyone else's
   rowMe: { backgroundColor: colors.reefLight, borderRadius: 8, marginHorizontal: -8, paddingHorizontal: 8 },
   rank: { width: 28, fontWeight: '600', color: colors.muted, fontSize: 14 },
-  rankTop: { color: '#b45309' },
+  rankTop: { color: colors.amber },
   thumb: { width: 40, height: 40, borderRadius: 6, backgroundColor: colors.sand },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   username: { fontSize: 14, flexShrink: 1 },
-  rewardText: { fontSize: 11, color: '#b45309', marginTop: 2 },
+  rewardText: { fontSize: 11, color: colors.amber, marginTop: 2 },
   votes: { fontSize: 14 },
   scoreDim: { color: colors.faint, textShadowRadius: 0 },
   scoreRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 },

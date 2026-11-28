@@ -413,5 +413,5 @@ const styles = StyleSheet.create({
   ownerTag: { backgroundColor: colors.reefLight, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 },
   ownerTagText: { fontSize: 11, fontWeight: '600', color: colors.reefDark },
   dangerButton: { marginTop: 12, alignItems: 'center', paddingVertical: 12 },
-  dangerText: { color: '#B91C1C', fontSize: 15, fontWeight: '600' },
+  dangerText: { color: colors.danger, fontSize: 15, fontWeight: '600' },
 });

@@ -27,6 +27,11 @@ const lightColors = {
   coral: '#E8664A', // the main action on each screen (Submit, Vote, Send)
   coralLight: '#FFE3D8',
 
+  // status colors for text and icons on the paper
+  danger: '#B91C1C',
+  success: '#166534',
+  amber: '#B45309',
+
   white: '#FFFFFF', // text and icons on colored buttons, in both modes
   card: '#FFFFFF', // small white surfaces (badges, rows) that go dark in dark mode
   sandTrack: 'rgba(250, 246, 239, 0.6)', // toggle tracks sitting on the sea
@@ -62,6 +67,10 @@ const darkColors: typeof lightColors = {
 
   coral: '#E8664A',
   coralLight: '#4A2A22',
+
+  danger: '#F87171',
+  success: '#4ADE80',
+  amber: '#FBBF24',
 
   white: '#FFFFFF',
   card: '#1C2830',
@@ -117,3 +126,5 @@ const bubblyFor = () => ({
   textShadowRadius: 0,
 });
 export const bubbly = bubblyFor();
+// the light-mode heading style, for drawings and share cards that never change
+export const artBubbly = { ...bubbly };

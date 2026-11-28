@@ -144,5 +144,5 @@ const styles = StyleSheet.create({
   body: { fontSize: 14, color: colors.text, lineHeight: 19, marginTop: 1 },
   actions: { flexDirection: 'row', gap: 16, marginTop: 4 },
   action: { fontFamily: fonts.semibold, fontSize: 12, color: colors.muted },
-  delete: { color: '#B91C1C' },
+  delete: { color: colors.danger },
 });

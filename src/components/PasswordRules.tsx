@@ -12,7 +12,7 @@ export default function PasswordRules({ password }: { password: string }) {
         const met = rule.test(password);
         return (
           <View key={rule.label} style={styles.ruleRow}>
-            <Ionicons name={met ? 'checkmark-circle' : 'ellipse-outline'} size={14} color={met ? '#047857' : colors.faint} />
+            <Ionicons name={met ? 'checkmark-circle' : 'ellipse-outline'} size={14} color={met ? colors.success : colors.faint} />
             <Text style={[styles.ruleText, met && styles.ruleTextMet]}>{rule.label}</Text>
           </View>
         );
@@ -25,5 +25,5 @@ const styles = StyleSheet.create({
   rules: { marginTop: -2, marginBottom: 12, gap: 4, paddingHorizontal: 2 },
   ruleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   ruleText: { fontSize: 12, color: colors.muted },
-  ruleTextMet: { color: '#047857' },
+  ruleTextMet: { color: colors.success },
 });

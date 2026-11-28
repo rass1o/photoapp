@@ -17,7 +17,7 @@ import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as Clipboard from 'expo-clipboard';
 import { Text, TextInput } from './Themed';
-import { colors, bubbly } from '../theme';
+import { artBubbly, artColors, colors, bubbly } from '../theme';
 
 // Turns a photo into a styled card (with your own message printed on it) and
 // opens the phone's share sheet, so it can go to Messages, Instagram, etc.
@@ -277,11 +277,13 @@ const styles = StyleSheet.create({
   cardShadow: { marginTop: 6, shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
   loading: { position: 'absolute', top: 120 },
 
+  // The cards below are pictures people save and share, so they keep the
+  // light colors in dark mode too
   // Polaroid: white frame with a deep bottom edge for the message
   polaroid: { width: CARD_WIDTH, backgroundColor: '#FFFFFF', padding: 14, paddingBottom: 12 },
-  polaroidMessage: { fontSize: 18, fontWeight: '500', color: colors.ink, textAlign: 'center', marginTop: 12, minHeight: 26 },
+  polaroidMessage: { fontSize: 18, fontWeight: '500', color: artColors.ink, textAlign: 'center', marginTop: 12, minHeight: 26 },
   footerRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-  polaroidMeta: { fontSize: 11, color: colors.muted },
+  polaroidMeta: { fontSize: 11, color: artColors.muted },
 
   // Film strip: dark film with sprocket holes and edge printing
   film: { width: CARD_WIDTH, backgroundColor: '#14161C', paddingHorizontal: 12, paddingVertical: 10, alignItems: 'center' },
@@ -294,47 +296,47 @@ const styles = StyleSheet.create({
   // Postcard: sand card, tilted photo, stamp in the corner
   postcard: {
     width: CARD_WIDTH,
-    backgroundColor: colors.shell,
+    backgroundColor: artColors.shell,
     borderWidth: 1,
-    borderColor: colors.sandBorder,
+    borderColor: artColors.sandBorder,
     padding: 16,
     paddingTop: 12,
     alignItems: 'center',
   },
   postcardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', alignSelf: 'stretch', marginBottom: 10 },
-  postcardGreeting: { ...bubbly, fontSize: 18, textShadowOffset: { width: 0, height: 1 } },
+  postcardGreeting: { ...artBubbly, fontSize: 18, textShadowOffset: { width: 0, height: 1 } },
   stamp: {
     width: 34,
     height: 40,
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: colors.coral,
-    backgroundColor: colors.coralLight,
+    borderColor: artColors.coral,
+    backgroundColor: artColors.coralLight,
     alignItems: 'center',
     justifyContent: 'center',
     transform: [{ rotate: '6deg' }],
   },
   photoPostcard: { borderWidth: 6, borderColor: '#FFFFFF', transform: [{ rotate: '-2deg' }] },
-  postcardMessage: { fontSize: 17, fontWeight: '500', color: colors.deep, textAlign: 'center', marginTop: 14 },
-  postcardMeta: { fontSize: 11, color: colors.muted, marginTop: 8 },
+  postcardMessage: { fontSize: 17, fontWeight: '500', color: artColors.deep, textAlign: 'center', marginTop: 14 },
+  postcardMeta: { fontSize: 11, color: artColors.muted, marginTop: 8 },
 
   // Ocean: sea backdrop, rounded photo, a speech bubble and a strip of sand
-  ocean: { width: CARD_WIDTH, backgroundColor: colors.sea, paddingTop: 14, alignItems: 'center', overflow: 'hidden' },
-  oceanBrand: { ...bubbly, fontSize: 22, marginBottom: 10 },
+  ocean: { width: CARD_WIDTH, backgroundColor: artColors.sea, paddingTop: 14, alignItems: 'center', overflow: 'hidden' },
+  oceanBrand: { ...artBubbly, fontSize: 22, marginBottom: 10 },
   photoOcean: { borderRadius: 14, borderWidth: 4, borderColor: '#FFFFFF' },
   oceanBubble: {
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
     borderWidth: 2,
-    borderColor: colors.abyss,
+    borderColor: artColors.abyss,
     paddingHorizontal: 14,
     paddingVertical: 8,
     marginTop: 12,
     marginHorizontal: 20,
   },
-  oceanMessage: { fontSize: 15, fontWeight: '500', color: colors.ink, textAlign: 'center' },
-  oceanMeta: { fontSize: 11, color: colors.text, marginTop: 8, marginBottom: 10 },
-  oceanSand: { alignSelf: 'stretch', height: 14, backgroundColor: colors.sand },
+  oceanMessage: { fontSize: 15, fontWeight: '500', color: artColors.ink, textAlign: 'center' },
+  oceanMeta: { fontSize: 11, color: artColors.text, marginTop: 8, marginBottom: 10 },
+  oceanSand: { alignSelf: 'stretch', height: 14, backgroundColor: artColors.sand },
 
   styleRow: { gap: 8, paddingVertical: 16 },
   styleChip: {

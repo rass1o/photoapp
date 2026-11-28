@@ -82,7 +82,6 @@ export default function SeaTabBar({ state, descriptors, navigation }: BottomTabB
             return (
               <Pressable
                 key={route.key}
-                ref={(view) => tour.register(`tab.${route.name}` as never, view)}
                 style={styles.tab}
                 onPress={onPress}
                 onLongPress={onLongPress}
@@ -90,10 +89,17 @@ export default function SeaTabBar({ state, descriptors, navigation }: BottomTabB
                 accessibilityState={focused ? { selected: true } : {}}
                 accessibilityLabel={label}
               >
-                <View style={[styles.raised, focused && styles.raisedFocused]}>
-                  <OchoIcon name="camera" size={28} color={colors.white} filled detail={colors.coral} />
+                {/* the button and its label, which the walkthrough highlights */}
+                <View
+                  ref={(view) => tour.register(`tab.${route.name}` as never, view)}
+                  collapsable={false}
+                  style={styles.raisedBox}
+                >
+                  <View style={[styles.raised, focused && styles.raisedFocused]}>
+                    <OchoIcon name="camera" size={28} color={colors.white} filled detail={colors.coral} />
+                  </View>
+                  <Text style={[styles.label, styles.raisedLabel, focused && styles.labelFocused]}>{label}</Text>
                 </View>
-                <Text style={[styles.label, styles.raisedLabel, focused && styles.labelFocused]}>{label}</Text>
               </Pressable>
             );
           }
@@ -101,7 +107,6 @@ export default function SeaTabBar({ state, descriptors, navigation }: BottomTabB
           return (
             <Pressable
               key={route.key}
-              ref={(view) => tour.register(`tab.${route.name}` as never, view)}
               style={styles.tab}
               onPress={onPress}
               onLongPress={onLongPress}
@@ -109,15 +114,21 @@ export default function SeaTabBar({ state, descriptors, navigation }: BottomTabB
               accessibilityState={focused ? { selected: true } : {}}
               accessibilityLabel={label}
             >
-              <View style={[styles.pill, focused && styles.pillFocused]}>
-                <OchoIcon name={icon} size={23} color={focused ? colors.white : IDLE} filled={focused} detail={colors.reef} />
-                {badge !== undefined && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{badge}</Text>
-                  </View>
-                )}
+              <View
+                ref={(view) => tour.register(`tab.${route.name}` as never, view)}
+                collapsable={false}
+                style={styles.tabBox}
+              >
+                <View style={[styles.pill, focused && styles.pillFocused]}>
+                  <OchoIcon name={icon} size={23} color={focused ? colors.white : IDLE} filled={focused} detail={colors.reef} />
+                  {badge !== undefined && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{badge}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={[styles.label, focused && styles.labelFocused]}>{label}</Text>
               </View>
-              <Text style={[styles.label, focused && styles.labelFocused]}>{label}</Text>
             </Pressable>
           );
         })}
@@ -144,11 +155,12 @@ const styles = StyleSheet.create({
   labelFocused: { color: colors.white },
 
   // Submit pokes up out of the water
+  tabBox: { alignItems: 'center' },
+  raisedBox: { alignItems: 'center', marginTop: -RAISE },
   raised: {
     width: 58,
     height: 58,
     borderRadius: 29,
-    marginTop: -RAISE,
     backgroundColor: colors.coral,
     borderWidth: 4,
     borderColor: colors.shell,

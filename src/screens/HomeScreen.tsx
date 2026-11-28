@@ -809,7 +809,7 @@ export default function HomeScreen() {
         <View style={styles.topBar}>
           <View style={styles.topBarSide} />
           <Pressable onPress={scrollToTop} hitSlop={6}>
-            <Wordmark size={22} />
+            <Wordmark size={27} />
           </Pressable>
           <View style={[styles.topBarSide, styles.topBarIcons]}>
             <Pressable onPress={() => setSearchVisible((v) => !v)}>
@@ -1418,7 +1418,7 @@ const styles = StyleSheet.create({
   feedWrap: { flex: 1, backgroundColor: colors.shell },
   feedSheet: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, paddingHorizontal: 30 },
-  errorText: { color: '#b91c1c', fontSize: 13, textAlign: 'center' },
+  errorText: { color: colors.danger, fontSize: 13, textAlign: 'center' },
   emptyText: { color: colors.faint, fontSize: 13, textAlign: 'center' },
   emptyButton: { marginTop: 12, backgroundColor: colors.coral, borderRadius: 8, paddingHorizontal: 16, paddingVertical: 9 },
   emptyButtonText: { fontSize: 13, color: colors.white, fontWeight: '600' },

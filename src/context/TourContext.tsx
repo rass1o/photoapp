@@ -1,5 +1,5 @@
 import { ComponentRef, createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, Pressable, Animated, Easing, useWindowDimensions } from 'react-native';
 import type { NavigationContainerRefWithCurrent } from '@react-navigation/native';
 import { Text } from '../components/Themed';
 import { colors, bubbly } from '../theme';
@@ -8,9 +8,10 @@ import { colors, bubbly } from '../theme';
 // except one part of it and explains it; tapping that part moves on (and, for
 // a tab, opens it). Any step can be skipped, or the whole tour ended.
 //
-// Screens mark the parts it points at with useTourTarget('id'). A part that
-// isn't on screen right now (scrolled away, or not shown for this account)
-// gets the card in the middle with a Next button instead.
+// Screens mark the parts it points at with useTourTarget('id'). Between
+// steps the highlight glides to the next part instead of jumping, and the
+// card fades. A part that isn't on screen right now (scrolled away, or not
+// shown for this account) gets the card in the middle with a Next button.
 
 type StepId =
   | 'home.feeds'
@@ -42,7 +43,6 @@ const STEPS: Step[] = [
 ];
 
 type TargetView = ComponentRef<typeof View>;
-
 type Rect = { x: number; y: number; width: number; height: number };
 
 type TourValue = {
@@ -63,6 +63,14 @@ export function useTourTarget(id: StepId) {
 
 const PAD = 6; // room around the highlighted part
 const DIM = 'rgba(6, 20, 32, 0.72)';
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function measure(view: TargetView): Promise<Rect> {
+  return new Promise((resolve) => view.measureInWindow((x, y, width, height) => resolve({ x, y, width, height })));
+}
+
+const same = (a: Rect, b: Rect) =>
+  Math.abs(a.x - b.x) < 1 && Math.abs(a.y - b.y) < 1 && Math.abs(a.width - b.width) < 1 && Math.abs(a.height - b.height) < 1;
 
 type ProviderProps = {
   children: ReactNode;
@@ -75,8 +83,23 @@ type ProviderProps = {
 export function TourProvider({ children, autoStart, onAutoStarted, navigationRef }: ProviderProps) {
   const { width: screenW, height: screenH } = useWindowDimensions();
   const targets = useRef(new Map<StepId, TargetView>());
+  const overlayRef = useRef<TargetView | null>(null);
   const [index, setIndex] = useState<number | null>(null);
-  const [rect, setRect] = useState<Rect | null>(null);
+  // where the card goes for this step: null while finding the part, 'none'
+  // when it isn't on screen
+  const [placed, setPlaced] = useState<Rect | 'none' | null>(null);
+
+  // The highlight's box, animated from one part to the next
+  const hole = useRef({
+    x: new Animated.Value(0),
+    y: new Animated.Value(0),
+    w: new Animated.Value(0),
+    h: new Animated.Value(0),
+  }).current;
+  const shown = useRef(new Animated.Value(0)).current; // the whole overlay fading in and out
+  const cardIn = useRef(new Animated.Value(0)).current;
+  const ring = useRef(new Animated.Value(0)).current;
+  const hasHole = useRef(false);
 
   const register = useCallback((id: StepId, view: TargetView | null) => {
     if (view) targets.current.set(id, view);
@@ -84,7 +107,7 @@ export function TourProvider({ children, autoStart, onAutoStarted, navigationRef
   }, []);
 
   const start = useCallback(() => {
-    setRect(null);
+    setPlaced(null);
     setIndex(0);
   }, []);
 
@@ -98,25 +121,77 @@ export function TourProvider({ children, autoStart, onAutoStarted, navigationRef
     return () => clearTimeout(timer);
   }, [autoStart, start]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Find where this step's part is on screen (after its tab has opened)
+  // Each step: fade the card, wait for the part to stop moving (a tab
+  // opening, a header settling), then glide the highlight there and bring
+  // the card back
   useEffect(() => {
     if (index === null) return;
-    setRect(null);
+    let cancelled = false;
     const step = STEPS[index];
-    const timer = setTimeout(() => {
-      const view = targets.current.get(step.id);
-      if (!view) return;
-      view.measureInWindow((x, y, width, height) => {
-        const onScreen = width > 0 && height > 0 && y >= 0 && y + height <= screenH && x >= 0 && x + width <= screenW;
-        if (onScreen) setRect({ x, y, width, height });
+
+    (async () => {
+      Animated.timing(cardIn, { toValue: 0, duration: 120, useNativeDriver: true }).start();
+      Animated.timing(shown, { toValue: 1, duration: 220, useNativeDriver: true }).start();
+      await wait(150);
+
+      let found: Rect | null = null;
+      let last: Rect | null = null;
+      for (let tries = 0; tries < 12 && !cancelled; tries++) {
+        const view = targets.current.get(step.id);
+        if (view && overlayRef.current) {
+          const [target, origin] = await Promise.all([measure(view), measure(overlayRef.current)]);
+          // relative to the overlay, so it lines up whatever sits above it
+          const rect = { x: target.x - origin.x, y: target.y - origin.y, width: target.width, height: target.height };
+          if (last && same(rect, last)) {
+            found = rect;
+            break;
+          }
+          last = rect;
+        }
+        await wait(80);
+      }
+      if (cancelled) return;
+
+      const onScreen = !!found && found.width > 0 && found.height > 0 && found.y >= 0 && found.y + found.height <= screenH;
+      const to = onScreen
+        ? { x: found!.x - PAD, y: found!.y - PAD, w: found!.width + PAD * 2, h: found!.height + PAD * 2 }
+        : { x: screenW / 2, y: screenH / 2, w: 0, h: 0 }; // nothing to point at: dim it all
+
+      // glide from the last part; jump straight there the first time
+      const move = (value: Animated.Value, toValue: number) =>
+        Animated.timing(value, {
+          toValue,
+          duration: hasHole.current ? 320 : 0,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: false,
+        });
+      hasHole.current = onScreen;
+
+      Animated.parallel([
+        move(hole.x, to.x),
+        move(hole.y, to.y),
+        move(hole.w, to.w),
+        move(hole.h, to.h),
+        Animated.timing(ring, { toValue: onScreen ? 1 : 0, duration: 200, useNativeDriver: false }),
+      ]).start(() => {
+        if (cancelled) return;
+        setPlaced(onScreen ? { x: to.x, y: to.y, width: to.w, height: to.h } : 'none');
+        Animated.timing(cardIn, { toValue: 1, duration: 200, useNativeDriver: true }).start();
       });
-    }, 350);
-    return () => clearTimeout(timer);
-  }, [index, screenH, screenW]);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [index]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const end = () => {
-    setIndex(null);
-    setRect(null);
+    Animated.timing(shown, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+      setIndex(null);
+      setPlaced(null);
+      hasHole.current = false;
+      ring.setValue(0);
+    });
   };
 
   const next = () => {
@@ -134,69 +209,67 @@ export function TourProvider({ children, autoStart, onAutoStarted, navigationRef
   };
 
   const step = index === null ? null : STEPS[index];
-
-  let card = null;
-  if (step) {
-    const hole = rect && {
-      x: rect.x - PAD,
-      y: rect.y - PAD,
-      width: rect.width + PAD * 2,
-      height: rect.height + PAD * 2,
-    };
-    // the card goes on whichever side of the highlight has more room
-    const below = !hole || hole.y + hole.height / 2 < screenH / 2;
-    const cardPosition = !hole
-      ? { top: screenH * 0.32 }
-      : below
-        ? { top: hole.y + hole.height + 14 }
-        : { bottom: screenH - hole.y + 14 };
-
-    card = (
-      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-        {hole ? (
-          <>
-            {/* four dim panels around the highlight; they catch stray taps */}
-            <Pressable style={[styles.dim, { left: 0, top: 0, right: 0, height: Math.max(0, hole.y) }]} />
-            <Pressable style={[styles.dim, { left: 0, top: hole.y + hole.height, right: 0, bottom: 0 }]} />
-            <Pressable style={[styles.dim, { left: 0, top: hole.y, width: Math.max(0, hole.x), height: hole.height }]} />
-            <Pressable
-              style={[styles.dim, { left: hole.x + hole.width, top: hole.y, right: 0, height: hole.height }]}
-            />
-            <Pressable
-              style={[styles.hole, { left: hole.x, top: hole.y, width: hole.width, height: hole.height }]}
-              onPress={advance}
-              accessibilityRole="button"
-              accessibilityLabel={`${step.title}. Tap to continue`}
-            />
-          </>
-        ) : (
-          <Pressable style={[styles.dim, StyleSheet.absoluteFill]} />
-        )}
-
-        <View style={[styles.card, cardPosition]}>
-          <Text style={styles.count}>
-            {index! + 1} of {STEPS.length}
-          </Text>
-          <Text style={styles.title}>{step.title}</Text>
-          <Text style={styles.body}>{step.body}</Text>
-          {hole && <Text style={styles.hint}>Tap the highlighted spot to continue.</Text>}
-          <View style={styles.buttons}>
-            <Pressable onPress={end} hitSlop={8}>
-              <Text style={styles.endText}>End tour</Text>
-            </Pressable>
-            <Pressable style={styles.nextButton} onPress={advance}>
-              <Text style={styles.nextText}>{index! + 1 === STEPS.length ? 'Done' : hole ? 'Skip' : 'Next'}</Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
-    );
-  }
+  const box = placed && placed !== 'none' ? placed : null;
+  // the card goes on whichever side of the highlight has more room
+  const cardPosition = !box
+    ? { top: screenH * 0.32 }
+    : box.y + box.height / 2 < screenH / 2
+      ? { top: box.y + box.height + 14 }
+      : { bottom: screenH - box.y + 14 };
 
   return (
     <TourContext.Provider value={{ register, start }}>
       {children}
-      {card}
+      <View ref={overlayRef} collapsable={false} style={StyleSheet.absoluteFill} pointerEvents="box-none">
+        {step && (
+          <Animated.View style={[StyleSheet.absoluteFill, { opacity: shown }]} pointerEvents="box-none">
+            {/* four dim panels around the highlight; they catch stray taps */}
+            <Animated.View style={[styles.dim, { left: 0, right: 0, top: 0, height: hole.y }]}>
+              <Pressable style={StyleSheet.absoluteFill} />
+            </Animated.View>
+            <Animated.View style={[styles.dim, { left: 0, right: 0, top: Animated.add(hole.y, hole.h), bottom: 0 }]}>
+              <Pressable style={StyleSheet.absoluteFill} />
+            </Animated.View>
+            <Animated.View style={[styles.dim, { left: 0, top: hole.y, height: hole.h, width: hole.x }]}>
+              <Pressable style={StyleSheet.absoluteFill} />
+            </Animated.View>
+            <Animated.View style={[styles.dim, { left: Animated.add(hole.x, hole.w), right: 0, top: hole.y, height: hole.h }]}>
+              <Pressable style={StyleSheet.absoluteFill} />
+            </Animated.View>
+
+            <Animated.View
+              style={[styles.hole, { left: hole.x, top: hole.y, width: hole.w, height: hole.h, opacity: ring }]}
+              pointerEvents={box ? 'auto' : 'none'}
+            >
+              <Pressable
+                style={StyleSheet.absoluteFill}
+                onPress={advance}
+                accessibilityRole="button"
+                accessibilityLabel={`${step.title}. Tap to continue`}
+              />
+            </Animated.View>
+
+            {placed && (
+              <Animated.View style={[styles.card, cardPosition, { opacity: cardIn }]}>
+                <Text style={styles.count}>
+                  {index! + 1} of {STEPS.length}
+                </Text>
+                <Text style={styles.title}>{step.title}</Text>
+                <Text style={styles.body}>{step.body}</Text>
+                {box && <Text style={styles.hint}>Tap the highlighted spot to continue.</Text>}
+                <View style={styles.buttons}>
+                  <Pressable onPress={end} hitSlop={8}>
+                    <Text style={styles.endText}>End tour</Text>
+                  </Pressable>
+                  <Pressable style={styles.nextButton} onPress={advance}>
+                    <Text style={styles.nextText}>{index! + 1 === STEPS.length ? 'Done' : box ? 'Skip' : 'Next'}</Text>
+                  </Pressable>
+                </View>
+              </Animated.View>
+            )}
+          </Animated.View>
+        )}
+      </View>
     </TourContext.Provider>
   );
 }

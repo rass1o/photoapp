@@ -574,8 +574,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   ticketHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  ticketTitle: { fontSize: 14, fontWeight: '700', color: '#78350f' },
-  ticketBlurb: { fontSize: 12, color: '#92400e', lineHeight: 17, marginBottom: 10 },
+  ticketTitle: { fontSize: 14, fontWeight: '700', color: colors.amber },
+  ticketBlurb: { fontSize: 12, color: colors.amber, lineHeight: 17, marginBottom: 10 },
   ticketInput: {
     backgroundColor: colors.shell,
     borderWidth: 1,

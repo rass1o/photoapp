@@ -76,7 +76,7 @@ export function CoverableImage({
       {cover &&
         (tiny ? (
           <View style={[StyleSheet.absoluteFill, styles.cover, styles.compact]}>
-            <Ionicons name={cover === 'blocked' ? 'shield' : 'search'} size={16} color={colors.abyss} />
+            <Ionicons name={cover === 'blocked' ? 'shield' : 'search'} size={16} color={colors.muted} />
           </View>
         ) : (
           <ReviewCover kind={cover} compact />

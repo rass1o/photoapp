@@ -55,7 +55,7 @@ export default function VoteSheet({ submissionId, username, categories, mine, ti
                     <Ionicons
                       name={c.icon as keyof typeof Ionicons.glyphMap}
                       size={18}
-                      color={here ? colors.white : overall ? '#B45309' : colors.reef}
+                      color={here ? colors.white : overall ? colors.amber : colors.reef}
                     />
                   </View>
                   <View style={{ flex: 1 }}>

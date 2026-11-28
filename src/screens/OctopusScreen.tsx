@@ -20,7 +20,7 @@ import ShopTile, { TileStatus } from '../components/ShopTile';
 import Sidekick from '../components/Sidekick';
 import BackBar from '../components/BackBar';
 import { Text, TextInput } from '../components/Themed';
-import { colors } from '../theme';
+import { colors, isDarkMode } from '../theme';
 import OchoRoom from '../components/OchoRoom';
 import OchoLoader from '../components/OchoLoader';
 
@@ -325,7 +325,7 @@ const WOOD = {
   frontTop: '#C9956A',
   dark: '#4A2C17',
   label: '#FFF3DC',
-  inside: '#F7E9CF',
+  inside: isDarkMode() ? '#3B2A1C' : '#F7E9CF', // a darker wood in dark mode, so the text on it stays readable
   knob: '#E8C26A',
 };
 
